@@ -1,0 +1,49 @@
+{
+  "name": "@statewalker/fsm",
+  "version": "0.10.0",
+  "description": "HFSM Implementation",
+  "keywords": [],
+  "homepage": "https://github.com/statewalker/statewalker-tree",
+  "author": {
+    "name": "Mikhail Kotelnikov",
+    "email": "mikhail.kotelnikov@gmail.com"
+  },
+  "type": "module",
+  "files": [
+    "dist/**/package.json",
+    "dist/**/*.js",
+    "src/**/*.js",
+    "index.js"
+  ],
+  "dependencies": {
+    "@statewalker/tree": "0.10.0"
+  },
+  "devDependencies": {
+    "@statewalker/rollup": "^0.1.4",
+    "eslint": "^8",
+    "expect.js": "^0.3",
+    "mocha": "^10",
+    "rollup": "^2"
+  },
+  "module": "src/index.js",
+  "exports": {
+    "import": "./src/index.js",
+    "umd": "./dist/index-umd.min.js",
+    "default": "./dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:statewalker/statewalker-fsm.git"
+  },
+  "scripts": {
+    "eslint": "eslint src",
+    "rollup": "rollup -c",
+    "test": "mocha -R spec ./test/index.js && yarn eslint",
+    "prepublishOnly": "rm -rf dist && yarn test && yarn rollup"
+  },
+  "license": "MIT",
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  }
+}
