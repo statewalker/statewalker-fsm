@@ -1,7 +1,6 @@
 import newAsyncProcess from "./newAsyncProcess.js";
 
 export default function initProcess({ config, handler, handleError = console.error }) {
-  const { newAsyncProcess } = FSM;
   let process;
   const before = async (process) => {
     process._started = true;
