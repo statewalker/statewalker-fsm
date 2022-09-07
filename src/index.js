@@ -2,7 +2,6 @@ export { default as buildStateDescriptor } from "./buildStateDescriptor.js";
 export { default as checkProcessDescriptor } from "./checkProcessDescriptor.js";
 export { default as getStateDescriptor } from "./getStateDescriptor.js";
 export { default as getAllStateKeys } from "./getAllStateKeys.js";
-export { default as getAllTransitions } from "./getAllTransitions.js";
 export { default as getTargetStateKey } from "./getTargetStateKey.js";
 export { default as KEYS } from "./KEYS.js";
 export { default as initAsyncProcess } from "./initAsyncProcess.js";
