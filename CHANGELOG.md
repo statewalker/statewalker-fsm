@@ -1,5 +1,11 @@
 # @statewalker/fsm
 
+## 0.13.0
+
+### Minor Changes
+
+- Fix exports
+
 ## 0.12.0
 
 ### Minor Changes
