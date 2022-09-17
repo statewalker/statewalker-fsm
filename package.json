@@ -3,7 +3,7 @@
   "version": "0.15.0",
   "description": "HFSM Implementation",
   "keywords": [],
-  "homepage": "https://github.com/statewalker/statewalker-tree",
+  "homepage": "https://github.com/statewalker/statewalker-fsm",
   "author": {
     "name": "Mikhail Kotelnikov",
     "email": "mikhail.kotelnikov@gmail.com"
