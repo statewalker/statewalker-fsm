@@ -1,3 +1,3 @@
-import './FsmDescriptorsTest.js';
-import './FsmProcessTest.js';
-import './AsyncFsmDispatchTest.js';
+import './buildStateDescriptorTest.js';
+import './newAsyncProcessTest.js';
+import './newAsyncProcessDispatchTest.js';
