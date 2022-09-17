@@ -1,5 +1,11 @@
 # @statewalker/fsm
 
+## 0.15.0
+
+### Minor Changes
+
+- Migrage the "initAsyncProcess" method from the @statewalker/fsm to @statewalker/fsm-process package and add process utility methods
+
 ## 0.14.0
 
 ### Minor Changes
