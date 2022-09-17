@@ -1,7 +1,5 @@
 import expect from 'expect.js';
-import buildStateDescriptor from '../src/buildStateDescriptor.js';
-import getTargetStateKey from '../src/getTargetStateKey.js';
-import getAllStateKeys from '../src/getAllStateKeys.js';
+import { buildStateDescriptor, getTargetStateKey, getAllStateKeys } from '../src/index.js';
 
 const config = {
   key : 'MAIN',
@@ -55,7 +53,7 @@ const config = {
   ],
 }
 
-describe('buildDescriptor', () => {
+describe('buildStateDescriptor', () => {
 
   it(`buildDescriptor: should build descriptors from configuration`, () => {
     const d = buildStateDescriptor(config);

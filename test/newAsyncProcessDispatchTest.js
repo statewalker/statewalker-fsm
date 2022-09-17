@@ -1,8 +1,7 @@
 import expect from 'expect.js';
-import newAsyncProcess from '../src/newAsyncProcess.js';
+import { newAsyncProcess } from '../src/index.js';
 
 describe('FsmProcess: async process execution and events dispatching', () => {
-
 
   it("should dispatch events; the latest events non-handled should replace previously dispatched events", async () => {
     let timeout = 10;

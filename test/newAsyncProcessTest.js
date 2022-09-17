@@ -1,7 +1,7 @@
 import expect from 'expect.js';
-import newAsyncProcess from '../src/newAsyncProcess.js';
+import { newAsyncProcess } from '../src/index.js';
 
-describe('FsmProcess', () => {
+describe('newAsyncProcess', () => {
 
   const main = {
     key: 'MAIN',
