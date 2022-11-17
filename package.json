@@ -1,6 +1,6 @@
 {
   "name": "@statewalker/fsm",
-  "version": "0.15.1",
+  "version": "0.15.2",
   "description": "HFSM Implementation",
   "keywords": [],
   "homepage": "https://github.com/statewalker/statewalker-fsm",
@@ -25,10 +25,10 @@
     "default": "./src/index.js"
   },
   "dependencies": {
-    "@statewalker/tree": "0.10.1"
+    "@statewalker/tree": "0.10.2"
   },
   "devDependencies": {
-    "@statewalker/rollup": "^0.1.4",
+    "@statewalker/rollup": "^0.1.6",
     "eslint": "^8",
     "expect.js": "^0.3",
     "mocha": "^10",

@@ -1,5 +1,13 @@
 # @statewalker/fsm
 
+## 0.15.2
+
+### Patch Changes
+
+- Update rollup and dependencies
+- Updated dependencies
+  - @statewalker/tree@0.10.2
+
 ## 0.15.1
 
 ### Patch Changes
