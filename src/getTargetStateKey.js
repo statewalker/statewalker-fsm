@@ -13,7 +13,6 @@ export default function getTargetStateKey(descriptor, stateKey, eventKey) {
     const stateTransitions = descriptor.transitions[stateKey];
     if (!stateTransitions) continue;
     targetKey = stateTransitions[eventKey];
-    if (targetKey === undefined) targetKey = stateTransitions[KEYS.EVENT_ANY];
   }
   return (targetKey !== undefined) ? targetKey : KEYS.STATE_FINAL;
 }
