@@ -1,14 +1,11 @@
-import expect from "expect.js";
+import { describe, it, expect } from "./deps.js";
 import newSyncProcess from "../src/newSyncProcess.js";
 
 function addExitTransitions(state) {
   // return state;
   const result = {
     ...state,
-    transitions: [
-      ["*", "exit", ""],
-      ...(state.transitions || []),
-    ],
+    transitions: [["*", "exit", ""], ...(state.transitions || [])],
   };
   if (state.states && state.states.length) {
     result.states = state.states.map(addExitTransitions);
@@ -66,7 +63,7 @@ function _newState({
   if (content) {
     state.transitions.push(
       [`_${key}:before`, "*", content],
-      ["", "*", content],
+      ["", "*", content]
     );
   }
   return state;
@@ -131,18 +128,24 @@ function newHtmlDl() {
       ["_HtmlDd:before", "*", "HtmlDd"],
     ],
     states: [
-      addInlineTransitions(_newState({
-        key: "HtmlDt",
-        token: "dt",
-        selfClosing: true,
-        closingTokens: ["dd", "dt:close", "dl", "dl:close"],
-      })),
-      addBlockTransitions(addInlineTransitions(_newState({
-        key: "HtmlDd",
-        token: "dd",
-        selfClosing: true,
-        closingTokens: ["dd", "dd:close", "dl", "dl:close"],
-      }))),
+      addInlineTransitions(
+        _newState({
+          key: "HtmlDt",
+          token: "dt",
+          selfClosing: true,
+          closingTokens: ["dd", "dt:close", "dl", "dl:close"],
+        })
+      ),
+      addBlockTransitions(
+        addInlineTransitions(
+          _newState({
+            key: "HtmlDd",
+            token: "dd",
+            selfClosing: true,
+            closingTokens: ["dd", "dd:close", "dl", "dl:close"],
+          })
+        )
+      ),
     ],
   });
 }
@@ -164,12 +167,16 @@ function _newList(key, token) {
       ["*", "li", "HtmlLi"],
     ],
     states: [
-      addBlockTransitions(addInlineTransitions(_newState({
-        key: "HtmlLi",
-        token: "li",
-        selfClosing: true,
-        closingTokens: [token, `${token}:close`],
-      }))),
+      addBlockTransitions(
+        addInlineTransitions(
+          _newState({
+            key: "HtmlLi",
+            token: "li",
+            selfClosing: true,
+            closingTokens: [token, `${token}:close`],
+          })
+        )
+      ),
     ],
   });
 }
@@ -195,34 +202,26 @@ function newHtmlTable() {
         token: "thead",
         content: "_HtmlTableRows",
         closingTokens: ["tbody", "tfoot", "table:close"],
-        transitions: [
-          ["*", "*", "_HtmlTableRows"],
-        ],
+        transitions: [["*", "*", "_HtmlTableRows"]],
       }),
       _newState({
         key: "HtmlTableBody",
         token: "tbody",
         content: "_HtmlTableRows",
         closingTokens: ["table:close", "tfoot"],
-        transitions: [
-          ["*", "*", "_HtmlTableRows"],
-        ],
+        transitions: [["*", "*", "_HtmlTableRows"]],
       }),
       _newState({
         key: "HtmlTableFoot",
         token: "tfoot",
         content: "_HtmlTableRows",
         closingTokens: ["table:close"],
-        transitions: [
-          ["*", "*", "_HtmlTableRows"],
-        ],
+        transitions: [["*", "*", "_HtmlTableRows"]],
       }),
       _newState({
         key: "_HtmlTableRows",
         content: "HtmlTableRow",
-        transitions: [
-          ["*", "tr", "HtmlTableRow"],
-        ],
+        transitions: [["*", "tr", "HtmlTableRow"]],
       }),
       _newState({
         key: "HtmlTableRow",
@@ -274,29 +273,31 @@ function newHtmlTable() {
               "table",
               "table:close",
             ],
-            transitions: [
-              ["*", "*", "_HtmlTableCellContent"],
-            ],
+            transitions: [["*", "*", "_HtmlTableCellContent"]],
             states: [
-              addBlockTransitions(addInlineTransitions(_newState({
-                key: "_HtmlTableCellContent",
-                closingTokens: [
-                  "td",
-                  "td:close",
-                  "th",
-                  "th:close",
-                  "tr",
-                  "tr:close",
-                  "thead",
-                  "thead:close",
-                  "tbody",
-                  "tbody:close",
-                  "tfoot",
-                  "tfoot:close",
-                  "table",
-                  "table:close",
-                ],
-              }))),
+              addBlockTransitions(
+                addInlineTransitions(
+                  _newState({
+                    key: "_HtmlTableCellContent",
+                    closingTokens: [
+                      "td",
+                      "td:close",
+                      "th",
+                      "th:close",
+                      "tr",
+                      "tr:close",
+                      "thead",
+                      "thead:close",
+                      "tbody",
+                      "tbody:close",
+                      "tfoot",
+                      "tfoot:close",
+                      "table",
+                      "table:close",
+                    ],
+                  })
+                )
+              ),
             ],
           }),
         ],
@@ -306,29 +307,33 @@ function newHtmlTable() {
 }
 
 function newHeaders() {
-  return addInlineTransitions(_newState({
-    key: "HtmlHeader",
-    tokens: ["h1", "h2", "h3", "h4", "h5", "h6"],
-    selfClosing: true,
-  }));
+  return addInlineTransitions(
+    _newState({
+      key: "HtmlHeader",
+      tokens: ["h1", "h2", "h3", "h4", "h5", "h6"],
+      selfClosing: true,
+    })
+  );
 }
 
 function newHtmlP() {
-  return addInlineTransitions(_newState({
-    key: "HtmlParagraph",
-    token: "p",
-    // content : "Text"
-  }));
+  return addInlineTransitions(
+    _newState({
+      key: "HtmlParagraph",
+      token: "p",
+      // content : "Text"
+    })
+  );
 }
 
 function newHtmlBody() {
-  return addBlockTransitions(_newState({
-    key: "HtmlBody",
-    token: "body",
-    transitions: [
-      ["*", "space", "_Ignore"],
-    ],
-  }));
+  return addBlockTransitions(
+    _newState({
+      key: "HtmlBody",
+      token: "body",
+      transitions: [["*", "space", "_Ignore"]],
+    })
+  );
 }
 
 function newInlineElement() {
@@ -402,11 +407,14 @@ describe("newSyncProcess", () => {
     const print = (msg) => {
       if (!process.current) return;
       let shift = "";
-      if (showHidden || (process.current.key[0] !== "_")) {
+      if (showHidden || process.current.key[0] !== "_") {
         for (let i = 0; i <= process.stack.length; i++) {
           if (
-            process.stack[i] && (!showHidden && process.stack[i].key[0] === "_")
-          ) continue;
+            process.stack[i] &&
+            !showHidden &&
+            process.stack[i].key[0] === "_"
+          )
+            continue;
           shift += "  ";
         }
         traces.push(shift + msg);
@@ -433,7 +441,7 @@ describe("newSyncProcess", () => {
     return (type, control) => {
       process.dispatch({ key: type });
       try {
-        expect(traces).to.eql(control);
+        expect(traces).toEqual(control);
       } catch (error) {
         console.log(JSON.stringify(fullTraces, null, 2));
         console.log(traces.map((v) => `"${v}",`).join("\n"));
@@ -447,16 +455,12 @@ describe("newSyncProcess", () => {
   it(`should iterate over states and perform required state transitions`, async () => {
     const test = newProcessTest(newHtml());
 
-    test("enter", [
-      "  <Html event='enter'>",
-    ]);
+    test("enter", ["  <Html event='enter'>"]);
     test("head", [
       "    <HtmlDocument event='head'>",
       "      <HtmlHead event='head'>",
     ]);
-    test("link", [
-      "        <HtmlLink event='link'>",
-    ]);
+    test("link", ["        <HtmlLink event='link'>"]);
     test("script", [
       "        </HtmlLink>",
       "        <HtmlScript event='script'>",
@@ -484,9 +488,7 @@ describe("newSyncProcess", () => {
       "        </HtmlParagraph>",
       "        <HtmlTable event='table'>",
     ]);
-    test("thead", [
-      "          <HtmlTableHead event='thead'>",
-    ]);
+    test("thead", ["          <HtmlTableHead event='thead'>"]);
 
     test("td", [
       "            <HtmlTableRow event='td'>",
@@ -572,9 +574,7 @@ describe("newSyncProcess", () => {
       "                </InlineElement>",
       "                <InlineElement event='em'>",
     ]);
-    test("text", [
-      "                  <Text event='text'>",
-    ]);
+    test("text", ["                  <Text event='text'>"]);
 
     test("tr", [
       "                  </Text>",
@@ -587,9 +587,7 @@ describe("newSyncProcess", () => {
       "              <HtmlTableDCell event='strong'>",
       "                <InlineElement event='strong'>",
     ]);
-    test("text", [
-      "                  <Text event='text'>",
-    ]);
+    test("text", ["                  <Text event='text'>"]);
 
     test("th", [
       "                  </Text>",
@@ -640,9 +638,7 @@ describe("newSyncProcess", () => {
       "                    </InlineElement>",
       "                    <InlineElement event='em'>",
     ]);
-    test("text", [
-      "                      <Text event='text'>",
-    ]);
+    test("text", ["                      <Text event='text'>"]);
 
     test("td", [
       "                      </Text>",
