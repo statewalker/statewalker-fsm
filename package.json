@@ -23,17 +23,17 @@
     ".": {
       "import": "./src/index.ts"
     }
-  }, 
+  },
   "dependencies": {
     "@statewalker/tree": "0.10.2"
   },
   "devDependencies": {
     "@statewalker/eslint-config": "*",
     "@statewalker/typescript-config": "*",
-    "eslint": "^8.57.0",
+    "eslint": "^9.0.0",
     "tsup": "^8.0.2",
-    "typescript": "^5.3.3",
-    "vitest": "^1.2.2"
+    "typescript": "^5.4.4",
+    "vitest": "^1.4.0"
   },
   "repository": {
     "type": "git",
@@ -43,7 +43,7 @@
     "build": "yarn test && tsup",
     "watch": "tsup --watch",
     "clean": "rm -rf dist",
-    "lint": "eslint \"**/*.ts\"",
+    "lint": "eslint \"**/*.(js|ts)\"",
     "test": "vitest --run",
     "test:watch": "vitest"
   },
