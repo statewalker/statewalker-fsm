@@ -1,11 +1,11 @@
 import { describe, it, expect } from "./deps.js";
-import { newAsyncProcess } from "../src/index.js";
+import { FsmProcess, FsmState, FsmStateConfig } from "../src/index.js";
 
-describe("newAsyncProcess", () => {
-  const main = {
+describe("FsmAsyncProcess", () => {
+  const main: FsmStateConfig = {
     key: "MAIN",
     transitions: [
-      ["", "*", "LOGIN", { key: "logIn", message: "Hello, there" }],
+      ["", "*", "LOGIN"],
       ["LOGIN", "ok", "MAIN_VIEW"],
       ["MAIN_VIEW", "*", "MAIN_VIEW"],
       ["MAIN_VIEW", "logout", "LOGIN"],
@@ -134,54 +134,71 @@ describe("newAsyncProcess", () => {
     ],
   };
 
-  function newProcess(traces = []) {
-    let process;
-    const before = (process) => {
-      const state = process.current;
-      const eventKey = (process.event || {}).key || "";
-      process.print(`<${state.key} event="${eventKey}">`);
+  function newProcess(print: (msg: string) => void): FsmProcess {
+    let process: FsmProcess;
+    const onEnter = (process: FsmProcess) => {
+      const state = process.state;
+      const eventKey = process.event;
+      print(`<${state?.key} event="${eventKey}">`);
     };
-    const after = (process) => {
-      const state = process.current;
-      process.print(`</${state.key}>`);
+    const onExit = (process: FsmProcess) => {
+      print(`</${process.state?.key}>`);
     };
-    process = newAsyncProcess({
-      config: options.config,
-      before,
-      after,
+    const newStatePrinter = (state: FsmState) => {
+      return (msg: string) => {
+        let shift = "";
+        for (let s: FsmState | undefined = state; !!s; s = s.parent) {
+          shift += "  ";
+        }
+        console.log(`${shift}${msg}`);
+      };
+    };
+    process = new FsmProcess({
+      root: options.config,
+      onEnter,
+      onExit,
+      onActivate: (state: FsmState) => {
+        const printer = newStatePrinter(state);
+        state.init(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          printer(`<${state.key}>`);
+        });
+        state.done(() => printer(`</${state.key}>`));
+      },
     });
-    process.print = (msg) => {
-      let shift = "";
-      for (let i = 0; i <= process.stack.length; i++) {
-        shift += "  ";
-      }
-      traces.push(shift + msg);
-    };
-
-    process.getPath = () => {
-      const stack = [...process.stack, process.current];
-      return stack.map((s) => s.key).join("/");
-    };
-    process.getEventKey = () => (process.event && process.event.key) || "";
-    process.getStateKey = () => (process.current && process.current.key) || "";
-
     return process;
   }
 
   it("should iterate over states and perform required state transitions", async () => {
-    const testTraces = [];
-    const process = newProcess(testTraces);
+    const testTraces: string[] = [];
+    const print = (msg: string) => {
+      let shift = "";
+      for (let state = process.state; !!state; state = state.parent) {
+        shift += "  ";
+      }
+      testTraces.push(shift + msg);
+    };
+    const getPath = () => {
+      const stack: string[] = [];
+      for (let state = process.state; !!state; state = state.parent) {
+        stack.unshift(state.key);
+      }
+      return stack.join("/");
+    };
+    const getStateKey = () => process.state?.key || "";
+    const getEventKey = () => process.event || "";
+    const process = newProcess(print);
 
     const { events, control, traces } = options;
     const test = [];
     for (let i = 0; i < events.length; i++) {
       const event = events[i];
-      await process.next({ key: event });
+      await process.dispatch(event);
 
-      const stateKey = process.getStateKey();
-      const eventKey = process.getEventKey();
-      test.push(`-[${eventKey}]->${process.getPath()}`);
-      process.print(` [${stateKey}:${eventKey}]`);
+      const stateKey = getStateKey();
+      const eventKey = getEventKey();
+      test.push(`-[${eventKey}]->${getPath()}`);
+      print(` [${stateKey}:${eventKey}]`);
     }
     expect(test).toEqual(control);
     expect(testTraces).toEqual(traces);
