@@ -1,3 +1,4 @@
+import { bindMethods } from "./bindMethods.ts";
 import { FsmState, FsmStateDump } from "./FsmState.ts";
 import {
   EVENT_EMPTY,
@@ -17,19 +18,29 @@ export const STATUS_LAST = 8;
 export const STATUS_ENTER = STATUS_FIRST | STATUS_NEXT;
 export const STATUS_EXIT = STATUS_LEAF | STATUS_LAST;
 
-export type FsmProcessHandler<T = void> = (process: FsmProcess) => T;
+export type FsmProcessHandler<T = void> = (
+  process: FsmProcess,
+  ...args: any[]
+) => T;
 
-export type FsmProcessDump = {
+export type FsmProcessDump = Record<string, any> & {
   status: number;
   event?: string;
   stack: FsmStateDump[];
 };
 
+export type FsmProcessDumpHandler = (
+  process: FsmProcess,
+  dump: FsmProcessDump
+) => void | Promise<void>;
+
 export type FsmProcessConfig<T = void> = {
   root: FsmStateConfig;
-  onActivate: (state: FsmState) => void;
+  onActivate?: (state: FsmState) => void;
   onEnter?: FsmProcessHandler<T>;
   onExit?: FsmProcessHandler<T>;
+  onDump?: FsmProcessDumpHandler;
+  onRestore?: FsmProcessDumpHandler;
 };
 
 export class FsmProcess {
@@ -42,6 +53,7 @@ export class FsmProcess {
   constructor(config: FsmProcessConfig) {
     this.rootDescriptor = FsmStateDescriptor.build(config.root);
     this.config = config;
+    bindMethods(this, "dispatch", "dump", "restore");
   }
 
   async dispatch(event: string, mask: number = STATUS_LEAF) {
@@ -82,10 +94,12 @@ export class FsmProcess {
       event: this.event,
       stack: await dumpStates(this.state),
     };
+    this.config.onDump?.(this, dump);
     return dump;
   }
 
   async restore(dump: FsmProcessDump, ...args: unknown[]) {
+    this.config.onRestore?.(this, dump);
     this.status = dump.status || 0;
     this.event = dump.event;
     this.state = undefined;
@@ -105,7 +119,7 @@ export class FsmProcess {
     descriptor: FsmStateDescriptor | undefined
   ) {
     const state = new FsmState(this, parent, key, descriptor);
-    this.config?.onActivate(state);
+    this.config?.onActivate?.(state);
     return state;
   }
 

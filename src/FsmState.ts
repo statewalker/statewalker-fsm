@@ -1,7 +1,8 @@
+import { bindMethods } from "./bindMethods.ts";
 import { FsmProcess } from "./FsmProcess.ts";
 import { FsmStateDescriptor } from "./FsmStateDescriptor.ts";
 
-export type FsmStateDump = {
+export type FsmStateDump = Record<string, any> & {
   key: string;
   data: Record<string, unknown>;
 };
@@ -20,6 +21,7 @@ export class FsmState {
   key: string;
   parent?: FsmState;
   descriptor?: FsmStateDescriptor;
+
   private handlers: Record<string, Function[]> = {};
 
   constructor(
@@ -32,6 +34,7 @@ export class FsmState {
     this.key = key;
     this.parent = parent;
     this.descriptor = descriptor;
+    bindMethods(this, "init", "done", "dump", "restore");
   }
 
   init(handler: FsmStateHandler) {

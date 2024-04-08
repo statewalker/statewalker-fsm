@@ -144,27 +144,27 @@ describe("FsmAsyncProcess", () => {
     const onExit = (process: FsmProcess) => {
       print(`</${process.state?.key}>`);
     };
-    const newStatePrinter = (state: FsmState) => {
-      return (msg: string) => {
-        let shift = "";
-        for (let s: FsmState | undefined = state; !!s; s = s.parent) {
-          shift += "  ";
-        }
-        console.log(`${shift}${msg}`);
-      };
-    };
+    // const newStatePrinter = (state: FsmState) => {
+    //   return (msg: string) => {
+    //     let shift = "";
+    //     for (let s: FsmState | undefined = state; !!s; s = s.parent) {
+    //       shift += "  ";
+    //     }
+    //     console.log(`${shift}${msg}`);
+    //   };
+    // };
     process = new FsmProcess({
       root: options.config,
       onEnter,
       onExit,
-      onActivate: (state: FsmState) => {
-        const printer = newStatePrinter(state);
-        state.init(async () => {
-          await new Promise((resolve) => setTimeout(resolve, 10));
-          printer(`<${state.key}>`);
-        });
-        state.done(() => printer(`</${state.key}>`));
-      },
+      // onActivate: (state: FsmState) => {
+      //   const printer = newStatePrinter(state);
+      //   state.init(async () => {
+      //     await new Promise((resolve) => setTimeout(resolve, 10));
+      //     printer(`<${state.key}>`);
+      //   });
+      //   state.done(() => printer(`</${state.key}>`));
+      // },
     });
     return process;
   }
