@@ -34,14 +34,14 @@ export class FsmState {
     this.key = key;
     this.parent = parent;
     this.descriptor = descriptor;
-    bindMethods(this, "init", "done", "dump", "restore");
+    bindMethods(this, "onEnter", "onExit", "dump", "restore");
   }
 
-  init(handler: FsmStateHandler) {
-    return this._addHandler("init", handler, true);
+  onEnter(handler: FsmStateHandler) {
+    return this._addHandler("onEnter", handler, true);
   }
-  done(handler: FsmStateHandler) {
-    return this._addHandler("done", handler, false);
+  onExit(handler: FsmStateHandler) {
+    return this._addHandler("onExit", handler, false);
   }
   dump(handler: FsmStateDumpHandler) {
     return this._addHandler("dump", handler, true);
@@ -57,7 +57,11 @@ export class FsmState {
   async _runHandler(type: string, ...args: unknown[]) {
     const list = this.handlers[type] || [];
     for (const handler of list) {
-      await handler(this, ...args);
+      try {
+        await handler(this, ...args);
+      } catch (error) {
+        await this.process.handleError(this, error);
+      }
     }
   }
 }

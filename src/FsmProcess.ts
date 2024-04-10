@@ -1,5 +1,5 @@
 import { bindMethods } from "./bindMethods.ts";
-import { FsmState, FsmStateDump } from "./FsmState.ts";
+import { FsmState, FsmStateHandler, FsmStateDump } from "./FsmState.ts";
 import {
   EVENT_EMPTY,
   FsmStateConfig,
@@ -13,15 +13,16 @@ export const STATUS_FIRST = 1;
 export const STATUS_NEXT = 2;
 export const STATUS_LEAF = 4;
 export const STATUS_LAST = 8;
+export const STATUS_FINISHED = 16;
 
 //
 export const STATUS_ENTER = STATUS_FIRST | STATUS_NEXT;
 export const STATUS_EXIT = STATUS_LEAF | STATUS_LAST;
 
-export type FsmProcessHandler<T = void> = (
+export type FsmProcessHandler = (
   process: FsmProcess,
   ...args: any[]
-) => T;
+) => void | Promise<void>;
 
 export type FsmProcessDump = Record<string, any> & {
   status: number;
@@ -36,11 +37,8 @@ export type FsmProcessDumpHandler = (
 
 export type FsmProcessConfig<T = void> = {
   root: FsmStateConfig;
-  onActivate?: (state: FsmState) => void;
-  onEnter?: FsmProcessHandler<T>;
-  onExit?: FsmProcessHandler<T>;
-  onDump?: FsmProcessDumpHandler;
-  onRestore?: FsmProcessDumpHandler;
+  onStateCreate?: (state: FsmState) => void;
+  onStateError?: (state: FsmState, error?: Error) => void | Promise<void>;
 };
 
 export class FsmProcess {
@@ -57,15 +55,14 @@ export class FsmProcess {
   }
 
   async dispatch(event: string, mask: number = STATUS_LEAF) {
+    this.event = event;
     while (true) {
       if (this.status & STATUS_EXIT) {
-        await this.state?._runHandler("done", this);
-        await this.config.onExit?.(this);
+        await this.state?._runHandler("onExit", this);
       }
-      if (!this._update(event)) return false;
+      if (!this._update()) return false;
       if (this.status & STATUS_ENTER) {
-        await this.config.onEnter?.(this);
-        await this.state?._runHandler("init", this);
+        await this.state?._runHandler("onEnter", this);
       }
       if (this.status & mask) return true;
     }
@@ -94,12 +91,10 @@ export class FsmProcess {
       event: this.event,
       stack: await dumpStates(this.state),
     };
-    this.config.onDump?.(this, dump);
     return dump;
   }
 
   async restore(dump: FsmProcessDump, ...args: unknown[]) {
-    this.config.onRestore?.(this, dump);
     this.status = dump.status || 0;
     this.event = dump.event;
     this.state = undefined;
@@ -113,13 +108,22 @@ export class FsmProcess {
     return this;
   }
 
+  async handleError(state: FsmState, error: Error | unknown) {
+    if (this.config.onStateError) {
+      await this.config.onStateError(state, error as Error);
+    } else {
+      console.error(`[${state.key}]`, error);
+    }
+    return this;
+  }
+
   _newState(
     parent: FsmState | undefined,
     key: string,
     descriptor: FsmStateDescriptor | undefined
   ) {
     const state = new FsmState(this, parent, key, descriptor);
-    this.config?.onActivate?.(state);
+    this.config.onStateCreate?.(state);
     return state;
   }
 
@@ -146,8 +150,8 @@ export class FsmProcess {
     return this._newState(parent, toState, descriptor);
   }
 
-  _update(event: string) {
-    this.event = event;
+  _update() {
+    if (this.status & STATUS_FINISHED) return false;
     const nextState =
       this.status !== STATUS_NONE
         ? this.status & STATUS_ENTER
@@ -162,9 +166,10 @@ export class FsmProcess {
         this.state = this.state?.parent;
         this.status = STATUS_LAST;
       } else {
-        this.status = this.state ? STATUS_LEAF : STATUS_NONE;
+        this.status = STATUS_LEAF;
       }
+      if (!this.state) this.status = STATUS_FINISHED;
     }
-    return this.status !== STATUS_NONE;
+    return !(this.status & STATUS_FINISHED);
   }
 }
