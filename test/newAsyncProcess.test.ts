@@ -136,35 +136,16 @@ describe("FsmAsyncProcess", () => {
 
   function newProcess(print: (msg: string) => void): FsmProcess {
     let process: FsmProcess;
-    const onEnter = (process: FsmProcess) => {
-      const state = process.state;
-      const eventKey = process.event;
-      print(`<${state?.key} event="${eventKey}">`);
-    };
-    const onExit = (process: FsmProcess) => {
-      print(`</${process.state?.key}>`);
-    };
-    // const newStatePrinter = (state: FsmState) => {
-    //   return (msg: string) => {
-    //     let shift = "";
-    //     for (let s: FsmState | undefined = state; !!s; s = s.parent) {
-    //       shift += "  ";
-    //     }
-    //     console.log(`${shift}${msg}`);
-    //   };
-    // };
     process = new FsmProcess({
       root: options.config,
-      onEnter,
-      onExit,
-      // onActivate: (state: FsmState) => {
-      //   const printer = newStatePrinter(state);
-      //   state.init(async () => {
-      //     await new Promise((resolve) => setTimeout(resolve, 10));
-      //     printer(`<${state.key}>`);
-      //   });
-      //   state.done(() => printer(`</${state.key}>`));
-      // },
+      onStateCreate: (state) => {
+        state.onEnter(() => {
+          print(`<${state?.key} event="${state.process.event}">`);
+        });
+        state.onExit(() => {
+          print(`</${state.key}>`);
+        });
+      },
     });
     return process;
   }
