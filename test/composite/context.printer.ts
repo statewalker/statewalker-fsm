@@ -11,7 +11,7 @@ export function setPrinter(
     lineNumbers = false,
   }: {
     prefix?: string;
-    print?: (...args: string[]) => void;
+    print?: (...args: any[]) => void;
     lineNumbers?: boolean;
   } = {}
 ) {
@@ -30,5 +30,5 @@ export function setPrinter(
 }
 
 export function getPrinter(state: FsmState): Printer {
-  return state.getData(KEY_PRINTER) || console.log;
+  return state.getData(KEY_PRINTER, true) || console.log;
 }

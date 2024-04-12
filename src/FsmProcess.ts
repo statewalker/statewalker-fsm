@@ -74,7 +74,7 @@ export class FsmProcess {
         key: state.key,
         data: {},
       };
-      await state._runHandler("dump", stateDump, ...args);
+      await state._runHandler("dump", stateDump.data, ...args);
       return stateDump;
     };
     const dumpStates = async (
@@ -103,7 +103,7 @@ export class FsmProcess {
       this.state = this.state
         ? this._newSubstate(this.state, stateDump.key)
         : this._newState(undefined, stateDump.key, this.rootDescriptor);
-      await this.state._runHandler("restore", stateDump, ...args);
+      await this.state._runHandler("restore", stateDump.data, ...args);
     }
     return this;
   }

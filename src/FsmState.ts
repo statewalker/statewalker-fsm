@@ -64,7 +64,7 @@ export class FsmState {
     this.data[key] = value;
     return this;
   }
-  getData<T>(key: string, recursive: boolean = false): T | undefined {
+  getData<T>(key: string, recursive: boolean = true): T | undefined {
     return (
       (this.data[key] as T) ??
       (recursive ? this.parent?.getData<T>(key, recursive) : undefined)

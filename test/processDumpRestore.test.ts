@@ -1,15 +1,10 @@
 import { describe, it, expect } from "./deps.ts";
 import { FsmProcess, FsmState, FsmStateConfig } from "../src/index.js";
-
-import newProcessLogger from "../src/newProcessLogger.js";
-import {
-  initPrinter,
-  usePrinter,
-  getProcessPrint,
-} from "../src/hooks.printer.js";
+import { FsmProcessDump } from "../dist/index";
+import { getPrinter, setPrinter } from "./composite/context.printer.ts";
 
 describe("dump/restore: process is dumped and restored at each step", () => {
-  const config = {
+  const config: FsmStateConfig = {
     key: "Selection",
     transitions: [
       ["*", "exit", ""],
@@ -31,59 +26,69 @@ describe("dump/restore: process is dumped and restored at each step", () => {
   };
 
   function newPrintChecker() {
-    const lines: string[][] = [];
+    const lines: any[][] = [];
     return [
-      (...args: any[]) => lines.push(args.map(String)),
-      (...control: string[][]) => {
+      (...args: any[]) => {
+        lines.push(args);
+      },
+      (...control: any[][]) => {
         expect(lines.map((items) => items.join(""))).toEqual(control);
       },
     ];
   }
 
-  let dump,
-    stepId = 0;
+  let dump: FsmProcessDump | undefined;
+  let stepId = 0;
   const [addTraces, checkTraces] = newPrintChecker();
-  let dumped : string[] = [],
-    restored : string[] = [];
+  const addLogger = (state: FsmState) => {
+    const print = getPrinter(state);
+    state.onEnter(() => {
+      print(`<${state?.key} event="${state.process.event}">`);
+    });
+    state.onExit(() => {
+      print(`</${state.key}> <!-- event="${state.process.event}" -->`);
+    });
+  };
+
+  let dumped: string[] = [],
+    restored: string[] = [];
   async function run(...events: string[]) {
     const process = new FsmProcess({
-      config,
-      initialize: initPrinter({ print: addTraces }),
-      handler: [
-        newProcessLogger(),
-        () => {
-          const stateKey = useStateKey();
-          useDump((data) => {
-            dumped.push("${stateKey}:${stepId}");
-            data.stepId = stepId;
+      root: config,
+      onStateCreate: (state: FsmState) => {
+        if (state.key === "Selection") {
+          setPrinter(state, {
+            prefix: "",
+            lineNumbers: false,
+            print: addTraces,
           });
-          useRestore((dump) => {
-            restored.push("${stateKey}:${dump.stepId}");
-          });
-        },
-        {
-          HandleError: () => {
-            const print = usePrinter();
-            onStateCreate(() => print("HANDLE ERROR"));
-          },
-        },
-      ],
-      handleError: console.error,
+        }
+        state.dump((state, data) => {
+          dumped.push(`${state.key}:${stepId}`);
+          data.stepId = stepId;
+        });
+        state.restore((state, data) => {
+          restored.push(`${state.key}:${data.stepId}`);
+        });
+        addLogger(state);
+      },
     });
 
     if (dump) await process.restore(dump);
-    const processPrint = getProcessPrint(process);
     for (let i = 0; i < events.length; i++) {
       const event = events[i];
-      process.dispatch(event);
-      await process.running;
-      processPrint("step ${++stepId}");
+      let ok = await process.dispatch(event);
+      if (!process.state) break;
+      // await process.running;
+
+      const print = getPrinter(process.state);
+      print(`step ${++stepId}`);
+      if (!ok) break;
     }
     dump = await process.dump();
-    // console.log(dump)
   }
 
-  let control = [];
+  let control: any[] = [];
   it("process starts and runs while event is defined", async () => {
     expect(dumped).toEqual([]);
     expect(restored).toEqual([]);
@@ -92,9 +97,21 @@ describe("dump/restore: process is dumped and restored at each step", () => {
     checkTraces(...control);
     expect(dump).toEqual({
       status: 4,
-      event: { key: "", params: {} },
-      stack: [{ key: "Selection", data: { stepId: 1 } }],
-      current: { key: "Wait", data: { stepId: 1 } },
+      event: "",
+      stack: [
+        {
+          key: "Selection",
+          data: {
+            stepId: 1,
+          },
+        },
+        {
+          key: "Wait",
+          data: {
+            stepId: 1,
+          },
+        },
+      ],
     });
     expect(dumped).toEqual(["Selection:1", "Wait:1"]);
     expect(restored).toEqual([]);
@@ -155,7 +172,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
     control.push(
       '  </Wait> <!-- event="error" -->',
       '  <HandleError event="error">',
-      "  HANDLE ERROR",
+      // "  HANDLE ERROR",
       "  step 6"
     );
     checkTraces(...control);
@@ -173,7 +190,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
       "  step 7"
     );
     checkTraces(...control);
-    expect(dump.status).toEqual(4);
+    expect(dump?.status).toEqual(4);
     expect(restored).toEqual(["Selection:6", "HandleError:6"]);
     expect(dumped).toEqual(["Selection:7", "Wait:7"]);
     dumped = [];
@@ -188,7 +205,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
       "  step 8"
     );
     checkTraces(...control);
-    expect(dump.status).toEqual(4);
+    expect(dump?.status).toEqual(4);
     expect(restored).toEqual(["Selection:7", "Wait:7"]);
     expect(dumped).toEqual(["Selection:8", "Wait:8"]);
     dumped = [];
@@ -199,11 +216,16 @@ describe("dump/restore: process is dumped and restored at each step", () => {
     await run("exit");
     control.push(
       '  </Wait> <!-- event="exit" -->',
-      '</Selection> <!-- event="exit" -->',
-      "step 9"
+      '</Selection> <!-- event="exit" -->'
+      // "step 9"
     );
     checkTraces(...control);
-    expect(dump.status).toEqual(0);
+    expect(dump?.status).toEqual(16); // FINISHED
+    expect(dump).toEqual({
+      event: "exit",
+      stack: [],
+      status: 16,
+    });
     expect(restored).toEqual(["Selection:8", "Wait:8"]);
     expect(dumped).toEqual([]);
     dumped = [];
