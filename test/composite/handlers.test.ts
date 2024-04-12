@@ -56,7 +56,6 @@ describe("dispatch state handlers", () => {
 
       callStateHandlers(state);
     });
-    // printLine = newProcessLogger(process, config);
     return process;
   }
 
