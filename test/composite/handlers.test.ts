@@ -26,35 +26,33 @@ describe("dispatch state handlers", () => {
   ): FsmProcess {
     let process: FsmProcess;
     let printLine: (...args: string[]) => void;
-    process = new FsmProcess({
-      root,
-      onStateCreate: (state: FsmState) => {
-        state.onEnter(async () =>
-          printLine(`<${state?.key} event="${process.event}">`)
-        );
-        state.onExit(async () =>
-          printLine(`</${state?.key}> <!-- event="${process.event}" -->`)
-        );
+    process = new FsmProcess(root);
+    process.onStateCreate((state: FsmState) => {
+      state.onEnter(async () =>
+        printLine(`<${state?.key} event="${process.event}">`)
+      );
+      state.onExit(async () =>
+        printLine(`</${state?.key}> <!-- event="${process.event}" -->`)
+      );
 
-        if (state.key === "App") {
-          setPrinter(state, {
-            prefix: "xyz",
-            lineNumbers: true,
-            print: console.error,
-          });
+      if (state.key === "App") {
+        setPrinter(state, {
+          prefix: "xyz",
+          lineNumbers: true,
+          print: console.error,
+        });
 
-          // Define handlers for sub-states
-          addSubstateHandlers(state, {
-            ProductCatalog,
-            ProductBasket: (state: FsmState) => {
-              const log = getPrinter(state);
-              state.onEnter(() => log("* BASKET:enter"));
-              state.onExit(() => log("* BASKET:exit"));
-            },
-          });
-        }
-        callStateHandlers(state);
-      },
+        // Define handlers for sub-states
+        addSubstateHandlers(state, {
+          ProductCatalog,
+          ProductBasket: (state: FsmState) => {
+            const log = getPrinter(state);
+            state.onEnter(() => log("* BASKET:enter"));
+            state.onExit(() => log("* BASKET:exit"));
+          },
+        });
+      }
+      callStateHandlers(state);
     });
     printLine = newProcessLogger(process, config);
     return process;

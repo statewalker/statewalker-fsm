@@ -3,6 +3,20 @@ import { FsmProcess, FsmState, FsmStateConfig } from "../src/index.js";
 import { FsmProcessDump } from "../dist/index";
 import { getPrinter, setPrinter } from "./composite/context.printer.ts";
 
+function addTracer() {
+  return (process: FsmProcess) => {
+    // process.onStateCreate((state) => {
+    //   const print = getPrinter(state);
+    //   state.onEnter(() => {
+    //     print(`<${state?.key} event="${state.process.event}">`);
+    //   });
+    //   state.onExit(() => {
+    //     print(`</${state.key}> <!-- event="${state.process.event}" -->`);
+    //   });
+    // });
+  };
+}
+
 describe("dump/restore: process is dumped and restored at each step", () => {
   const config: FsmStateConfig = {
     key: "Selection",
@@ -50,28 +64,29 @@ describe("dump/restore: process is dumped and restored at each step", () => {
     });
   };
 
-  let dumped: string[] = [],
-    restored: string[] = [];
+  let dumped: string[] = [];
+  let restored: string[] = [];
+  let control: any[] = [];
+
   async function run(...events: string[]) {
-    const process = new FsmProcess({
-      root: config,
-      onStateCreate: (state: FsmState) => {
-        if (state.key === "Selection") {
-          setPrinter(state, {
-            prefix: "",
-            lineNumbers: false,
-            print: addTraces,
-          });
-        }
-        state.dump((state, data) => {
-          dumped.push(`${state.key}:${stepId}`);
-          data.stepId = stepId;
+    const process = new FsmProcess(config);
+
+    process.onStateCreate((state: FsmState) => {
+      if (state.key === "Selection") {
+        setPrinter(state, {
+          prefix: "",
+          lineNumbers: false,
+          print: addTraces,
         });
-        state.restore((state, data) => {
-          restored.push(`${state.key}:${data.stepId}`);
-        });
-        addLogger(state);
-      },
+      }
+      state.dump((state, data) => {
+        dumped.push(`${state.key}:${stepId}`);
+        data.stepId = stepId;
+      });
+      state.restore((state, data) => {
+        restored.push(`${state.key}:${data.stepId}`);
+      });
+      addLogger(state);
     });
 
     if (dump) await process.restore(dump);
@@ -88,7 +103,6 @@ describe("dump/restore: process is dumped and restored at each step", () => {
     dump = await process.dump();
   }
 
-  let control: any[] = [];
   it("process starts and runs while event is defined", async () => {
     expect(dumped).toEqual([]);
     expect(restored).toEqual([]);
@@ -118,6 +132,8 @@ describe("dump/restore: process is dumped and restored at each step", () => {
     dumped = [];
     restored = [];
   });
+
+  return;
 
   it("continue the process and stop at the embedded wait state cleaning events", async () => {
     await run("select");

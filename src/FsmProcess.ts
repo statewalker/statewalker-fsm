@@ -1,5 +1,6 @@
 import { bindMethods } from "./bindMethods.ts";
-import { FsmState, FsmStateHandler, FsmStateDump } from "./FsmState.ts";
+import { FsmBaseClass } from "./FsmBaseClass.ts";
+import { FsmState, FsmStateHandler, FsmStateDump, FsmStateSyncHandler } from "./FsmState.ts";
 import {
   EVENT_EMPTY,
   FsmStateConfig,
@@ -35,21 +36,16 @@ export type FsmProcessDumpHandler = (
   dump: FsmProcessDump
 ) => void | Promise<void>;
 
-export type FsmProcessConfig<T = void> = {
-  root: FsmStateConfig;
-  onStateCreate?: (state: FsmState) => void;
-  onStateError?: (state: FsmState, error?: Error) => void | Promise<void>;
-};
-
-export class FsmProcess {
+export class FsmProcess extends FsmBaseClass {
   state?: FsmState;
   event?: string;
   status: number = 0;
-  config: FsmProcessConfig;
+  config: FsmStateConfig;
   rootDescriptor: FsmStateDescriptor;
 
-  constructor(config: FsmProcessConfig) {
-    this.rootDescriptor = FsmStateDescriptor.build(config.root);
+  constructor(config: FsmStateConfig) {
+    super();
+    this.rootDescriptor = FsmStateDescriptor.build(config);
     this.config = config;
     bindMethods(this, "dispatch", "dump", "restore");
   }
@@ -58,11 +54,11 @@ export class FsmProcess {
     this.event = event;
     while (true) {
       if (this.status & STATUS_EXIT) {
-        await this.state?._runHandler("onExit", this);
+        await this.state?._runHandler("onExit", this.state);
       }
       if (!this._update()) return false;
       if (this.status & STATUS_ENTER) {
-        await this.state?._runHandler("onEnter", this);
+        await this.state?._runHandler("onEnter", this.state);
       }
       if (this.status & mask) return true;
     }
@@ -74,7 +70,7 @@ export class FsmProcess {
         key: state.key,
         data: {},
       };
-      await state._runHandler("dump", stateDump.data, ...args);
+      await state._runHandler("dump", state, stateDump.data, ...args);
       return stateDump;
     };
     const dumpStates = async (
@@ -103,18 +99,22 @@ export class FsmProcess {
       this.state = this.state
         ? this._newSubstate(this.state, stateDump.key)
         : this._newState(undefined, stateDump.key, this.rootDescriptor);
-      await this.state._runHandler("restore", stateDump.data, ...args);
+      await this.state._runHandler("restore", this.state, stateDump.data, ...args);
     }
     return this;
   }
 
-  async handleError(state: FsmState, error: Error | unknown) {
-    if (this.config.onStateError) {
-      await this.config.onStateError(state, error as Error);
-    } else {
-      console.error(`[${state.key}]`, error);
-    }
-    return this;
+  onStateCreate(handler: FsmStateSyncHandler) {
+    return this._addHandler("onStateCreate", handler, true);
+  }
+
+  onStateError(handler: (state: FsmState, error: any) => void | Promise<void>) {
+    return this._addHandler("onStateError", handler);
+  }
+
+  async _handleStateError(state: FsmState, error: Error | unknown) {
+    await this._runHandler("onStateError", state, error);
+    this._handleError(error);
   }
 
   _newState(
@@ -123,7 +123,7 @@ export class FsmProcess {
     descriptor: FsmStateDescriptor | undefined
   ) {
     const state = new FsmState(this, parent, key, descriptor);
-    this.config.onStateCreate?.(state);
+    this._runHandler("onStateCreate", state);
     return state;
   }
 
@@ -157,7 +157,7 @@ export class FsmProcess {
         ? this.status & STATUS_ENTER
           ? this._getSubstate(this.state, STATE_INITIAL)
           : this._getSubstate(this.state?.parent, this.state?.key)
-        : this._newState(undefined, this.config.root.key, this.rootDescriptor);
+        : this._newState(undefined, this.config.key, this.rootDescriptor);
     if (nextState !== undefined) {
       this.state = nextState;
       this.status = this.status & STATUS_EXIT ? STATUS_NEXT : STATUS_FIRST;

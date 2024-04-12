@@ -1,4 +1,5 @@
 import { bindMethods } from "./bindMethods.ts";
+import { FsmBaseClass } from "./FsmBaseClass.ts";
 import { FsmProcess } from "./FsmProcess.ts";
 import { FsmStateDescriptor } from "./FsmStateDescriptor.ts";
 
@@ -11,19 +12,23 @@ export type FsmStateHandler = (
   ...args: unknown[]
 ) => void | Promise<void>;
 
+export type FsmStateSyncHandler = (state: FsmState, ...args: unknown[]) => void;
+
 export type FsmStateDumpHandler = (
   state: FsmState,
   dump: FsmStateDump
 ) => void | Promise<void>;
 
-export class FsmState {
+export type FsmStateErrorHandler = (
+  state: FsmState,
+  error: any
+) => void | Promise<void>;
+
+export class FsmState extends FsmBaseClass {
   process: FsmProcess;
   key: string;
   parent?: FsmState;
   descriptor?: FsmStateDescriptor;
-
-  private handlers: Record<string, Function[]> = {};
-  private data: Record<string, unknown> = {};
 
   constructor(
     process: FsmProcess,
@@ -31,6 +36,7 @@ export class FsmState {
     key: string,
     descriptor?: FsmStateDescriptor
   ) {
+    super();
     this.process = process;
     this.key = key;
     this.parent = parent;
@@ -41,10 +47,8 @@ export class FsmState {
       "onExit",
       "dump",
       "restore",
-      "setData",
-      "getData",
-      "findData",
-      "useData"
+      "useData",
+      "onStateError"
     );
   }
 
@@ -54,15 +58,14 @@ export class FsmState {
   onExit(handler: FsmStateHandler) {
     return this._addHandler("onExit", handler, false);
   }
+  onStateError(handler: FsmStateErrorHandler) {
+    return this._addHandler("onStateError", handler);
+  }
   dump(handler: FsmStateDumpHandler) {
     return this._addHandler("dump", handler, true);
   }
   restore(handler: FsmStateDumpHandler) {
     return this._addHandler("restore", handler, true);
-  }
-  setData<T>(key: string, value: T) {
-    this.data[key] = value;
-    return this;
   }
   getData<T>(key: string, recursive: boolean = true): T | undefined {
     return (
@@ -77,33 +80,8 @@ export class FsmState {
     ];
   }
 
-  findData<V, R>(
-    key: string,
-    accept: (value: V) => R | undefined
-  ): R | undefined {
-    const value = this.getData<V>(key, false);
-    const result: R | undefined =
-      value !== undefined ? accept(value) : undefined;
-    return result === undefined
-      ? this.parent?.findData<V, R>(key, accept)
-      : result;
-  }
-
-  // ----------------------------------------------
-  // internal methods
-  _addHandler(type: string, handler: Function, direct: boolean = true) {
-    const list = (this.handlers[type] = this.handlers[type] || []);
-    direct ? list.push(handler) : list.unshift(handler);
-    return this;
-  }
-  async _runHandler(type: string, ...args: unknown[]) {
-    const list = this.handlers[type] || [];
-    for (const handler of list) {
-      try {
-        await handler(this, ...args);
-      } catch (error) {
-        await this.process.handleError(this, error);
-      }
-    }
+  async _handleError(error: Error | unknown) {
+    await this._runHandler("onStateError", this, error);
+    await this.process._handleStateError(this, error);
   }
 }

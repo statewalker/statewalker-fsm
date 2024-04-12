@@ -23,16 +23,14 @@ describe("newProcessLogger", () => {
     }
   ): FsmProcess {
     let printLine: (...args: string[]) => void;
-    const process = new FsmProcess({
-      root,
-      onStateCreate: (state) => {
-        state.onEnter(() => {
-          printLine(`<${state?.key} event="${state.process.event}">`);
-        });
-        state.onExit(() => {
-          printLine(`</${state.key}> <!-- event="${process.event}" -->`);
-        });
-      },
+    const process = new FsmProcess(root);
+    process.onStateCreate((state) => {
+      state.onEnter(() => {
+        printLine(`<${state?.key} event="${state.process.event}">`);
+      });
+      state.onExit(() => {
+        printLine(`</${state.key}> <!-- event="${process.event}" -->`);
+      });
     });
     printLine = newProcessLogger(process, config);
     return process;

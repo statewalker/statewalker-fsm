@@ -1,5 +1,5 @@
 import { describe, it, expect } from "./deps.js";
-import { FsmProcess, FsmState, FsmStateConfig } from "../src/index.js";
+import { FsmProcess, FsmStateConfig } from "../src/index.js";
 
 describe("FsmAsyncProcess", () => {
   const main: FsmStateConfig = {
@@ -132,25 +132,22 @@ describe("FsmAsyncProcess", () => {
       '        <SHOW_FORM event="logout">',
       "         [SHOW_FORM:logout]",
     ],
-  };
+  }; 
 
   function newProcess(print: (msg: string) => void): FsmProcess {
-    let process: FsmProcess;
-    process = new FsmProcess({
-      root: options.config,
-      onStateCreate: (state) => {
-        state.onEnter(() => {
-          print(`<${state?.key} event="${state.process.event}">`);
-        });
-        state.onExit(() => {
-          print(`</${state.key}>`);
-        });
-      },
+    let process = new FsmProcess(options.config);
+    process.onStateCreate((state) => {
+      state.onEnter(() => {
+        print(`<${state?.key} event="${state.process.event}">`);
+      });
+      state.onExit(() => {
+        print(`</${state.key}>`);
+      });
     });
     return process;
   }
-
-  it("should iterate over states and perform required state transitions", async () => {
+ 
+  return it("should iterate over states and perform required state transitions", async () => {
     const testTraces: string[] = [];
     const print = (msg: string) => {
       let shift = "";
