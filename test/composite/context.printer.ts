@@ -1,6 +1,4 @@
 import { FsmState } from "../../src/index.ts";
-import { findStateValue, setStateValue } from "./newStateValue.ts";
-
 export type Printer = (...args: any[]) => void;
 
 export const KEY_PRINTER = "printer";
@@ -28,9 +26,9 @@ export function setPrinter(
   let lineCounter = 0;
   const getPrefix = lineNumbers ? () => `[${++lineCounter}]${shift()}` : shift;
   const printer = (...args: string[]) => print(prefix, getPrefix(), ...args);
-  setStateValue(state, KEY_PRINTER, printer);
+  state.setData(KEY_PRINTER, printer);
 }
 
 export function getPrinter(state: FsmState): Printer {
-  return findStateValue(state, KEY_PRINTER) || console.log;
+  return state.getData(KEY_PRINTER) || console.log;
 }

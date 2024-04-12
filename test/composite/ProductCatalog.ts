@@ -1,7 +1,6 @@
 import { FsmState } from "../../src/index.ts";
 import { newProcessLogger } from "../newProcessLogger.ts";
-import { addSubstateHandlers } from "./newStateHandlersContext.ts";
-import { newStateValue } from "./newStateValue.ts";
+import { addSubstateHandlers } from "./context.handlers.ts";
 import { getPrinter } from "./context.printer.ts";
 
 // export type TPrinter = (...args: string[]) => void;
@@ -19,17 +18,18 @@ import { getPrinter } from "./context.printer.ts";
 //   }
 //   return printer;
 // };
+export function ProductList(state: FsmState) {
+  const log = getPrinter(state);
+  state.onEnter(() => log("<ProductList>"));
+  state.onExit(() => log("</ProductList>"));
+}
 
 export function ProductCatalog(state: FsmState) {
-  const log = getPrinter(state);
-
   addSubstateHandlers(state, {
-    ProductList: (state) => {
-      state.onEnter(() => log("<ProductList>"));
-      state.onExit(() => log("</ProductList>"));
-    },
+    ProductList,
   });
 
+  const log = getPrinter(state);
   state.onEnter(async () => log("<ProductCatalog>"));
   state.onExit(() => log("</ProductCatalog>"));
 }

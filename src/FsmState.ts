@@ -23,6 +23,7 @@ export class FsmState {
   descriptor?: FsmStateDescriptor;
 
   private handlers: Record<string, Function[]> = {};
+  private data: Record<string, unknown> = {};
 
   constructor(
     process: FsmProcess,
@@ -34,7 +35,17 @@ export class FsmState {
     this.key = key;
     this.parent = parent;
     this.descriptor = descriptor;
-    bindMethods(this, "onEnter", "onExit", "dump", "restore");
+    bindMethods(
+      this,
+      "onEnter",
+      "onExit",
+      "dump",
+      "restore",
+      "setData",
+      "getData",
+      "findData",
+      "useData"
+    );
   }
 
   onEnter(handler: FsmStateHandler) {
@@ -49,6 +60,37 @@ export class FsmState {
   restore(handler: FsmStateDumpHandler) {
     return this._addHandler("restore", handler, true);
   }
+  setData<T>(key: string, value: T) {
+    this.data[key] = value;
+    return this;
+  }
+  getData<T>(key: string, recursive: boolean = false): T | undefined {
+    return (
+      (this.data[key] as T) ??
+      (recursive ? this.parent?.getData<T>(key, recursive) : undefined)
+    );
+  }
+  useData<T>(key: string) {
+    return [
+      (recursive: boolean = true) => this.getData<T>(key, recursive),
+      (value: T) => this.setData(key, value),
+    ];
+  }
+
+  findData<V, R>(
+    key: string,
+    accept: (value: V) => R | undefined
+  ): R | undefined {
+    const value = this.getData<V>(key, false);
+    const result: R | undefined =
+      value !== undefined ? accept(value) : undefined;
+    return result === undefined
+      ? this.parent?.findData<V, R>(key, accept)
+      : result;
+  }
+
+  // ----------------------------------------------
+  // internal methods
   _addHandler(type: string, handler: Function, direct: boolean = true) {
     const list = (this.handlers[type] = this.handlers[type] || []);
     direct ? list.push(handler) : list.unshift(handler);

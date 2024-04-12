@@ -3,7 +3,7 @@ import { describe, it, expect } from "../deps.js";
 import { newProcessLogger } from "../newProcessLogger.js";
 import config from "../productCatalogStatechart.js";
 import { getPrinter, setPrinter } from "./context.printer.ts";
-import { addSubstateHandlers, callStateHandlers } from "./newStateHandlersContext.ts";
+import { addSubstateHandlers, callStateHandlers } from "./context.handlers.ts";
 import { ProductCatalog } from "./ProductCatalog.ts";
 
 describe("dispatch state handlers", () => {

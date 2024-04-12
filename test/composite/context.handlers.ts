@@ -1,9 +1,4 @@
 import { FsmState, FsmStateHandler } from "../../src/index.ts";
-import {
-  findStateValue,
-  getStateValue,
-  setStateValue,
-} from "./newStateValue.ts";
 
 export const KEY_HANDLERS = "handlers";
 
@@ -14,10 +9,8 @@ export function callStateHandlers(state: FsmState) {
     !!parent;
     parent = parent?.parent
   ) {
-    const handlers = getStateValue<Record<string, FsmStateHandler[]>>(
-      parent,
-      KEY_HANDLERS
-    )?.[key];
+    const handlers =
+      parent.getData<Record<string, FsmStateHandler[]>>(KEY_HANDLERS)?.[key];
     handlers?.forEach((handler) => handler(state));
   }
 }
@@ -26,14 +19,12 @@ export function addSubstateHandlers(
   state: FsmState,
   handlers: Record<string, FsmStateHandler>
 ) {
-  const oldIndex = getStateValue<Record<string, FsmStateHandler[]>>(
-    state,
-    KEY_HANDLERS
-  );
+  const oldIndex =
+    state.getData<Record<string, FsmStateHandler[]>>(KEY_HANDLERS);
   const index = oldIndex ? { ...oldIndex } : {};
   for (const [key, handler] of Object.entries(handlers)) {
     const list = (index[key] = index[key] || []);
     list.push(handler);
   }
-  setStateValue(state, KEY_HANDLERS, index);
+  state.setData(KEY_HANDLERS, index);
 }
