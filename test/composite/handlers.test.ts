@@ -1,10 +1,8 @@
 import { FsmProcess, FsmState, FsmStateConfig } from "../../src/index.ts";
 import { describe, it, expect } from "../deps.js";
-import { newProcessLogger } from "../newProcessLogger.js";
 import config from "../productCatalogStatechart.js";
 import { getPrinter, setPrinter } from "./context.printer.ts";
-import { addSubstateHandlers, callStateHandlers } from "./context.handlers.ts";
-import { ProductCatalog } from "./ProductCatalog.ts";
+import { callStateHandlers } from "./context.handlers.ts";
 
 describe("dispatch state handlers", () => {
   function newPrintChecker() {
@@ -25,36 +23,38 @@ describe("dispatch state handlers", () => {
     }
   ): FsmProcess {
     let process: FsmProcess;
-    let printLine: (...args: string[]) => void;
+    // let printLine: (...args: string[]) => void;
     process = new FsmProcess(root);
     process.onStateCreate((state: FsmState) => {
-      state.onEnter(async () =>
-        printLine(`<${state?.key} event="${process.event}">`)
-      );
-      state.onExit(async () =>
-        printLine(`</${state?.key}> <!-- event="${process.event}" -->`)
-      );
-
       if (state.key === "App") {
         setPrinter(state, {
-          prefix: "xyz",
+          prefix: config.prefix,
           lineNumbers: true,
-          print: console.error,
+          print: config.print, // console.error,
         });
 
-        // Define handlers for sub-states
-        addSubstateHandlers(state, {
-          ProductCatalog,
-          ProductBasket: (state: FsmState) => {
-            const log = getPrinter(state);
-            state.onEnter(() => log("* BASKET:enter"));
-            state.onExit(() => log("* BASKET:exit"));
-          },
-        });
+        // // Define handlers for sub-states
+        // addSubstateHandlers(state, {
+        //   ProductCatalog,
+        //   ProductBasket: (state: FsmState) => {
+        //     const log = getPrinter(state);
+        //     state.onEnter(() => log("* BASKET:enter"));
+        //     state.onExit(() => log("* BASKET:exit"));
+        //   },
+        // });
       }
+
+      const log = getPrinter(state);
+      state.onEnter(async () =>
+        log(`<${state?.key} event="${process.event}">`)
+      );
+      state.onExit(async () =>
+        log(`</${state?.key}> <!-- event="${process.event}" -->`)
+      );
+
       callStateHandlers(state);
     });
-    printLine = newProcessLogger(process, config);
+    // printLine = newProcessLogger(process, config);
     return process;
   }
 

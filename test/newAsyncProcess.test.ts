@@ -147,7 +147,7 @@ describe("FsmAsyncProcess", () => {
     return process;
   }
  
-  return it("should iterate over states and perform required state transitions", async () => {
+  it("should iterate over states and perform required state transitions", async () => {
     const testTraces: string[] = [];
     const print = (msg: string) => {
       let shift = "";
