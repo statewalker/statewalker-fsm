@@ -20,8 +20,8 @@ import { getPrinter } from "./context.printer.ts";
 // };
 export function ProductList(state: FsmState) {
   const log = getPrinter(state);
-  state.onEnter(() => log("<ProductList>"));
-  state.onExit(() => log("</ProductList>"));
+  state.onEnter(() => log("[ProductList]"));
+  state.onExit(() => log("[/ProductList]"));
 }
 
 export function ProductCatalog(state: FsmState) {
@@ -30,6 +30,6 @@ export function ProductCatalog(state: FsmState) {
   });
 
   const log = getPrinter(state);
-  state.onEnter(async () => log("<ProductCatalog>"));
-  state.onExit(() => log("</ProductCatalog>"));
+  state.onEnter(async () => log("[ProductCatalog]"));
+  state.onExit(() => log("[/ProductCatalog]"));
 }
