@@ -1,21 +1,16 @@
 import { describe, it, expect } from "./deps.ts";
-import { FsmProcess, FsmState, FsmStateConfig } from "../src/index.js";
+import {
+  FsmProcess,
+  FsmState,
+  FsmStateConfig,
+  setProcessTracer,
+} from "../src/index.js";
 import { FsmProcessDump } from "../dist/index";
-import { getPrinter, setPrinter } from "./composite/context.printer.ts";
-
-function addTracer() {
-  return (process: FsmProcess) => {
-    // process.onStateCreate((state) => {
-    //   const print = getPrinter(state);
-    //   state.onEnter(() => {
-    //     print(`<${state?.key} event="${state.process.event}">`);
-    //   });
-    //   state.onExit(() => {
-    //     print(`</${state.key}> <!-- event="${state.process.event}" -->`);
-    //   });
-    // });
-  };
-}
+import {
+  getPrinter,
+  setPrinter,
+  setProcessPrinter,
+} from "../src/context/printer.ts";
 
 describe("dump/restore: process is dumped and restored at each step", () => {
   const config: FsmStateConfig = {
@@ -43,6 +38,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
     const lines: any[][] = [];
     return [
       (...args: any[]) => {
+        // console.log(args.join(""));
         lines.push(args);
       },
       (...control: any[][]) => {
@@ -54,15 +50,6 @@ describe("dump/restore: process is dumped and restored at each step", () => {
   let dump: FsmProcessDump | undefined;
   let stepId = 0;
   const [addTraces, checkTraces] = newPrintChecker();
-  const addLogger = (state: FsmState) => {
-    const print = getPrinter(state);
-    state.onEnter(() => {
-      print(`<${state?.key} event="${state.process.event}">`);
-    });
-    state.onExit(() => {
-      print(`</${state.key}> <!-- event="${state.process.event}" -->`);
-    });
-  };
 
   let dumped: string[] = [];
   let restored: string[] = [];
@@ -70,15 +57,13 @@ describe("dump/restore: process is dumped and restored at each step", () => {
 
   async function run(...events: string[]) {
     const process = new FsmProcess(config);
+    setProcessPrinter(process, {
+      print: addTraces,
+      lineNumbers: false,
+    });
+    setProcessTracer(process);
 
     process.onStateCreate((state: FsmState) => {
-      if (state.key === "Selection") {
-        setPrinter(state, {
-          prefix: "",
-          lineNumbers: false,
-          print: addTraces,
-        });
-      }
       state.dump((state, data) => {
         dumped.push(`${state.key}:${stepId}`);
         data.stepId = stepId;
@@ -86,7 +71,6 @@ describe("dump/restore: process is dumped and restored at each step", () => {
       state.restore((state, data) => {
         restored.push(`${state.key}:${data.stepId}`);
       });
-      addLogger(state);
     });
 
     if (dump) await process.restore(dump);
@@ -132,8 +116,6 @@ describe("dump/restore: process is dumped and restored at each step", () => {
     dumped = [];
     restored = [];
   });
-
-  return;
 
   it("continue the process and stop at the embedded wait state cleaning events", async () => {
     await run("select");

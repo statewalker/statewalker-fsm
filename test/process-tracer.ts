@@ -1,7 +1,6 @@
-import { FsmProcessHandler, FsmStateConfig } from "../dist/index.js";
 import { FsmProcess } from "../src/FsmProcess.js";
+import { setProcessPrinter, setProcessTracer } from "../src/index.js";
 import { describe, it, expect } from "./deps.js";
-import { newProcessLogger } from "./newProcessLogger.js";
 import config from "./productCatalogStatechart.js";
 
 describe("newProcessLogger", () => {
@@ -14,34 +13,14 @@ describe("newProcessLogger", () => {
     ];
   }
 
-  function newProcess(
-    root: FsmStateConfig,
-    config: {
-      prefix?: string;
-      print: (...args: string[]) => void;
-      lineNumbers: boolean;
-    }
-  ): FsmProcess {
-    let printLine: (...args: string[]) => void;
-    const process = new FsmProcess(root);
-    process.onStateCreate((state) => {
-      state.onEnter(() => {
-        printLine(`<${state?.key} event="${state.process.event}">`);
-      });
-      state.onExit(() => {
-        printLine(`</${state.key}> <!-- event="${process.event}" -->`);
-      });
-    });
-    printLine = newProcessLogger(process, config);
-    return process;
-  }
-
   it("should track transitions between states", async () => {
     const [print, checkLines] = newPrintChecker();
-    const process = newProcess(config, {
+    const process = new FsmProcess(config);
+    setProcessPrinter(process, {
       print,
       lineNumbers: true,
     });
+    setProcessTracer(process);
 
     await process.dispatch("start");
     checkLines(
@@ -97,11 +76,13 @@ describe("newProcessLogger", () => {
 
   it("should be able to add a prefix to all lines", async () => {
     const [print, checkLines] = newPrintChecker();
-    const process = newProcess(config, {
+    const process = new FsmProcess(config);
+    setProcessPrinter(process, {
       prefix: "abc",
       print,
       lineNumbers: true,
     });
+    setProcessTracer(process);
 
     await process.dispatch("start");
     checkLines(

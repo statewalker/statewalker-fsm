@@ -1,9 +1,16 @@
-import { FsmProcess, FsmState, FsmStateConfig } from "../../src/index.ts";
-import { describe, it, expect } from "../deps.js";
-import config from "../productCatalogStatechart.js";
-import { getPrinter, setPrinter } from "./context.printer.ts";
-import { addSubstateHandlers, callStateHandlers } from "./context.handlers.ts";
-import { ProductCatalog } from "./ProductCatalog.ts";
+import {
+  FsmProcess,
+  FsmState,
+  FsmStateConfig,
+  setProcessTracer,
+} from "../src/index.ts";
+import { describe, it, expect } from "./deps.js";
+import config from "./productCatalogStatechart.js";
+import { getPrinter, setProcessPrinter } from "../src/context/printer.ts";
+import {
+  addSubstateHandlers,
+  callStateHandlers,
+} from "../src/context/handlers.ts";
 
 describe("dispatch state handlers", () => {
   function newPrintChecker() {
@@ -14,6 +21,26 @@ describe("dispatch state handlers", () => {
         expect(lines.map((items) => items.join(""))).toEqual(control);
       },
     ];
+  }
+
+  // State-specific handlers
+  function ProductList(state: FsmState) {
+    const log = getPrinter(state);
+    state.onEnter(() => log("(ProductList)"));
+    state.onExit(() => log("(/ProductList)"));
+  }
+  function ProductCatalog(state: FsmState) {
+    addSubstateHandlers(state, {
+      ProductList,
+    });
+    const log = getPrinter(state);
+    state.onEnter(async () => log("{ProductCatalog}"));
+    state.onExit(() => log("{/ProductCatalog}"));
+  }
+  function ProductBasket(state: FsmState) {
+    const log = getPrinter(state);
+    state.onEnter(() => log("* BASKET:enter"));
+    state.onExit(() => log("* BASKET:exit"));
   }
 
   function newProcess(
@@ -27,33 +54,20 @@ describe("dispatch state handlers", () => {
     let process: FsmProcess;
     // let printLine: (...args: string[]) => void;
     process = new FsmProcess(root);
+    setProcessTracer(process);
+    setProcessPrinter(process, {
+      prefix: config.prefix,
+      lineNumbers: true,
+      print: config.print, // console.error,
+    });
     process.onStateCreate((state: FsmState) => {
       if (state.key === "App") {
-        setPrinter(state, {
-          prefix: config.prefix,
-          lineNumbers: true,
-          print: config.print, // console.error,
-        });
-
         // Define handlers for sub-states
         addSubstateHandlers(state, {
           ProductCatalog,
-          ProductBasket: (state: FsmState) => {
-            const log = getPrinter(state);
-            state.onEnter(() => log("* BASKET:enter"));
-            state.onExit(() => log("* BASKET:exit"));
-          },
+          ProductBasket,
         });
       }
-
-      const log = getPrinter(state);
-      state.onEnter(async () =>
-        log(`<${state?.key} event="${process.event}">`)
-      );
-      state.onExit(async () =>
-        log(`</${state?.key}> <!-- event="${process.event}" -->`)
-      );
-
       callStateHandlers(state);
     });
     return process;
@@ -70,21 +84,21 @@ describe("dispatch state handlers", () => {
     checkLines(
       '[1]<App event="start">',
       '[2]  <ProductCatalog event="start">',
-      "[3]  [ProductCatalog]",
+      "[3]  {ProductCatalog}",
       '[4]    <ProductList event="start">',
-      "[5]    [ProductList]"
+      "[5]    (ProductList)"
     );
 
     await process.dispatch("showBasket");
     checkLines(
       '[1]<App event="start">',
       '[2]  <ProductCatalog event="start">',
-      "[3]  [ProductCatalog]",
+      "[3]  {ProductCatalog}",
       '[4]    <ProductList event="start">',
-      "[5]    [ProductList]",
-      "[6]    [/ProductList]",
+      "[5]    (ProductList)",
+      "[6]    (/ProductList)",
       '[7]    </ProductList> <!-- event="showBasket" -->',
-      "[8]  [/ProductCatalog]",
+      "[8]  {/ProductCatalog}",
       '[9]  </ProductCatalog> <!-- event="showBasket" -->',
       '[10]  <ProductBasket event="showBasket">',
       "[11]  * BASKET:enter",
@@ -95,12 +109,12 @@ describe("dispatch state handlers", () => {
     checkLines(
       '[1]<App event="start">',
       '[2]  <ProductCatalog event="start">',
-      "[3]  [ProductCatalog]",
+      "[3]  {ProductCatalog}",
       '[4]    <ProductList event="start">',
-      "[5]    [ProductList]",
-      "[6]    [/ProductList]",
+      "[5]    (ProductList)",
+      "[6]    (/ProductList)",
       '[7]    </ProductList> <!-- event="showBasket" -->',
-      "[8]  [/ProductCatalog]",
+      "[8]  {/ProductCatalog}",
       '[9]  </ProductCatalog> <!-- event="showBasket" -->',
       '[10]  <ProductBasket event="showBasket">',
       "[11]  * BASKET:enter",
@@ -109,21 +123,21 @@ describe("dispatch state handlers", () => {
       "[14]  * BASKET:exit",
       '[15]  </ProductBasket> <!-- event="back" -->',
       '[16]  <ProductCatalog event="back">',
-      "[17]  [ProductCatalog]",
+      "[17]  {ProductCatalog}",
       '[18]    <ProductList event="back">',
-      "[19]    [ProductList]"
+      "[19]    (ProductList)"
     );
 
     await process.dispatch("exit");
     checkLines(
       '[1]<App event="start">',
       '[2]  <ProductCatalog event="start">',
-      "[3]  [ProductCatalog]",
+      "[3]  {ProductCatalog}",
       '[4]    <ProductList event="start">',
-      "[5]    [ProductList]",
-      "[6]    [/ProductList]",
+      "[5]    (ProductList)",
+      "[6]    (/ProductList)",
       '[7]    </ProductList> <!-- event="showBasket" -->',
-      "[8]  [/ProductCatalog]",
+      "[8]  {/ProductCatalog}",
       '[9]  </ProductCatalog> <!-- event="showBasket" -->',
       '[10]  <ProductBasket event="showBasket">',
       "[11]  * BASKET:enter",
@@ -132,12 +146,12 @@ describe("dispatch state handlers", () => {
       "[14]  * BASKET:exit",
       '[15]  </ProductBasket> <!-- event="back" -->',
       '[16]  <ProductCatalog event="back">',
-      "[17]  [ProductCatalog]",
+      "[17]  {ProductCatalog}",
       '[18]    <ProductList event="back">',
-      "[19]    [ProductList]",
-      "[20]    [/ProductList]",
+      "[19]    (ProductList)",
+      "[20]    (/ProductList)",
       '[21]    </ProductList> <!-- event="exit" -->',
-      "[22]  [/ProductCatalog]",
+      "[22]  {/ProductCatalog}",
       '[23]  </ProductCatalog> <!-- event="exit" -->',
       '[24]</App> <!-- event="exit" -->'
     );
@@ -155,21 +169,21 @@ describe("dispatch state handlers", () => {
     checkLines(
       'abc[1]<App event="start">',
       'abc[2]  <ProductCatalog event="start">',
-      "abc[3]  [ProductCatalog]",
+      "abc[3]  {ProductCatalog}",
       'abc[4]    <ProductList event="start">',
-      "abc[5]    [ProductList]"
+      "abc[5]    (ProductList)"
     );
 
     await process.dispatch("showBasket");
     checkLines(
       'abc[1]<App event="start">',
       'abc[2]  <ProductCatalog event="start">',
-      "abc[3]  [ProductCatalog]",
+      "abc[3]  {ProductCatalog}",
       'abc[4]    <ProductList event="start">',
-      "abc[5]    [ProductList]",
-      "abc[6]    [/ProductList]",
+      "abc[5]    (ProductList)",
+      "abc[6]    (/ProductList)",
       'abc[7]    </ProductList> <!-- event="showBasket" -->',
-      "abc[8]  [/ProductCatalog]",
+      "abc[8]  {/ProductCatalog}",
       'abc[9]  </ProductCatalog> <!-- event="showBasket" -->',
       'abc[10]  <ProductBasket event="showBasket">',
       "abc[11]  * BASKET:enter",
@@ -180,12 +194,12 @@ describe("dispatch state handlers", () => {
     checkLines(
       'abc[1]<App event="start">',
       'abc[2]  <ProductCatalog event="start">',
-      "abc[3]  [ProductCatalog]",
+      "abc[3]  {ProductCatalog}",
       'abc[4]    <ProductList event="start">',
-      "abc[5]    [ProductList]",
-      "abc[6]    [/ProductList]",
+      "abc[5]    (ProductList)",
+      "abc[6]    (/ProductList)",
       'abc[7]    </ProductList> <!-- event="showBasket" -->',
-      "abc[8]  [/ProductCatalog]",
+      "abc[8]  {/ProductCatalog}",
       'abc[9]  </ProductCatalog> <!-- event="showBasket" -->',
       'abc[10]  <ProductBasket event="showBasket">',
       "abc[11]  * BASKET:enter",
@@ -194,9 +208,9 @@ describe("dispatch state handlers", () => {
       "abc[14]  * BASKET:exit",
       'abc[15]  </ProductBasket> <!-- event="back" -->',
       'abc[16]  <ProductCatalog event="back">',
-      "abc[17]  [ProductCatalog]",
+      "abc[17]  {ProductCatalog}",
       'abc[18]    <ProductList event="back">',
-      "abc[19]    [ProductList]"
+      "abc[19]    (ProductList)"
     );
   });
 });
