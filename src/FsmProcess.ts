@@ -1,6 +1,10 @@
-import { bindMethods } from "./bindMethods.ts";
+import { bindMethods } from "./utils/bindMethods.ts";
 import { FsmBaseClass } from "./FsmBaseClass.ts";
-import { FsmState, FsmStateHandler, FsmStateDump, FsmStateSyncHandler } from "./FsmState.ts";
+import {
+  FsmState,
+  FsmStateDump,
+  FsmStateSyncHandler,
+} from "./FsmState.ts";
 import {
   EVENT_EMPTY,
   FsmStateConfig,
@@ -99,7 +103,12 @@ export class FsmProcess extends FsmBaseClass {
       this.state = this.state
         ? this._newSubstate(this.state, stateDump.key)
         : this._newState(undefined, stateDump.key, this.rootDescriptor);
-      await this.state._runHandler("restore", this.state, stateDump.data, ...args);
+      await this.state._runHandler(
+        "restore",
+        this.state,
+        stateDump.data,
+        ...args
+      );
     }
     return this;
   }
@@ -123,7 +132,7 @@ export class FsmProcess extends FsmBaseClass {
     descriptor: FsmStateDescriptor | undefined
   ) {
     const state = new FsmState(this, parent, key, descriptor);
-    this._runHandler("onStateCreate", state);
+    this._runHandlerSync("onStateCreate", state);
     return state;
   }
 
