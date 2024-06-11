@@ -25,7 +25,7 @@
     }
   },
   "dependencies": {
-    "@statewalker/tree": "0.10.2"
+    "@agen/utils": "*"
   },
   "devDependencies": {
     "@statewalker/eslint-config": "*",
