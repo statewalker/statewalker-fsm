@@ -5,7 +5,7 @@ import {
   setProcessTracer,
 } from "../src/index.ts";
 import { describe, it, expect } from "./deps.js";
-import config from "./productCatalogStatechart.js";
+import config from "./process.ProductCatalog.js";
 import { getPrinter, setProcessPrinter } from "../src/context/printer.ts";
 import {
   addSubstateHandlers,

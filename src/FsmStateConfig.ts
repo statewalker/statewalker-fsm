@@ -4,10 +4,10 @@ export const STATE_FINAL = "";
 export const EVENT_ANY = "*";
 export const EVENT_EMPTY = "";
 
+export type FsmStateKey = string;
+export type FsmEventKey = string;
 export type FsmStateConfig = {
-  key: string;
-
-  transitions: [string, string, string][];
-
+  key: FsmStateKey;
+  transitions?: [from: FsmStateKey, event: FsmEventKey, to: FsmStateKey][];
   states?: FsmStateConfig[];
-};
+} & Record<string, any>;

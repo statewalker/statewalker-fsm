@@ -11,7 +11,7 @@ export class FsmStateDescriptor {
 
   static build(config: FsmStateConfig) {
     const descriptor = new FsmStateDescriptor();
-    for (const [from, event, to] of config.transitions) {
+    for (const [from, event, to] of config.transitions || []) {
       const index = (descriptor.transitions[from] =
         descriptor.transitions[from] || {});
       index[event] = to;

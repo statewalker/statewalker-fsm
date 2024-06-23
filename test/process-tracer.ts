@@ -1,7 +1,7 @@
 import { FsmProcess } from "../src/FsmProcess.js";
 import { setProcessPrinter, setProcessTracer } from "../src/index.js";
 import { describe, it, expect } from "./deps.js";
-import config from "./productCatalogStatechart.js";
+import config from "./process.ProductCatalog.js";
 
 describe("newProcessLogger", () => {
   function newPrintChecker() {
