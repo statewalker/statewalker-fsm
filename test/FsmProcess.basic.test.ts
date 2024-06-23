@@ -1,5 +1,5 @@
-import { describe, it, expect } from "./deps.js";
-import { FsmProcess, FsmStateConfig } from "../src/index.js";
+import { describe, it, expect } from "./deps.ts";
+import { FsmProcess, FsmStateConfig } from "../src/index.ts";
 
 describe("FsmAsyncProcess", () => {
   const main: FsmStateConfig = {

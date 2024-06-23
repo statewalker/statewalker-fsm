@@ -9,7 +9,8 @@ export default {
     ["CheckAvailability", "error", "ShowError"],
     ["PrepareDrink", "done", "DispenseDrink"],
     ["DispenseDrink", "taken", "WaitForSelection"],
-    ["ShowError", "acknowledge", "WaitForSelection"]
+    ["ShowError", "acknowledge", "WaitForSelection"],
+    ["*", "switch", ""]
   ],
   "states": [
     {
@@ -17,7 +18,6 @@ export default {
       "description": "State where the machine display various options and is waiting for a user to select a drink.",
       "transitions": [
         ["", "*", "DisplayWelcomeScreen"],
-        ["DisplayWelcomeScreen", "select", ""],
         ["DisplayWelcomeScreen", "touch", "DisplayOptions"],
         ["DisplayOptions", "select", ""],
         ["DisplayOptions", "timeout", "DisplayWelcomeScreen"]

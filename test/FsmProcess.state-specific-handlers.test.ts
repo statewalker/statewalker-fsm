@@ -4,8 +4,8 @@ import {
   FsmStateConfig,
   setProcessTracer,
 } from "../src/index.ts";
-import { describe, it, expect } from "./deps.js";
-import config from "./process.ProductCatalog.js";
+import { describe, it, expect } from "./deps.ts";
+import config from "./process.ProductCatalog.ts";
 import { getPrinter, setProcessPrinter } from "../src/context/printer.ts";
 import {
   addSubstateHandlers,

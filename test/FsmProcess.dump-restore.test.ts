@@ -4,7 +4,7 @@ import {
   FsmState,
   FsmStateConfig,
   setProcessTracer,
-} from "../src/index.js";
+} from "../src/index.ts";
 import { FsmProcessDump } from "../dist/index";
 import { getPrinter, setProcessPrinter } from "../src/context/printer.ts";
 
