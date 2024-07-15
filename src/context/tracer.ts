@@ -9,11 +9,12 @@ export function setProcessTracer(process: FsmProcess, print?: Printer) {
 }
 
 export function setStateTracer(state: FsmState, print?: Printer) {
-  const printLine = print || getPrinter(state);
   state.onEnter(() => {
+    const printLine = print || getPrinter(state);
     printLine(`<${state?.key} event="${state.process.event}">`);
   });
   state.onExit(() => {
+    const printLine = print || getPrinter(state);
     printLine(`</${state.key}> <!-- event="${state.process.event}" -->`);
   });
 }
