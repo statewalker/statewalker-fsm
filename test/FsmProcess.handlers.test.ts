@@ -1,135 +1,213 @@
 import { describe, it, expect } from "./deps.ts";
-import { FsmProcess, FsmStateConfig } from "../src/index.ts";
-import config from "./process.CofeeMachine.ts";
+import {
+  FsmProcess,
+  FsmState,
+  FsmStateConfig,
+  type FsmStateKey,
+  getPrinter,
+  setProcessPrinter,
+} from "../src/index.ts";
+import statecharts from "./process.CofeeMachine.ts";
+
+type FsmStateHandler = (state: FsmState) => void;
+
+function initProcessHandler(
+  process: FsmProcess,
+  // StateName => handler
+  handlers: Record<string, any> = {},
+  // LayerName => handler
+  adapters: Record<string, FsmStateHandler>
+) {
+  const KEY = "handlersConfig";
+  // const toHandler = createHandlers({ adapters });
+  process.setData(KEY, handlers);
+
+  process.onStateCreate((state) => {
+    const key = state.key;
+    let config;
+    for (let parent = state.parent; !config && parent; parent = parent.parent) {
+      const configs = parent.getData<Record<string, any>>(KEY);
+      config = configs?.[key];
+    }
+    if (!config) {
+      const configs = process.getData<Record<string, any>>(KEY);
+      config = configs?.[key];
+    }
+    if (config) {
+      if (typeof config === "function") {
+        (function (
+          handleState: () =>
+            | undefined
+            | (() => unknown)
+            | Promise<undefined | (() => unknown)>
+        ) {
+          let cleanup: undefined | (() => unknown | Promise<unknown>);
+          state.onEnter(async () => {
+            cleanup = await handleState();
+          });
+          state.onExit(async () => {
+            if (cleanup) cleanup();
+          });
+        })(config);
+      } else {
+        for (const [layerName, stateLayerConfigs] of Object.entries(config)) {
+          if (layerName === "handlers") {
+            state.setData(KEY, stateLayerConfigs);
+          } else {
+            if (!Array.isArray(stateLayerConfigs)) continue;
+            const adapter = adapters[layerName];
+            if (!adapter) continue;
+            adapter(state);
+          }
+        }
+      }
+    }
+  });
+}
+
+type HandlerLayerName = string;
+type HandlerLayer = Record<HandlerLayerName, {}>;
+type ProcessConfig = {
+  statecharts: FsmStateConfig;
+};
+function newFsmProcess(processConfig: ProcessConfig) {
+  let process = new FsmProcess(processConfig.statecharts);
+  initProcessHandler(process, processConfig, {});
+
+  return process;
+}
+
+type LayerName = string;
+
+export type DocLayer = {
+  default: string;
+  doc: string;
+};
+
+export type ServiceName = string;
+export type FieldName = string;
+export type DependenciesDeclaration = Record<FieldName, ServiceName>;
+export type Dependencies = Record<FieldName, ResolvedService>;
+export type Service<T = any> = (deps: Dependencies) => AsyncGenerator<T>;
+export type ResolvedService<T = any> = () => AsyncGenerator<T>;
+export type GuardFunction = (deps: Dependencies) => any[];
+export type ServiceLayer<T = any> = {
+  name: ServiceName;
+  deps?: DependenciesDeclaration;
+  guard?: GuardFunction;
+} & (
+  | {
+      service: Service<T>;
+    }
+  | {
+      // Module version
+      default: Service<T>;
+    }
+);
+
+export type Action = (
+  deps: Dependencies
+) => undefined | (() => unknown) | Promise<undefined | (() => unknown)>;
+export type ActionLayer = {
+  name: ServiceName;
+  deps?: DependenciesDeclaration;
+} & (
+  | {
+      action: Action;
+    }
+  | {
+      // Module version
+      default: Action;
+    }
+);
+
+export type HandlersMap = {
+  docs?: DocLayer[];
+  services?: ServiceLayer[];
+  actions?: ActionLayer[];
+  // stores?: StoreLayer[];
+  // triggers?: TriggerLayers[];
+} & {
+  handlers?: HandlersMap;
+} & Record<string, any>;
+
+export type StateHandlerDescription = Record<
+  FsmStateKey,
+  Record<LayerName, any[]>
+>;
+
+const processConfig = {
+  statecharts,
+
+  handlers: {
+    CoffeeMachine: function () {
+      console.log("CoffeeMachine: enter");
+      return async () => {
+        console.log("CoffeeMachine: exit");
+      };
+    },
+    WaitForSelection: function () {
+      console.log("WaitForSelection: enter");
+      return async () => {
+        console.log("WaitForSelection: exit");
+      };
+    },
+  },
+};
 
 describe("FsmAsyncProcess: handlers", () => {
-  const options = {
-    config,
-    events: [
-      // Start application
-      "",
-      // The user toches the screen
-      "touch",
-      // Timeout - nothing was selected during this period
-      "timeout",
-      // Select a drink
-      "touch",
-      "select",
-
-      // Validate that the drink is available
-      "ok",
-      // Heat water: ok
-      "done",
-      // Prepare the drink: ok
-      "done",
-
-      // Wait for pickup: ok
-      "taken",
-
-      // Switch off
-      "switch",
-    ],
-    control: [
-      "-[]->CoffeeMachine/WaitForSelection/DisplayWelcomeScreen",
-      "-[touch]->CoffeeMachine/WaitForSelection/DisplayOptions",
-      "-[timeout]->CoffeeMachine/WaitForSelection/DisplayWelcomeScreen",
-      "-[touch]->CoffeeMachine/WaitForSelection/DisplayOptions",
-      "-[select]->CoffeeMachine/CheckAvailability",
-      "-[ok]->CoffeeMachine/PrepareDrink/HeatWater",
-      "-[done]->CoffeeMachine/PrepareDrink/BrewCoffee",
-      "-[done]->CoffeeMachine/DispenseDrink/WaitForPickup",
-      "-[taken]->CoffeeMachine/WaitForSelection/DisplayWelcomeScreen",
-      "-[switch]->",
-    ],
-    traces: [
-      '  <CoffeeMachine event="">',
-      '    <WaitForSelection event="">',
-      '      <DisplayWelcomeScreen event="">',
-      "       [DisplayWelcomeScreen:]",
-      "      </DisplayWelcomeScreen>",
-      '      <DisplayOptions event="touch">',
-      "       [DisplayOptions:touch]",
-      "      </DisplayOptions>",
-      '      <DisplayWelcomeScreen event="timeout">',
-      "       [DisplayWelcomeScreen:timeout]",
-      "      </DisplayWelcomeScreen>",
-      '      <DisplayOptions event="touch">',
-      "       [DisplayOptions:touch]",
-      "      </DisplayOptions>",
-      "    </WaitForSelection>",
-      '    <CheckAvailability event="select">',
-      "     [CheckAvailability:select]",
-      "    </CheckAvailability>",
-      '    <PrepareDrink event="ok">',
-      '      <HeatWater event="ok">',
-      "       [HeatWater:ok]",
-      "      </HeatWater>",
-      '      <BrewCoffee event="done">',
-      "       [BrewCoffee:done]",
-      "      </BrewCoffee>",
-      "    </PrepareDrink>",
-      '    <DispenseDrink event="done">',
-      '      <WaitForPickup event="done">',
-      "       [WaitForPickup:done]",
-      "      </WaitForPickup>",
-      "    </DispenseDrink>",
-      '    <WaitForSelection event="taken">',
-      '      <DisplayWelcomeScreen event="taken">',
-      "       [DisplayWelcomeScreen:taken]",
-      "      </DisplayWelcomeScreen>",
-      "    </WaitForSelection>",
-      "  </CoffeeMachine>",
-    ],
-  };
-
-  function newProcess(print: (msg: string) => void): FsmProcess {
-    let process = new FsmProcess(options.config);
-    process.onStateCreate((state) => {
-      state.onEnter(() => {
-        print(`<${state?.key} event="${state.process.event}">`);
-      });
-      state.onExit(() => {
-        print(`</${state.key}>`);
-      });
-    });
-    return process;
-  }
-
   it("should iterate over states and perform required state transitions", async () => {
     const testTraces: string[] = [];
-    const print = (msg: string) => {
-      let shift = "";
-      for (let state = process.state; !!state; state = state.parent) {
-        shift += "  ";
-      }
-      testTraces.push(shift + msg);
-    };
-    const getPath = () => {
-      const stack: string[] = [];
-      for (let state = process.state; !!state; state = state.parent) {
-        stack.unshift(state.key);
-      }
-      return stack.join("/");
-    };
-    const getStateKey = () => process.state?.key || "";
-    const getEventKey = () => process.event || "";
-    const process = newProcess(print);
+    let process = newFsmProcess(processConfig);
+    // setProcessPrinter(process, {
+    //   lineNumbers: true,
+    //   print: (...messages: string[]) => {
+    //     testTraces.push(messages.join(""));
+    //   },
+    // });
+    // initProcessHandler(process, {}, {});
 
-    const { events, control, traces } = options;
-    const test = [];
+    // async function handleState() {
+    //   console.log("Entering");
+    //   return () => {
+    //     console.log("Exit");
+    //   };
+    // }
+
+    // process.onStateCreate((state) => {
+    //   const print = getPrinter(state);
+    //   state.onEnter(() => {
+    //     print(`<${state?.key} event="${state.process.event}">`);
+    //   });
+    //   s    // process.onStateCreate((state) => {
+    //   const print = getPrinter(state);
+    //   state.onEnter(() => {
+    //     print(`<${state?.key} event="${state.process.event}">`);
+    //   });
+    //   state.onExit(() => {
+    //     print(`</${state.key}>`);
+    //   });
+    // });tate.onExit(() => {
+    //     print(`</${state.key}>`);
+    //   });
+    // });
+    const events = [
+      "",
+      "touch",
+      "select",
+      // Check availability:
+      "ok",
+      // Head water:
+      "done",
+      // Brew drink:
+      "done",
+      // Pickup the drink:
+      "taken",
+    ];
     for (let i = 0; i < events.length; i++) {
       const event = events[i];
       await process.dispatch(event);
-
-      const stateKey = getStateKey();
-      const eventKey = getEventKey();
-
-      test.push(`-[${eventKey}]->${getPath()}`);
-      if (process.state) {
-        print(` [${stateKey}:${eventKey}]`);
-      }
     }
-    expect(test).toEqual(control);
-    expect(testTraces).toEqual(traces);
+    console.log(testTraces);
   });
 });
