@@ -24,10 +24,8 @@
       "import": "./src/index.ts"
     }
   },
-  "dependencies": {
-    "@agen/utils": "^0.21.0"
-  },
   "devDependencies": {
+    "@changesets/cli": "^2.27.7",
     "@statewalker/eslint-config": "*",
     "@statewalker/typescript-config": "*",
     "eslint": "^9.0.0",
@@ -40,7 +38,8 @@
     "url": "git@github.com:statewalker/statewalker-fsm.git"
   },
   "scripts": {
-    "build": "yarn test && tsup",
+    "dist": "yarn test && tsup",
+    "build": "yarn dist",
     "watch": "tsup --watch",
     "clean": "rm -rf dist",
     "lint": "eslint \"**/*.(js|ts)\"",
