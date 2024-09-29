@@ -38,13 +38,12 @@ export type FsmProcessDumpHandler = (
 export class FsmProcess extends FsmBaseClass {
   state?: FsmState;
   event?: string;
-  status: number;
+  status: number = 0;
   config: FsmStateConfig;
   rootDescriptor: FsmStateDescriptor;
 
   constructor(config: FsmStateConfig) {
     super();
-    this.status = 0;
     this.rootDescriptor = FsmStateDescriptor.build(config);
     this.config = config;
     bindMethods(this, "dispatch", "dump", "restore");
