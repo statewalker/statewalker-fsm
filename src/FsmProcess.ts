@@ -1,10 +1,6 @@
 import { bindMethods } from "./utils/bindMethods.ts";
 import { FsmBaseClass } from "./FsmBaseClass.ts";
-import {
-  FsmState,
-  FsmStateDump,
-  FsmStateSyncHandler,
-} from "./FsmState.ts";
+import { FsmState, FsmStateDump, FsmStateSyncHandler } from "./FsmState.ts";
 import {
   EVENT_EMPTY,
   FsmStateConfig,
@@ -52,6 +48,15 @@ export class FsmProcess extends FsmBaseClass {
     this.rootDescriptor = FsmStateDescriptor.build(config);
     this.config = config;
     bindMethods(this, "dispatch", "dump", "restore");
+  }
+
+  async shutdown(event?: string) {
+    while (this.state) {
+      this.event = event;
+      this.status = STATUS_FINISHED;
+      await this.state?._runHandler("onExit", this.state);
+      this.state = this.state.parent;
+    }
   }
 
   async dispatch(event: string, mask: number = STATUS_LEAF) {
