@@ -1,7 +1,7 @@
 import { describe, it, expect } from "./deps.ts";
 import { FsmProcess, FsmStateConfig } from "../src/index.ts";
-import { setProcessTracer } from "../src/context/tracer.ts";
-import { setProcessPrinter } from "../src/context/printer.ts";
+import { setProcessTracer } from "../src/utils/tracer.ts";
+import { setProcessPrinter } from "../src/utils/printer.ts";
 
 describe("simple processing", () => {
   const config: FsmStateConfig = {

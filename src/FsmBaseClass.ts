@@ -1,5 +1,3 @@
-import { bindMethods } from "./utils/bindMethods.ts";
-
 export class FsmBaseClass {
   handlers: Record<string, Function[]>;
   data: Record<string, unknown>;
@@ -51,4 +49,12 @@ export class FsmBaseClass {
   async _handleError(error: Error | unknown) {
     console.error(error);
   }
+}
+
+export function bindMethods<T>(obj: T, ...methods: string[]) {
+  const o = obj as any;
+  methods.forEach((methodName) => {
+    o[methodName] = (o[methodName] as Function).bind(o);
+  });
+  return obj;
 }

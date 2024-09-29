@@ -5,8 +5,8 @@ import {
   FsmState,
   FsmStateConfig,
 } from "../src/index.ts";
-import { getPrinter, setProcessPrinter } from "../src/context/printer.ts";
-import { setProcessTracer } from "../src/context/tracer.ts";
+import { getPrinter, setProcessPrinter } from "../src/utils/printer.ts";
+import { setProcessTracer } from "../src/utils/tracer.ts";
 
 describe("dump/restore: process is dumped and restored at each step", () => {
   const config: FsmStateConfig = {

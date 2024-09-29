@@ -21,7 +21,7 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",
-    "./context": "./dist/context/index.js"
+    "./utils": "./dist/utils/index.js"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.7",

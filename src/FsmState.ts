@@ -1,5 +1,4 @@
-import { bindMethods } from "./utils/bindMethods.ts";
-import { FsmBaseClass } from "./FsmBaseClass.ts";
+import { FsmBaseClass, bindMethods } from "./FsmBaseClass.ts";
 import { FsmProcess } from "./FsmProcess.ts";
 import { FsmStateDescriptor } from "./FsmStateDescriptor.ts";
 

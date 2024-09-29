@@ -1,5 +1,4 @@
-import { bindMethods } from "./utils/bindMethods.ts";
-import { FsmBaseClass } from "./FsmBaseClass.ts";
+import { FsmBaseClass, bindMethods } from "./FsmBaseClass.ts";
 import { FsmState, FsmStateDump, FsmStateSyncHandler } from "./FsmState.ts";
 import {
   EVENT_EMPTY,
