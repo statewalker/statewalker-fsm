@@ -1,5 +1,5 @@
-import { FsmProcess } from "../FsmProcess.ts";
-import { FsmState } from "../FsmState.ts";
+import type { FsmProcess } from "../FsmProcess.ts";
+import type { FsmState } from "../FsmState.ts";
 import { getPrinter, type Printer } from "./printer.ts";
 
 export function setProcessTracer(process: FsmProcess, print?: Printer) {

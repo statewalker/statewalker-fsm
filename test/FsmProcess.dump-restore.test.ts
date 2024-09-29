@@ -1,12 +1,12 @@
 import { describe, it, expect } from "./deps.ts";
 import {
   FsmProcess,
+  FsmProcessDump,
   FsmState,
   FsmStateConfig,
-  setProcessTracer,
 } from "../src/index.ts";
-import { FsmProcessDump } from "../dist/index";
 import { getPrinter, setProcessPrinter } from "../src/context/printer.ts";
+import { setProcessTracer } from "../src/context/tracer.ts";
 
 describe("dump/restore: process is dumped and restored at each step", () => {
   const config: FsmStateConfig = {

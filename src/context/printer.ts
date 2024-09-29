@@ -1,5 +1,5 @@
-import { type FsmProcess } from "../FsmProcess.ts";
-import { type FsmState } from "../FsmState.ts";
+import type { FsmProcess } from "../FsmProcess.ts";
+import type { FsmState } from "../FsmState.ts";
 export type Printer = (...args: any[]) => void;
 export type PrinterConfig = {
   prefix?: string;
