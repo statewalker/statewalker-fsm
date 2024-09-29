@@ -39,10 +39,10 @@ export function setProcessPrinter(
   process.setData(KEY_PRINTER, printer);
 }
 
+export function getProcessPrinter(process: FsmProcess): Printer {
+  return process.getData(KEY_PRINTER) || console.log;
+}
+
 export function getPrinter(state: FsmState): Printer {
-  return (
-    state.getData(KEY_PRINTER, true) ||
-    state.process.getData(KEY_PRINTER) ||
-    console.log
-  );
+  return state.getData(KEY_PRINTER, true) || getProcessPrinter(state.process);
 }
