@@ -1,9 +1,11 @@
 import { bindMethods } from "./utils/bindMethods.ts";
 
 export class FsmBaseClass {
-  handlers: Record<string, Function[]> = {};
-  data: Record<string, unknown> = {};
+  handlers: Record<string, Function[]>;
+  data: Record<string, unknown>;
   constructor() {
+    this.handlers = {};
+    this.data = {};
     bindMethods(this, "setData", "getData");
   }
   setData<T>(key: string, value: T) {
