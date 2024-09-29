@@ -1,6 +1,6 @@
 {
   "name": "@statewalker/fsm",
-  "version": "0.22.0",
+  "version": "0.22.1",
   "description": "HFSM Implementation",
   "keywords": [],
   "homepage": "https://github.com/statewalker/statewalker-fsm",
@@ -16,12 +16,12 @@
   ],
   "module": "./dist/index.js",
   "main": "./dist/index.js",
-  "jsdelivr": "./dist/index.js",
-  "unpkg": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",
-    "./utils": "./dist/utils/index.js"
+    "./utils": "./dist/utils/index.js",
+    "./*.ts": "./src/*.ts",
+    "./utils/*.ts": "./src/utils/*.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.7",
