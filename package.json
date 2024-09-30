@@ -19,7 +19,8 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",
-    "./utils": "./dist/utils/index.js",
+    "./utils.js": "./dist/utils/index.js",
+    "./utils/*.js": "./dist/utils/*.js",
     "./*.ts": "./src/*.ts",
     "./utils/*.ts": "./src/utils/*.ts"
   },
