@@ -30,12 +30,10 @@ export class FsmBaseClass {
       delete this.handlers[type];
     }
   }
-  _runHandlerSync(type: string, ...args: unknown[]) {
-    const list = this.handlers[type] || [];
-    return list.map((handler) => handler(...args));
-  }
+
   async _runHandler(type: string, ...args: unknown[]) {
-    const promises = this._runHandlerSync(type, ...args);
+    const list = this.handlers[type] || [];
+    const promises = list.map((handler) => handler(...args));
     for (const promise of promises) {
       try {
         await promise;
@@ -49,10 +47,12 @@ export class FsmBaseClass {
   }
 }
 
-export function bindMethods<T>(obj: T, ...methods: string[]) {
-  const o = obj as any;
-  methods.forEach((methodName) => {
-    o[methodName] = (o[methodName] as Function).bind(o);
-  });
+export function bindMethods<T>(obj: T, ...methods: (string | symbol)[]) {
+  const o = obj as Record<string | symbol, unknown>;
+  for (const methodName of methods) {
+    const method = o[methodName];
+    if (typeof method !== "function") continue;
+    o[methodName] = method.bind(o);
+  }
   return obj;
 }

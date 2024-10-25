@@ -10,4 +10,4 @@ export type FsmStateConfig = {
   key: FsmStateKey;
   transitions?: [from: FsmStateKey, event: FsmEventKey, to: FsmStateKey][];
   states?: FsmStateConfig[];
-} & Record<string, any>;
+} & Record<string, unknown>;

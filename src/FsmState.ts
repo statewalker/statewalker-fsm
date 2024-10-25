@@ -2,7 +2,7 @@ import { FsmBaseClass, bindMethods } from "./FsmBaseClass.ts";
 import { FsmProcess } from "./FsmProcess.ts";
 import { FsmStateDescriptor } from "./FsmStateDescriptor.ts";
 
-export type FsmStateDump = Record<string, any> & {
+export type FsmStateDump = Record<string, unknown> & {
   key: string;
   data: Record<string, unknown>;
 };
@@ -11,8 +11,6 @@ export type FsmStateHandler = (
   ...args: unknown[]
 ) => void | Promise<void>;
 
-export type FsmStateSyncHandler = (state: FsmState, ...args: unknown[]) => void;
-
 export type FsmStateDumpHandler = (
   state: FsmState,
   dump: FsmStateDump
@@ -20,7 +18,7 @@ export type FsmStateDumpHandler = (
 
 export type FsmStateErrorHandler = (
   state: FsmState,
-  error: any
+  error: unknown
 ) => void | Promise<void>;
 
 export class FsmState extends FsmBaseClass {

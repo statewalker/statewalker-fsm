@@ -1,5 +1,5 @@
 import { FsmBaseClass, bindMethods } from "./FsmBaseClass.ts";
-import { FsmState, FsmStateDump, FsmStateSyncHandler } from "./FsmState.ts";
+import { FsmState, FsmStateDump, FsmStateHandler } from "./FsmState.ts";
 import {
   EVENT_EMPTY,
   FsmStateConfig,
@@ -21,10 +21,10 @@ export const STATUS_EXIT = STATUS_LEAF | STATUS_LAST;
 
 export type FsmProcessHandler = (
   process: FsmProcess,
-  ...args: any[]
+  ...args: unknown[]
 ) => void | Promise<void>;
 
-export type FsmProcessDump = Record<string, any> & {
+export type FsmProcessDump = Record<string, unknown> & {
   status: number;
   event?: string;
   stack: FsmStateDump[];
@@ -32,7 +32,7 @@ export type FsmProcessDump = Record<string, any> & {
 
 export type FsmProcessDumpHandler = (
   process: FsmProcess,
-  dump: FsmProcessDump
+  dump: FsmProcessDump,
 ) => void | Promise<void>;
 
 export class FsmProcess extends FsmBaseClass {
@@ -83,7 +83,7 @@ export class FsmProcess extends FsmBaseClass {
     };
     const dumpStates = async (
       state: FsmState | undefined,
-      stack: FsmStateDump[] = []
+      stack: FsmStateDump[] = [],
     ) => {
       if (!state) return stack;
       state.parent && (await dumpStates(state.parent, stack));
@@ -111,17 +111,19 @@ export class FsmProcess extends FsmBaseClass {
         "restore",
         this.state,
         stateDump.data,
-        ...args
+        ...args,
       );
     }
     return this;
   }
 
-  onStateCreate(handler: FsmStateSyncHandler) {
+  onStateCreate(handler: FsmStateHandler) {
     return this._addHandler("onStateCreate", handler, true);
   }
 
-  onStateError(handler: (state: FsmState, error: any) => void | Promise<void>) {
+  onStateError(
+    handler: (state: FsmState, error: unknown) => void | Promise<void>,
+  ) {
     return this._addHandler("onStateError", handler);
   }
 
@@ -133,10 +135,10 @@ export class FsmProcess extends FsmBaseClass {
   _newState(
     parent: FsmState | undefined,
     key: string,
-    descriptor: FsmStateDescriptor | undefined
+    descriptor: FsmStateDescriptor | undefined,
   ) {
     const state = new FsmState(this, parent, key, descriptor);
-    this._runHandlerSync("onStateCreate", state);
+    this._runHandler("onStateCreate", state);
     return state;
   }
 
@@ -145,7 +147,7 @@ export class FsmProcess extends FsmBaseClass {
     const toState =
       parent.descriptor?.getTargetStateKey(
         prevStateKey || STATE_INITIAL,
-        this.event || EVENT_EMPTY
+        this.event || EVENT_EMPTY,
       ) || STATE_FINAL;
     if (!toState) return;
     return this._newSubstate(parent, toState);

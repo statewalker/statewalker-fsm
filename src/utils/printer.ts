@@ -1,9 +1,9 @@
 import type { FsmProcess } from "../FsmProcess.ts";
 import type { FsmState } from "../FsmState.ts";
-export type Printer = (...args: any[]) => void;
+export type Printer = (...args: unknown[]) => void;
 export type PrinterConfig = {
   prefix?: string;
-  print?: (...args: any[]) => void;
+  print?: (...args: unknown[]) => void;
   lineNumbers?: boolean;
 };
 
@@ -11,7 +11,7 @@ export const KEY_PRINTER = "printer";
 
 export function preparePrinter(
   process: FsmProcess,
-  { prefix = "", print = console.log, lineNumbers = false }: PrinterConfig
+  { prefix = "", print = console.log, lineNumbers = false }: PrinterConfig,
 ): Printer {
   let lineCounter = 0;
   const shift = () => {
@@ -22,7 +22,7 @@ export function preparePrinter(
     return prefix;
   };
   const getPrefix = lineNumbers ? () => `[${++lineCounter}]${shift()}` : shift;
-  const printer = (...args: string[]) => print(prefix, getPrefix(), ...args);
+  const printer = (...args: unknown[]) => print(prefix, getPrefix(), ...args);
   return printer;
 }
 
@@ -33,7 +33,7 @@ export function setPrinter(state: FsmState, config: PrinterConfig = {}) {
 
 export function setProcessPrinter(
   process: FsmProcess,
-  config: PrinterConfig = {}
+  config: PrinterConfig = {},
 ) {
   const printer = preparePrinter(process, config);
   process.setData(KEY_PRINTER, printer);
