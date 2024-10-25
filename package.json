@@ -18,11 +18,8 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./utils.js": "./dist/utils/index.js",
-    "./utils/*.js": "./dist/utils/*.js",
-    "./*.ts": "./src/*.ts",
-    "./utils/*.ts": "./src/utils/*.ts"
+    "./*/*.js": "./dist/*/*.js",
+    "./*/*.ts": "./src/*/*.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.7",
