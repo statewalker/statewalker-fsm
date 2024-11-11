@@ -14,12 +14,23 @@
     "dist",
     "src"
   ],
+  "source": "./src/index.ts",
   "module": "./dist/index.js",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    "./*/*.js": "./dist/*/*.js",
-    "./*/*.ts": "./src/*/*.ts"
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./utils": {
+      "source": "./src/utils/index.ts",
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.js",
+      "default": "./dist/utils/index.js"
+    }
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.7",
@@ -41,7 +52,8 @@
     "clean": "rm -rf dist",
     "lint": "eslint \"**/*.(js|ts)\"",
     "test": "vitest --run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublish": "yarn dist"
   },
   "sideEffects": false,
   "publishConfig": {
