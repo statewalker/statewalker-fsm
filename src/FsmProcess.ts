@@ -38,6 +38,9 @@ export type FsmProcessDumpHandler = (
 export class FsmProcess extends FsmBaseClass {
   state?: FsmState;
   event?: string;
+  nextEvent?: string;
+  running: boolean = false;
+  mask: number = STATUS_LEAF;
   status: number = 0;
   config: FsmStateConfig;
   rootDescriptor: FsmStateDescriptor;
@@ -58,18 +61,30 @@ export class FsmProcess extends FsmBaseClass {
     }
   }
 
-  async dispatch(event: string, mask: number = STATUS_LEAF) {
-    this.event = event;
-    while (true) {
-      if (this.status & STATUS_EXIT) {
-        await this.state?._runHandler("onExit", this.state);
+  async dispatch(event: string) {
+    this.nextEvent = event;
+    while (!this.running && !(this.status & STATUS_FINISHED)) {
+      this.running = true;
+      try {
+        if (this.nextEvent !== undefined) {
+          this.event = this.nextEvent;
+          this.nextEvent = undefined;
+        }
+        // ---
+        if (this.status & STATUS_EXIT) {
+          await this.state?._runHandler("onExit", this.state);
+        }
+        if (!this._update()) break;
+        if (this.status & STATUS_ENTER) {
+          await this.state?._runHandler("onEnter", this.state);
+        }
+        if (this.status & this.mask && this.nextEvent === undefined) break;
+        // ---
+      } finally {
+        this.running = false;
       }
-      if (!this._update()) return false;
-      if (this.status & STATUS_ENTER) {
-        await this.state?._runHandler("onEnter", this.state);
-      }
-      if (this.status & mask) return true;
     }
+    return !(this.status & STATUS_FINISHED);
   }
 
   async dump(...args: unknown[]): Promise<FsmProcessDump> {
