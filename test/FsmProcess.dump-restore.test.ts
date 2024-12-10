@@ -31,13 +31,13 @@ describe("dump/restore: process is dumped and restored at each step", () => {
   };
 
   function newPrintChecker() {
-    const lines: any[][] = [];
+    const lines: unknown[][] = [];
     return [
-      (...args: any[]) => {
+      (...args: unknown[]) => {
         // console.log(args.join(""));
         lines.push(args);
       },
-      (...control: any[][]) => {
+      (...control: unknown[][]) => {
         expect(lines.map((items) => items.join(""))).toEqual(control);
       },
     ];
@@ -119,7 +119,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
       '  </Wait> <!-- event="select" -->',
       '  <Selected event="select">',
       '    <Wait event="select">',
-      "    step 2"
+      "    step 2",
     );
     checkTraces(...control);
     expect(restored).toEqual(["Selection:1", "Wait:1"]);
@@ -136,7 +136,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
       "    step 3",
       '    </UpdateSelection> <!-- event="" -->',
       '    <Wait event="">',
-      "    step 4"
+      "    step 4",
     );
     checkTraces(...control);
     expect(restored).toEqual(["Selection:2", "Selected:2", "Wait:2"]);
@@ -152,7 +152,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
       '    </Wait> <!-- event="reset" -->',
       '  </Selected> <!-- event="reset" -->',
       '  <Wait event="reset">',
-      "  step 5"
+      "  step 5",
     );
     checkTraces(...control);
     expect(restored).toEqual(["Selection:4", "Selected:4", "Wait:4"]);
@@ -167,7 +167,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
       '  </Wait> <!-- event="error" -->',
       '  <HandleError event="error">',
       // "  HANDLE ERROR",
-      "  step 6"
+      "  step 6",
     );
     checkTraces(...control);
     expect(restored).toEqual(["Selection:5", "Wait:5"]);
@@ -181,7 +181,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
     control.push(
       '  </HandleError> <!-- event="" -->',
       '  <Wait event="">',
-      "  step 7"
+      "  step 7",
     );
     checkTraces(...control);
     expect(dump?.status).toEqual(4);
@@ -196,7 +196,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
     control.push(
       '  </Wait> <!-- event="toto" -->',
       '  <Wait event="toto">',
-      "  step 8"
+      "  step 8",
     );
     checkTraces(...control);
     expect(dump?.status).toEqual(4);
@@ -210,7 +210,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
     await run("exit");
     control.push(
       '  </Wait> <!-- event="exit" -->',
-      '</Selection> <!-- event="exit" -->'
+      '</Selection> <!-- event="exit" -->',
       // "step 9"
     );
     checkTraces(...control);

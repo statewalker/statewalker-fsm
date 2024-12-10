@@ -1,4 +1,5 @@
 import { FsmState } from "../FsmState";
+import { isStateTransitionEnabled } from "./transitions";
 
 export function newModuleLoader<T>(baseUrl: string) {
   const cache: Record<string, Promise<T>> = {};
@@ -23,15 +24,15 @@ export async function newHandlerLoader(
   baseUrl: string,
   loader: (
     path: string,
-  ) => Promise<undefined | FsmStateHandler> = newModuleLoader(baseUrl),
-): Promise<(state: FsmState) => Promise<FsmStateHandler[]>> {
+  ) => Promise<undefined | FsmStateModule> = newModuleLoader(baseUrl),
+): Promise<(state: FsmState) => Promise<FsmStateModule[]>> {
   return async (state: FsmState) => {
     const stack: string[] = [];
     for (let s: FsmState | undefined = state; s; s = s.parent) {
       stack.unshift(s.key);
     }
 
-    const handlers: FsmStateHandler[] = [];
+    const handlers: FsmStateModule[] = [];
     let topName: undefined | string;
     while (stack.length > 0) {
       const lastSegment = stack.pop();
@@ -63,24 +64,57 @@ export async function newHandlerLoader(
 - could return a promise with optional cleanup function; the state is not 
   activated until all handlers return the control
 */
-export type FsmStateHandler<
-  FsmStateContext extends Record<string, unknown> = Record<string, unknown>,
+export type FsmStateModule<
+  FsmStateContext = Record<string, unknown>,
   FsmStateStore = Record<string, unknown>,
 > = {
-  context?: (...stack: FsmStateStore[]) => FsmStateContext;
+  context?:
+    | ((...stack: FsmStateStore[]) => FsmStateContext)
+    | (new (...stack: FsmStateStore[]) => FsmStateContext);
+  // trigger?: (context: FsmStateContext) => AsyncGenerator<string>;
   trigger?: (
     context: FsmStateContext,
-    listener: (event: string) => void,
+    onEvent: (event: string) => void,
   ) => void | (() => void);
-  default?: (context: FsmStateContext) => void | (() => void);
-  handler?: (context: FsmStateContext) => void | (() => void);
+  handler?: (
+    context: FsmStateContext,
+  ) => void | (() => void) | Promise<void | (() => void)>;
 };
 
+
+export function newModuleContext<
+  C = Record<string, unknown>,
+  S = Record<string, unknown>,
+>(module: FsmStateModule<C, S>, ...stack: S[]): C {
+  if (isClass<S[], C>(module.context)) {
+    return new module.context(...stack) as unknown as C;
+  } else if (isFunction<S[], C>(module.context)) {
+    return module.context(...stack);
+  } else {
+    return stack[0] as unknown as C;
+  }
+}
+function isFunction<T extends Array<unknown>, R = unknown>(
+  value: unknown,
+): value is (...args: T) => R {
+  return typeof value === "function";
+}
+function isClass<T extends Array<unknown>, R = unknown>(
+  value: unknown,
+): value is new (...args: T) => R {
+  if (!isFunction(value)) return false;
+  // console.log('============')
+  // console.log('???', value, value?.prototype, value?.prototype?.constructor);
+  return value?.prototype?.constructor?.toString().match(/^class/);
+}
+
 export function newStateHandlers<
-  FsmStateContext extends Record<string, unknown> = Record<string, unknown>,
+  FsmStateContext = Record<string, unknown>,
   FsmStateStore = Record<string, unknown>,
 >(
-  loader: (state: FsmState) => Promise<FsmStateHandler[]>,
+  loader: (
+    state: FsmState,
+  ) => Promise<FsmStateModule<FsmStateContext, FsmStateStore>[]>,
   newContext: (state: FsmState, ...stack: FsmStateStore[]) => FsmStateStore = (
     state,
   ) =>
@@ -88,6 +122,10 @@ export function newStateHandlers<
       state: state.key,
       event: state.process.event,
     }) as unknown as FsmStateStore,
+  contextCache: Map<unknown, FsmStateContext> = new Map<
+    unknown,
+    FsmStateContext
+  >(),
 ) {
   return (state: FsmState) => {
     const stack: FsmStateStore[] = [];
@@ -99,15 +137,11 @@ export function newStateHandlers<
     stack.unshift(store);
     state.setData("context", store);
 
-    // const process = state.process;
-    // let processContext = process.getData<FsmProcessContext>("context");
-    // if (!processContext) {
-    //   processContext = newContext(process);
-    //   process.setData("context", processContext);
-    // }
-    let registrations: (void | (() => void))[] = [];
-    state.onExit(() => {
-      for (const registration of registrations) {
+    let registrations: (void | (() => void) | Promise<void | (() => void)>)[] =
+      [];
+    state.onExit(async () => {
+      for (const r of registrations) {
+        const registration = await r;
         registration?.();
       }
     });
@@ -115,40 +149,36 @@ export function newStateHandlers<
       const modules = await loader(state);
       if (!modules?.length) return;
       for (const module of modules) {
-        // Update state context
-        // TODO: use a stack of context objects
-        const ctx = isClass(module.context)
-          ? new module.context(...stack)
-          : isFunction(module.context)
-            ? module.context(...stack) || store
-            : store;
-        const stateContext = ctx as FsmStateContext;
-        // Set trigger
-        let notifyTrigger = (event: string) => {
-          if (event) {
-            // TODO: Check that the event is available in this state;
-            state.process.dispatch(event);
-          }
-        };
-        const removeTrigger = module?.trigger?.(stateContext, (event) =>
-          notifyTrigger(event),
-        );
-        registrations.push(() => (notifyTrigger = () => {}));
-        removeTrigger && registrations.push(removeTrigger);
+        const contextKey: unknown = module.context;
+        // Create state context or get it from the local cache
+        let stateContext = contextCache.get(contextKey);
+        if (!stateContext) {
+          stateContext = newModuleContext(module, ...stack);
+          contextCache.set(contextKey, stateContext);
+          registrations.push(() => {
+            contextCache.delete(contextKey);
+          });
+        }
 
-        const handler = module.default || module.handler;
-        registrations.push(handler?.(stateContext));
-      }
-      function isFunction<T extends Array<unknown>, R = unknown>(
-        value: unknown,
-      ): value is (...args: T) => R {
-        return typeof value === "function";
-      }
-      function isClass<T extends Array<unknown>, R = unknown>(
-        value: unknown,
-      ): value is new (...args: T) => R {
-        if (!isFunction(value)) return false;
-        return value.prototype.constructor.toString().match(/^class/);
+        // Initialize triggers
+        if (module.trigger) {
+          const process = state.process;
+          // Set trigger
+          let notify = async (event: string) => {
+            if (event && isStateTransitionEnabled(process, event)) {
+              process.dispatch(event);
+            }
+          };
+          const cleanup = module.trigger(stateContext, notify);
+          registrations.push(() => {
+            notify = async () => {};
+            cleanup?.();
+          });
+        }
+        if (module.handler) {
+          const cleanup = module.handler(stateContext);
+          registrations.push(cleanup);
+        }
       }
     });
   };

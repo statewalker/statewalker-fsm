@@ -45,7 +45,7 @@ describe("dispatch state handlers", () => {
       prefix?: string;
       print: (...args: string[]) => void;
       lineNumbers: boolean;
-    }
+    },
   ): FsmProcess {
     let process: FsmProcess;
     // let printLine: (...args: string[]) => void;
@@ -82,7 +82,7 @@ describe("dispatch state handlers", () => {
       '[2]  <ProductCatalog event="start">',
       "[3]  {ProductCatalog}",
       '[4]    <ProductList event="start">',
-      "[5]    (ProductList)"
+      "[5]    (ProductList)",
     );
 
     await process.dispatch("showBasket");
@@ -98,7 +98,7 @@ describe("dispatch state handlers", () => {
       '[9]  </ProductCatalog> <!-- event="showBasket" -->',
       '[10]  <ProductBasket event="showBasket">',
       "[11]  * BASKET:enter",
-      '[12]    <ShowSelectedProducts event="showBasket">'
+      '[12]    <ShowSelectedProducts event="showBasket">',
     );
 
     await process.dispatch("back");
@@ -121,7 +121,7 @@ describe("dispatch state handlers", () => {
       '[16]  <ProductCatalog event="back">',
       "[17]  {ProductCatalog}",
       '[18]    <ProductList event="back">',
-      "[19]    (ProductList)"
+      "[19]    (ProductList)",
     );
 
     await process.dispatch("exit");
@@ -149,7 +149,7 @@ describe("dispatch state handlers", () => {
       '[21]    </ProductList> <!-- event="exit" -->',
       "[22]  {/ProductCatalog}",
       '[23]  </ProductCatalog> <!-- event="exit" -->',
-      '[24]</App> <!-- event="exit" -->'
+      '[24]</App> <!-- event="exit" -->',
     );
   });
 
@@ -167,7 +167,7 @@ describe("dispatch state handlers", () => {
       'abc[2]  <ProductCatalog event="start">',
       "abc[3]  {ProductCatalog}",
       'abc[4]    <ProductList event="start">',
-      "abc[5]    (ProductList)"
+      "abc[5]    (ProductList)",
     );
 
     await process.dispatch("showBasket");
@@ -183,7 +183,7 @@ describe("dispatch state handlers", () => {
       'abc[9]  </ProductCatalog> <!-- event="showBasket" -->',
       'abc[10]  <ProductBasket event="showBasket">',
       "abc[11]  * BASKET:enter",
-      'abc[12]    <ShowSelectedProducts event="showBasket">'
+      'abc[12]    <ShowSelectedProducts event="showBasket">',
     );
 
     await process.dispatch("back");
@@ -206,7 +206,7 @@ describe("dispatch state handlers", () => {
       'abc[16]  <ProductCatalog event="back">',
       "abc[17]  {ProductCatalog}",
       'abc[18]    <ProductList event="back">',
-      "abc[19]    (ProductList)"
+      "abc[19]    (ProductList)",
     );
   });
 });

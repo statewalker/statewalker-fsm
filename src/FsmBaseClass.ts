@@ -31,17 +31,30 @@ export class FsmBaseClass {
     }
   }
 
+  async _runHandlerParallel(type: string, ...args: unknown[]) {
+    const list = this.handlers[type] || [];
+    await Promise.all(
+      list.map(async (handler) => {
+        try {
+          await handler(...args);
+        } catch (error) {
+          this._handleError(error);
+        }
+      }),
+    );
+  }
+
   async _runHandler(type: string, ...args: unknown[]) {
     const list = this.handlers[type] || [];
-    const promises = list.map((handler) => handler(...args));
-    for (const promise of promises) {
+    for (const handler of list) {
       try {
-        await promise;
+        await handler(...args);
       } catch (error) {
         await this._handleError(error);
       }
     }
   }
+
   async _handleError(error: Error | unknown) {
     console.error(error);
   }

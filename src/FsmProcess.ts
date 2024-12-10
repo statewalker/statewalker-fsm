@@ -61,27 +61,31 @@ export class FsmProcess extends FsmBaseClass {
     }
   }
 
-  async dispatch(event: string) {
+  async dispatch(event: string): Promise<boolean> {
     this.nextEvent = event;
-    while (!this.running && !(this.status & STATUS_FINISHED)) {
+    if (!this.running && !(this.status & STATUS_FINISHED)) {
       this.running = true;
       try {
-        if (this.nextEvent !== undefined) {
-          this.event = this.nextEvent;
-          this.nextEvent = undefined;
+        this.event = this.nextEvent;
+        this.nextEvent = undefined;
+        while (true) {
+          // ---
+          if (this.status & STATUS_EXIT) {
+            await this.state?._runHandler("onExit", this.state);
+          }
+          if (!this._update()) break;
+          if (this.status & STATUS_ENTER) {
+            await this.state?._runHandler("onEnter", this.state);
+          }
+          if (this.status & this.mask) break;
+          // ---
         }
-        // ---
-        if (this.status & STATUS_EXIT) {
-          await this.state?._runHandler("onExit", this.state);
-        }
-        if (!this._update()) break;
-        if (this.status & STATUS_ENTER) {
-          await this.state?._runHandler("onEnter", this.state);
-        }
-        if (this.status & this.mask && this.nextEvent === undefined) break;
-        // ---
       } finally {
         this.running = false;
+      }
+      if (this.nextEvent !== undefined) {
+        await new Promise((r) => setImmediate(r));
+        return this.dispatch(this.nextEvent);
       }
     }
     return !(this.status & STATUS_FINISHED);
@@ -153,7 +157,7 @@ export class FsmProcess extends FsmBaseClass {
     descriptor: FsmStateDescriptor | undefined,
   ) {
     const state = new FsmState(this, parent, key, descriptor);
-    this._runHandler("onStateCreate", state);
+    this._runHandlerParallel("onStateCreate", state);
     return state;
   }
 

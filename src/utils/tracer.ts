@@ -13,8 +13,10 @@ export function setStateTracer(state: FsmState, print?: Printer) {
     const printLine = print || getPrinter(state);
     printLine(`<${state?.key} event="${state.process.event}">`);
   });
-  state.onExit(() => {
-    const printLine = print || getPrinter(state);
-    printLine(`</${state.key}> <!-- event="${state.process.event}" -->`);
+  state.onExit(async () => {
+    await Promise.resolve().then(async () => {
+      const printLine = print || getPrinter(state);
+      printLine(`</${state.key}> <!-- event="${state.process.event}" -->`);
+    });
   });
 }
