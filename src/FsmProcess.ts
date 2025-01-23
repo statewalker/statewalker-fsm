@@ -83,9 +83,9 @@ export class FsmProcess extends FsmBaseClass {
       } finally {
         this.running = false;
       }
-      if (this.nextEvent !== undefined) {
-        await new Promise((r) => setImmediate(r));
-        return this.dispatch(this.nextEvent);
+      const nextEvent = this.nextEvent;
+      if (nextEvent !== undefined) {
+        return Promise.resolve().then(() => this.dispatch(nextEvent));
       }
     }
     return !(this.status & STATUS_FINISHED);
