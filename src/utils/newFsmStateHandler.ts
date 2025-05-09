@@ -72,15 +72,11 @@ export type FsmStateModule<
     | ((...stack: FsmStateStore[]) => FsmStateContext)
     | (new (...stack: FsmStateStore[]) => FsmStateContext);
   // trigger?: (context: FsmStateContext) => AsyncGenerator<string>;
-  trigger?: (
-    context: FsmStateContext,
-    onEvent: (event: string) => void,
-  ) => void | (() => void);
+  trigger?: (context: FsmStateContext) => AsyncIterator<string>;
   handler?: (
     context: FsmStateContext,
   ) => void | (() => void) | Promise<void | (() => void)>;
 };
-
 
 export function newModuleContext<
   C = Record<string, unknown>,
@@ -103,8 +99,6 @@ function isClass<T extends Array<unknown>, R = unknown>(
   value: unknown,
 ): value is new (...args: T) => R {
   if (!isFunction(value)) return false;
-  // console.log('============')
-  // console.log('???', value, value?.prototype, value?.prototype?.constructor);
   return value?.prototype?.constructor?.toString().match(/^class/);
 }
 
@@ -127,6 +121,7 @@ export function newStateHandlers<
     FsmStateContext
   >(),
 ) {
+  const triggers = new Map<unknown, () => void>();
   return (state: FsmState) => {
     const stack: FsmStateStore[] = [];
     for (let s: FsmState | undefined = state.parent; !!s; s = s.parent) {
@@ -161,20 +156,35 @@ export function newStateHandlers<
         }
 
         // Initialize triggers
-        if (module.trigger) {
+        if (module.trigger && !triggers.has(module.trigger)) {
           const process = state.process;
-          // Set trigger
-          let notify = async (event: string) => {
-            if (event && isStateTransitionEnabled(process, event)) {
-              process.dispatch(event);
+          const iterator = module.trigger(stateContext);
+          let finalize: undefined | (() => void);
+          const end = new Promise<{ done: boolean; value?: string }>(
+            (r) => (finalize = () => r({ done: true })),
+          );
+          registrations.push(() => triggers.delete(module.trigger));
+          registrations.push(finalize);
+          registrations.push(() => iterator?.return?.(void 0));
+          (async () => {
+            try {
+              while (true) {
+                const { done, value: event } = await Promise.race([
+                  iterator.next(),
+                  end,
+                ]);
+                if (done) break;
+                if (event && isStateTransitionEnabled(process, event)) {
+                  process.dispatch(event);
+                }
+              }
+            } finally {
+              finalize?.();
             }
-          };
-          const cleanup = module.trigger(stateContext, notify);
-          registrations.push(() => {
-            notify = async () => {};
-            cleanup?.();
-          });
+          })();
         }
+
+        // Run actions associated with this event
         if (module.handler) {
           const cleanup = module.handler(stateContext);
           registrations.push(cleanup);
