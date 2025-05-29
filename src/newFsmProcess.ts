@@ -2,16 +2,24 @@ import { FsmProcess } from "./FsmProcess.js";
 import type { FsmStateConfig } from "./FsmStateConfig.js";
 import { isStateTransitionEnabled } from "./utils/transitions.js";
 
-export function newFsmProcess(
+export type Module<C = unknown> = (
+  context: C,
+) =>
+  | void
+  | (() => void | Promise<void>)
+  | Promise<void | (() => void | Promise<void>)>;
+
+export function newFsmProcess<C>(
+  context: C,
   config: FsmStateConfig,
-  handler: (
+  load: (
     state: string,
     event: undefined | string,
   ) =>
-    | void
-    | Promise<void>
-    | ((event: undefined | string) => void | Promise<void>)
-    | Promise<(event: undefined | string) => void | Promise<void>>,
+    | undefined
+    | Module<C>
+    | Module<C>[]
+    | Promise<undefined | Module<C> | Module<C>[]>,
 ): [
   dispatch: (event: string) => Promise<boolean>,
   shutdown: () => Promise<void>,
@@ -21,19 +29,20 @@ export function newFsmProcess(
   const process = new FsmProcess(config);
   process.onStateCreate((state) => {
     started = true;
-    let cleanup: Awaited<ReturnType<typeof handler>> | undefined;
     state.onEnter(async () => {
-      cleanup = await handler(state.key, process.event);
-    });
-    state.onExit(async () => {
-      cleanup?.(process.event);
+      const modules = (await load(state.key, process.event)) ?? [];
+      for (const module of Array.isArray(modules) ? modules : [modules]) {
+        const handler = await module(context);
+        if (typeof handler === "function") {
+          state.onExit(handler);
+        }
+      }
     });
   });
   async function dispatch(event: string): Promise<boolean> {
     return terminated ||
-      (event !== undefined 
-        // && (!started || isStateTransitionEnabled(process, event))
-      )
+      (event !== undefined &&
+        (!started || isStateTransitionEnabled(process, event)))
       ? process.dispatch(event)
       : false;
   }

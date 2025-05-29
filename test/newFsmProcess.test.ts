@@ -27,13 +27,16 @@ describe("newFsmProcess", () => {
     } as FsmStateConfig;
     const stack: string[] = [];
     const traces: string[] = [];
-    const [dispatch] = newFsmProcess(config, (state, event) => {
-      let prefix = stack.map(() => "  ").join("");
-      stack.push(state);
-      traces.push(`${prefix}<${state} event="${event}">`);
-      return (event) => {
-        traces.push(`${prefix}</${state}><!-- event="${event}" -->`);
-        stack.pop();
+    const context = {};
+    const [dispatch] = newFsmProcess(context, config, (state, event) => {
+      return () => {
+        let prefix = stack.map(() => "  ").join("");
+        stack.push(state);
+        traces.push(`${prefix}<${state} event="${event}">`);
+        return () => {
+          traces.push(`${prefix}</${state}>`);
+          stack.pop();
+        };
       };
     });
 
@@ -51,7 +54,7 @@ describe("newFsmProcess", () => {
     expect(traces).toEqual([
       '<Selection event="start">',
       '  <Wait event="start">',
-      '  </Wait><!-- event="select" -->',
+      '  </Wait>',
       '  <Selected event="select">',
       '    <Wait event="select">',
     ]);
@@ -61,10 +64,10 @@ describe("newFsmProcess", () => {
     expect(traces).toEqual([
       '<Selection event="start">',
       '  <Wait event="start">',
-      '  </Wait><!-- event="select" -->',
+      '  </Wait>',
       '  <Selected event="select">',
       '    <Wait event="select">',
-      '    </Wait><!-- event="select" -->',
+      '    </Wait>',
       '    <UpdateSelection event="select">',
     ]);
 
@@ -73,12 +76,12 @@ describe("newFsmProcess", () => {
     expect(traces).toEqual([
       '<Selection event="start">',
       '  <Wait event="start">',
-      '  </Wait><!-- event="select" -->',
+      '  </Wait>',
       '  <Selected event="select">',
       '    <Wait event="select">',
-      '    </Wait><!-- event="select" -->',
+      '    </Wait>',
       '    <UpdateSelection event="select">',
-      '    </UpdateSelection><!-- event="select" -->',
+      '    </UpdateSelection>',
       '    <Wait event="select">',
     ]);
 
@@ -87,15 +90,15 @@ describe("newFsmProcess", () => {
     expect(traces).toEqual([
       '<Selection event="start">',
       '  <Wait event="start">',
-      '  </Wait><!-- event="select" -->',
+      '  </Wait>',
       '  <Selected event="select">',
       '    <Wait event="select">',
-      '    </Wait><!-- event="select" -->',
+      '    </Wait>',
       '    <UpdateSelection event="select">',
-      '    </UpdateSelection><!-- event="select" -->',
+      '    </UpdateSelection>',
       '    <Wait event="select">',
-      '    </Wait><!-- event="error" -->',
-      '  </Selected><!-- event="error" -->',
+      '    </Wait>',
+      '  </Selected>',
       '  <HandleError event="error">',
     ]);
   });
