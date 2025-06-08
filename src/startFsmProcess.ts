@@ -30,9 +30,9 @@ export function startFsmProcess<C>(
   process.onStateCreate((state) => {
     started = true;
     state.onEnter(async () => {
-      const ModuleOrTriggers = (await load(state.key, process.event)) ?? [];
-      for (const ModuleOrTrigger of Array.isArray(ModuleOrTriggers) ? ModuleOrTriggers : [ModuleOrTriggers]) {
-        const result = await ModuleOrTrigger?.(context);
+      const modules = (await load(state.key, process.event)) ?? [];
+      for (const module of Array.isArray(modules) ? modules : [modules]) {
+        const result = await module?.(context);
         if (isGenerator(result)) {
           state.onExit(() => {
             result.return?.(void 0);
