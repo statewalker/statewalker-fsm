@@ -27,13 +27,10 @@
     }
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.7",
-    "@statewalker/eslint-config": "*",
-    "@statewalker/typescript-config": "*",
-    "eslint": "^9.0.0",
-    "tsup": "^8.0.2",
-    "typescript": "^5.4.4",
-    "vitest": "^1.4.0"
+    "@biomejs/biome": "^2.2.2",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   },
   "repository": {
     "type": "git",
@@ -44,7 +41,11 @@
     "build": "yarn dist",
     "watch": "tsup --watch",
     "clean": "rm -rf dist",
-    "lint": "eslint \"**/*.(js|ts)\"",
+
+    "format": "biome format . --write",
+    "check": "biome check .",
+    "fix": "yarn format && biome check . --fix --unsafe",    
+
     "test": "vitest --run",
     "test:watch": "vitest",
     "prepublish": "yarn dist"
