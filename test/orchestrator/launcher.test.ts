@@ -35,34 +35,37 @@ function newLogger(
 }
 
 describe("launcher", () => {
-  async function* testEventsGenerator() {
-    yield* newAsyncGenerator<string>((next) => {
-      (async () => {
-        await delay();
-        await next("select");
-        await delay();
-        await next("select");
-        await delay();
-        await next("select");
-        await delay();
-        await next("error");
-        await delay();
-        await next("ok");
-        await delay();
-        await next("select");
-      })();
-    });
-  }
-
   async function testProcessLauncher(
-    timeout = 10,
-    ...handlers: (
+    getHandlers: (trigger: () => AsyncGenerator<string>) => (
       | StageHandler
       | {
           [state: string]: StageHandler | StageHandler[];
         }
-    )[]
+    )[],
   ) {
+    let resolve: () => void = () => {};
+    const promise = new Promise<void>((r) => {
+      resolve = r;
+    });
+    async function* testEventsGenerator() {
+      yield* newAsyncGenerator<string>((next) => {
+        (async () => {
+          await delay();
+          await next("select");
+          await delay();
+          await next("select");
+          await delay();
+          await next("select");
+          await delay();
+          await next("error");
+          await delay();
+          await next("ok");
+          await delay();
+          await next("select");
+          resolve();
+        })();
+      });
+    }
     const traces = [] as string[];
     const shutdown = await launcher(async (rootContext) => {
       return {
@@ -101,12 +104,12 @@ describe("launcher", () => {
           // Additional handlers
           {
             name: "TestApp",
-            handlers,
+            handlers: getHandlers(testEventsGenerator),
           },
         ],
       };
     });
-    await delay(timeout);
+    await promise;
     await shutdown();
     expect(traces).toEqual([
       '[00000]..[00000]<Selection event="start">',
@@ -133,11 +136,12 @@ describe("launcher", () => {
   }
 
   it("should bind event dispatcher to the process with the 'default' handler", async () => {
-    await testProcessLauncher(
-      10,
-      {
-        default: testEventsGenerator,
-      },
+    await testProcessLauncher((trigger) => {
+      return [
+        {
+          default: trigger,
+        },
+      ];
       /* * /
           {
         Selection(context: Record<string, unknown>) {
@@ -167,22 +171,30 @@ describe("launcher", () => {
         },
       },
       // */
-    );
+    });
   });
 
   it("should bind event dispatcher to the main process state", async () => {
-    await testProcessLauncher(10, {
-      Selection: testEventsGenerator,
+    await testProcessLauncher((trigger) => {
+      return [
+        {
+          Selection: trigger,
+        },
+      ];
     });
   });
 
   it("should bind add loggers to individual states by their name", async () => {
     const traces = [] as string[];
-    await testProcessLauncher(10, {
-      default: testEventsGenerator,
-      Wait: newLogger((...message: unknown[]) => {
-        traces.push(message.join(""));
-      }),
+    await testProcessLauncher((trigger) => {
+      return [
+        {
+          default: trigger,
+          Wait: newLogger((...message: unknown[]) => {
+            traces.push(message.join(""));
+          }),
+        },
+      ];
     });
     expect(traces).toEqual([
       '[00000]....[00000]<Wait event="start">',
@@ -199,14 +211,18 @@ describe("launcher", () => {
   });
 
   it("should be able to to await long-running handlers", async () => {
-    await testProcessLauncher(100, {
-      Selection: async () => {
-        await delay(10);
-        return async () => {
-          await delay(10);
-        };
-      },
-      default: testEventsGenerator,
+    await testProcessLauncher((trigger) => {
+      return [
+        {
+          Selection: async () => {
+            await delay(10);
+            return async () => {
+              await delay(10);
+            };
+          },
+          default: trigger,
+        },
+      ];
     });
   });
 
@@ -218,26 +234,30 @@ describe("launcher", () => {
     let viewCounterIn = 0;
     let viewCounterOut = 0;
 
-    await testProcessLauncher(10, {
-      default: testEventsGenerator,
-      Wait: () => {
-        stateCounterIn++;
-        return () => {
-          stateCounterOut++;
-        };
-      },
-      WaitController: () => {
-        controllerCounterIn++;
-        return () => {
-          controllerCounterOut++;
-        };
-      },
-      WaitView: () => {
-        viewCounterIn++;
-        return () => {
-          viewCounterOut++;
-        };
-      },
+    await testProcessLauncher((trigger) => {
+      return [
+        {
+          Wait: () => {
+            stateCounterIn++;
+            return () => {
+              stateCounterOut++;
+            };
+          },
+          WaitController: () => {
+            controllerCounterIn++;
+            return () => {
+              controllerCounterOut++;
+            };
+          },
+          WaitView: () => {
+            viewCounterIn++;
+            return () => {
+              viewCounterOut++;
+            };
+          },
+          default: trigger,
+        },
+      ];
     });
     expect(stateCounterIn).toBe(stateCounterOut);
 
@@ -256,36 +276,38 @@ describe("launcher", () => {
     let cCounterIn = 0;
     let cCounterOut = 0;
 
-    await testProcessLauncher(
-      10,
-      {
-        default: testEventsGenerator,
-      },
-      {
-        Wait: () => {
-          aCounterIn++;
-          return () => {
-            aCounterOut++;
-          };
+    await testProcessLauncher((trigger) => {
+      return [
+        {
+          default: trigger,
         },
-      },
-      {
-        Wait: () => {
-          bCounterIn++;
-          return () => {
-            bCounterOut++;
-          };
+        {
+          Wait: async () => {
+            aCounterIn++;
+            return () => {
+              aCounterOut++;
+            };
+          },
         },
-      },
-      {
-        Wait: () => {
-          cCounterIn++;
-          return () => {
-            cCounterOut++;
-          };
+        {
+          Wait: () => {
+            bCounterIn++;
+            return () => {
+              bCounterOut++;
+            };
+          },
         },
-      },
-    );
+        {
+          Wait: () => {
+            cCounterIn++;
+            return () => {
+              cCounterOut++;
+            };
+          },
+        },
+      ] as Record<string, StageHandler>[];
+    });
+
     expect(aCounterIn).toBe(aCounterOut);
 
     expect(bCounterIn).toBe(bCounterOut);
