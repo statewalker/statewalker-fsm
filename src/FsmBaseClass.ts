@@ -1,5 +1,8 @@
+type Handler<P extends unknown[] = unknown[], R = unknown> = (...args: P) => R; // Function;
+// type Handler = Function;
+
 export class FsmBaseClass {
-  handlers: Record<string, Function[]> = {};
+  handlers: Record<string, Handler[]> = {};
   data: Record<string, unknown> = {};
   constructor() {
     bindMethods(this, "setData", "getData");
@@ -14,13 +17,17 @@ export class FsmBaseClass {
 
   // ----------------------------------------------
   // internal methods
-  _addHandler(type: string, handler: Function, direct: boolean = true) {
-    const list = (this.handlers[type] = this.handlers[type] || []);
-    direct ? list.push(handler) : list.unshift(handler);
-    return () => this._removeHandler(type, handler);
+  protected _addHandler<T>(type: string, handler: T, direct: boolean = true) {
+    let list = this.handlers[type];
+    if (!list) {
+      list = this.handlers[type] = [];
+    }
+    const h = handler as Handler;
+    direct ? list.push(h) : list.unshift(h);
+    return () => this._removeHandler(type, h);
   }
 
-  _removeHandler(type: string, handler: Function) {
+  protected _removeHandler<T>(type: string, handler: T) {
     let list = this.handlers[type];
     if (!list) return;
     list = list.filter((h) => h !== handler);

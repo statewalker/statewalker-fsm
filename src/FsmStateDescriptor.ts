@@ -1,6 +1,6 @@
 import {
-  type FsmStateConfig,
   EVENT_ANY,
+  type FsmStateConfig,
   STATE_ANY,
   STATE_FINAL,
 } from "./FsmStateConfig.ts";
@@ -12,13 +12,16 @@ export class FsmStateDescriptor {
   static build(config: FsmStateConfig) {
     const descriptor = new FsmStateDescriptor();
     for (const [from, event, to] of config.transitions || []) {
-      const index = (descriptor.transitions[from] =
-        descriptor.transitions[from] || {});
+      let index = descriptor.transitions[from];
+      if (!index) {
+        index = descriptor.transitions[from] = {};
+      }
       index[event] = to;
     }
     if (config.states) {
       for (const substateConfig of config.states) {
-        descriptor.states[substateConfig.key] = this.build(substateConfig);
+        descriptor.states[substateConfig.key] =
+          FsmStateDescriptor.build(substateConfig);
       }
     }
     return descriptor;
@@ -31,7 +34,7 @@ export class FsmStateDescriptor {
       [stateKey, EVENT_ANY],
       [STATE_ANY, EVENT_ANY],
     ];
-    let targetKey;
+    let targetKey: string | undefined;
     for (
       let i = 0, len = pairs.length;
       targetKey === undefined && i < len;

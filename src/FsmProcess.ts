@@ -1,8 +1,12 @@
-import { FsmBaseClass, bindMethods } from "./FsmBaseClass.ts";
-import { FsmState, FsmStateDump, FsmStateHandler } from "./FsmState.ts";
+import { bindMethods, FsmBaseClass } from "./FsmBaseClass.ts";
+import {
+  FsmState,
+  type FsmStateDump,
+  type FsmStateHandler,
+} from "./FsmState.ts";
 import {
   EVENT_EMPTY,
-  FsmStateConfig,
+  type FsmStateConfig,
   STATE_FINAL,
   STATE_INITIAL,
 } from "./FsmStateConfig.ts";

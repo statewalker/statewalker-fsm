@@ -1,6 +1,6 @@
-import { FsmBaseClass, bindMethods } from "./FsmBaseClass.ts";
-import { FsmProcess } from "./FsmProcess.ts";
-import { FsmStateDescriptor } from "./FsmStateDescriptor.ts";
+import { bindMethods, FsmBaseClass } from "./FsmBaseClass.ts";
+import type { FsmProcess } from "./FsmProcess.ts";
+import type { FsmStateDescriptor } from "./FsmStateDescriptor.ts";
 
 export type FsmStateDump = Record<string, unknown> & {
   key: string;
@@ -13,12 +13,12 @@ export type FsmStateHandler = (
 
 export type FsmStateDumpHandler = (
   state: FsmState,
-  dump: FsmStateDump
+  dump: FsmStateDump,
 ) => void | Promise<void>;
 
 export type FsmStateErrorHandler = (
   state: FsmState,
-  error: unknown
+  error: unknown,
 ) => void | Promise<void>;
 
 export class FsmState extends FsmBaseClass {
@@ -31,7 +31,7 @@ export class FsmState extends FsmBaseClass {
     process: FsmProcess,
     parent: FsmState | undefined,
     key: string,
-    descriptor?: FsmStateDescriptor
+    descriptor?: FsmStateDescriptor,
   ) {
     super();
     this.process = process;
@@ -45,7 +45,7 @@ export class FsmState extends FsmBaseClass {
       "dump",
       "restore",
       "useData",
-      "onStateError"
+      "onStateError",
     );
   }
 
