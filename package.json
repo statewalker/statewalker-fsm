@@ -1,6 +1,6 @@
 {
   "name": "@statewalker/fsm",
-  "version": "0.29.0",
+  "version": "0.30.0",
   "description": "HFSM Implementation",
   "keywords": [],
   "homepage": "https://github.com/statewalker/statewalker-fsm",
@@ -41,11 +41,9 @@
     "build": "yarn dist",
     "watch": "tsup --watch",
     "clean": "rm -rf dist",
-
     "format": "biome format . --write",
     "check": "biome check .",
-    "fix": "yarn format && biome check . --fix --unsafe",    
-
+    "fix": "yarn format && biome check . --fix --unsafe",
     "test": "vitest --run",
     "test:watch": "vitest",
     "prepublish": "yarn dist"
