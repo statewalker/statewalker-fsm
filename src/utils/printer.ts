@@ -16,7 +16,7 @@ export function preparePrinter(
   let lineCounter = 0;
   const shift = () => {
     let prefix = "";
-    for (let s = process.state?.parent; !!s; s = s.parent) {
+    for (let s = process.state?.parent; s; s = s.parent) {
       prefix += "  ";
     }
     return prefix;
