@@ -6,26 +6,40 @@ import type { StageHandler } from "./types.ts";
 export type ProcessConfig = {
   name: string;
   config?: FsmStateConfig;
-  handlers?: (
-    | StageHandler
-    | {
-        [state: string]: StageHandler | StageHandler[];
-      }
-  )[];
-};
-// export type ProcessLauncherConfig = {
-//   start: string[];
-//   context?: Record<string, unknown>;
-//   processes: ProcessConfig[];
-// };
+} & (
+  | {
+      handler?: StageHandler;
+    }
+  | {
+      handlers?:
+        | StageHandler
+        | (
+            | StageHandler
+            | {
+                [state: string]: StageHandler | StageHandler[];
+              }
+          )[];
+    }
+  | {
+      default?:
+        | StageHandler
+        | (
+            | StageHandler
+            | {
+                [state: string]: StageHandler | StageHandler[];
+              }
+          )[];
+    }
+);
 
-// export type LauncherRootContext = Record<string, unknown> & {
-//   launch: (
-//     processName: string,
-//     context: Record<string, unknown>,
-//     startEvent?: string,
-//   ) => Promise<() => Promise<void>>;
-// };
+function asArray<T>(
+  value: T | T[] | undefined,
+  filter: (v: T, idx: number) => T | undefined = (v) => v,
+): T[] {
+  if (value === undefined) return [];
+  const array = Array.isArray(value) ? value : [value];
+  return array.filter(Boolean).map(filter).filter(Boolean) as T[];
+}
 
 export async function launcher(options: unknown) {
   const configsManager = new ProcessConfigManager();
@@ -42,7 +56,7 @@ export async function launcher(options: unknown) {
 
   function registerProcess(
     configsManager: ProcessConfigManager,
-    process: ProcessConfig,
+    process: Record<string, unknown>,
   ) {
     if (!process || typeof process !== "object") {
       throw new Error("Invalid process configuration: not an object");
@@ -52,26 +66,32 @@ export async function launcher(options: unknown) {
       throw new Error("Invalid process configuration: missing or invalid name");
     }
 
-    const processConfig = process.config;
+    const processConfig = process.config as FsmStateConfig | undefined;
     if (processConfig && typeof processConfig !== "object") {
       throw new Error(
         `Invalid process configuration: config is not an object in process ${process.name}`,
       );
     }
     if (processConfig) {
-      configsManager.registerConfig(process.name, processConfig);
+      configsManager.registerConfig(processName, processConfig);
     }
-    let processHandlers = process.handlers;
-    if (processHandlers) {
-      if (typeof processHandlers !== "object") {
+
+    const processHandlers = asArray(
+      process.handlers ?? process.handler ?? process.default,
+      (v, idx) => {
+        if (typeof v === "function") return v;
+        if (typeof v === "object" && v !== null) return v;
         throw new Error(
-          `Invalid process configuration: handlers is not an array or object in process ${process.name}`,
+          [
+            `Invalid process configuration:`,
+            `a process handler is not object nor function in process ${processName} at index ${idx}`,
+            `Recieved: ${v === null ? "null" : typeof v}`,
+          ].join("\n"),
         );
-      }
-      processHandlers = Array.isArray(processHandlers)
-        ? processHandlers
-        : [processHandlers];
-      configsManager.registerHandlers(process.name, ...processHandlers);
+      },
+    );
+    if (processHandlers.length > 0) {
+      configsManager.registerHandlers(processName, ...processHandlers);
     }
   }
 
@@ -81,21 +101,37 @@ export async function launcher(options: unknown) {
   if (typeof config !== "object" || !config) {
     throw new Error("Invalid launcher configuration");
   }
-  let processes = config.processes ?? config.default;
-  if (!processes || typeof processes !== "object") {
-    throw new Error("Invalid launcher configuration: missing processes");
-  }
-  processes = Array.isArray(processes) ? processes : [];
+
+  const processes = asArray(
+    config.processes ?? config.process ?? config.default,
+    (v) => {
+      if (typeof v === "function") {
+        return {
+          name: v.name || "",
+          handler: v,
+        };
+      }
+      if (typeof v !== "object") {
+        throw new Error(
+          "Invalid launcher configuration: process is not an object",
+        );
+      }
+      return v;
+    },
+  );
   for (const process of processes) {
     registerProcess(configsManager, process);
   }
 
   const shutdowns: (() => Promise<void>)[] = [];
-  const startProcesses = Array.isArray(config.start) ? config.start : [];
+  let startProcesses = asArray<string>(config.start);
+  if (startProcesses.length === 0) {
+    startProcesses = processes.map((p) => p.name).filter(Boolean) as string[];
+  }
+
   let initContext: (
     parent: Record<string, unknown>,
   ) => Record<string, unknown> = (context) => context;
-
   const configContext = config.context ?? config.init;
   if (configContext) {
     if (typeof configContext === "function") {
