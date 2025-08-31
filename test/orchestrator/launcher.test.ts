@@ -67,10 +67,10 @@ describe("launcher", () => {
       });
     }
     const traces = [] as string[];
-    const shutdown = await launcher(async (rootContext) => {
+    const shutdown = await launcher(() => {
       return {
         start: ["TestApp"],
-        context: rootContext,
+        // context: rootContext,
         processes: [
           {
             name: "TestApp",
@@ -99,6 +99,7 @@ describe("launcher", () => {
               newLogger((...message: unknown[]) => {
                 traces.push(message.join(""));
               }),
+              // ...getHandlers(testEventsGenerator),
             ],
           },
           // Additional handlers
