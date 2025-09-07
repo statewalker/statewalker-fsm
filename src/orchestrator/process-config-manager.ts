@@ -1,4 +1,4 @@
-import type { FsmStateConfig } from "../FsmStateConfig.ts";
+import type { FsmStateConfig } from "../core/fsm-state-config.ts";
 import { type StageHandler, toStageHandlers } from "./types.ts";
 
 export interface IProcessConfigManager {

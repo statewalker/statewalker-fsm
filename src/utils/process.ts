@@ -1,5 +1,5 @@
-import { FsmProcess } from "../FsmProcess.ts";
-import type { FsmStateConfig } from "../FsmStateConfig.ts";
+import { FsmProcess } from "../core/fsm-process.ts";
+import type { FsmStateConfig } from "../core/fsm-state-config.ts";
 import { setProcessPrinter } from "./printer.ts";
 import { setProcessTracer } from "./tracer.ts";
 
@@ -15,7 +15,7 @@ export function newProcess(
     lineNumbers?: boolean;
   },
 ): FsmProcess {
-  let process = new FsmProcess(config);
+  const process = new FsmProcess(config);
   setProcessPrinter(process, {
     prefix,
     print,

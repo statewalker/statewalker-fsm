@@ -1,16 +1,16 @@
-import { bindMethods, FsmBaseClass } from "./FsmBaseClass.ts";
+import { bindMethods, FsmBaseClass } from "./fsm-base-class.ts";
 import {
   FsmState,
   type FsmStateDump,
   type FsmStateHandler,
-} from "./FsmState.ts";
+} from "./fsm-state.ts";
 import {
   EVENT_EMPTY,
   type FsmStateConfig,
   STATE_FINAL,
   STATE_INITIAL,
-} from "./FsmStateConfig.ts";
-import { FsmStateDescriptor } from "./FsmStateDescriptor.ts";
+} from "./fsm-state-config.ts";
+import { FsmStateDescriptor } from "./fsm-state-descriptor.ts";
 
 export const STATUS_NONE = 0;
 export const STATUS_FIRST = 1;

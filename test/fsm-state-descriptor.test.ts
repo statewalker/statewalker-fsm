@@ -1,5 +1,5 @@
-import { describe, it, expect } from "./deps.ts";
-import { FsmStateConfig, FsmStateDescriptor } from "../src/index.ts";
+import { type FsmStateConfig, FsmStateDescriptor } from "../src/index.ts";
+import { describe, expect, it } from "./deps.ts";
 
 const config: FsmStateConfig = {
   key: "MAIN",

@@ -1,7 +1,7 @@
-import { FsmProcess } from "../src/FsmProcess.ts";
+import { FsmProcess } from "../src/core/fsm-process.ts";
 import { setProcessPrinter } from "../src/utils/printer.ts";
 import { setProcessTracer } from "../src/utils/tracer.ts";
-import { describe, it, expect } from "./deps.ts";
+import { describe, expect, it } from "./deps.ts";
 import config from "./process.ProductCatalog.ts";
 
 describe("newProcessLogger", () => {
@@ -27,7 +27,7 @@ describe("newProcessLogger", () => {
     checkLines(
       '[1]<App event="start">',
       '[2]  <ProductCatalog event="start">',
-      '[3]    <ProductList event="start">'
+      '[3]    <ProductList event="start">',
     );
 
     await process.dispatch("showBasket");
@@ -38,7 +38,7 @@ describe("newProcessLogger", () => {
       '[4]    </ProductList> <!-- event="showBasket" -->',
       '[5]  </ProductCatalog> <!-- event="showBasket" -->',
       '[6]  <ProductBasket event="showBasket">',
-      '[7]    <ShowSelectedProducts event="showBasket">'
+      '[7]    <ShowSelectedProducts event="showBasket">',
     );
 
     await process.dispatch("back");
@@ -53,7 +53,7 @@ describe("newProcessLogger", () => {
       '[8]    </ShowSelectedProducts> <!-- event="back" -->',
       '[9]  </ProductBasket> <!-- event="back" -->',
       '[10]  <ProductCatalog event="back">',
-      '[11]    <ProductList event="back">'
+      '[11]    <ProductList event="back">',
     );
 
     await process.dispatch("exit");
@@ -71,7 +71,7 @@ describe("newProcessLogger", () => {
       '[11]    <ProductList event="back">',
       '[12]    </ProductList> <!-- event="exit" -->',
       '[13]  </ProductCatalog> <!-- event="exit" -->',
-      '[14]</App> <!-- event="exit" -->'
+      '[14]</App> <!-- event="exit" -->',
     );
   });
 
@@ -89,7 +89,7 @@ describe("newProcessLogger", () => {
     checkLines(
       'abc[1]<App event="start">',
       'abc[2]  <ProductCatalog event="start">',
-      'abc[3]    <ProductList event="start">'
+      'abc[3]    <ProductList event="start">',
     );
 
     await process.dispatch("showBasket");
@@ -100,7 +100,7 @@ describe("newProcessLogger", () => {
       'abc[4]    </ProductList> <!-- event="showBasket" -->',
       'abc[5]  </ProductCatalog> <!-- event="showBasket" -->',
       'abc[6]  <ProductBasket event="showBasket">',
-      'abc[7]    <ShowSelectedProducts event="showBasket">'
+      'abc[7]    <ShowSelectedProducts event="showBasket">',
     );
 
     await process.dispatch("back");
@@ -115,7 +115,7 @@ describe("newProcessLogger", () => {
       'abc[8]    </ShowSelectedProducts> <!-- event="back" -->',
       'abc[9]  </ProductBasket> <!-- event="back" -->',
       'abc[10]  <ProductCatalog event="back">',
-      'abc[11]    <ProductList event="back">'
+      'abc[11]    <ProductList event="back">',
     );
   });
 });

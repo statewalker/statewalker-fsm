@@ -1,10 +1,14 @@
 import { defineConfig, type Options } from "tsup";
 
 export default defineConfig((options: Options) => ({
-  entryPoints: ["src/index.ts"],
   clean: true,
   dts: true,
-  noExternal: [],
+  entryPoints: ["src/index.ts"],
   format: ["esm"],
+  noExternal: [],
+  skipNodeModulesBundle: true,
+  sourcemap: true,
+  splitting: false,
+  treeshake: true,
   ...options,
 }));

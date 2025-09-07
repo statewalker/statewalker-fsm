@@ -1,5 +1,5 @@
-import { FsmProcess } from "../FsmProcess.ts";
-import type { FsmStateConfig } from "../FsmStateConfig.ts";
+import { FsmProcess } from "../core/fsm-process.ts";
+import type { FsmStateConfig } from "../core/fsm-state-config.ts";
 import { isStateTransitionEnabled } from "../utils/index.ts";
 import {
   KEY_DISPATCH,
@@ -7,7 +7,7 @@ import {
   KEY_STATES,
   KEY_TERMINATE,
 } from "./constants.ts";
-import { isGenerator } from "./isGenerator.ts";
+import { isGenerator } from "./is-generator.ts";
 import type { StageHandler } from "./types.ts";
 
 export async function startFsmProcess<C = unknown>(

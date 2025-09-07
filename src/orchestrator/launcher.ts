@@ -1,6 +1,6 @@
-import type { FsmStateConfig } from "../FsmStateConfig.ts";
-import { ProcessConfigManager } from "./ProcessConfigManager.ts";
-import { startFsmProcess } from "./startFsmProcess.ts";
+import type { FsmStateConfig } from "../core/fsm-state-config.ts";
+import { ProcessConfigManager } from "./process-config-manager.ts";
+import { startFsmProcess } from "./start-process.ts";
 import type { StageHandler } from "./types.ts";
 
 export type ProcessConfig = {

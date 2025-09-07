@@ -1,6 +1,6 @@
-import { FsmProcess } from "../FsmProcess.ts";
-import type { FsmState } from "../FsmState.ts";
-import type { FsmStateDescriptor } from "../FsmStateDescriptor.ts";
+import type { FsmProcess } from "../core/fsm-process.ts";
+import type { FsmState } from "../core/fsm-state.ts";
+import type { FsmStateDescriptor } from "../core/fsm-state-descriptor.ts";
 
 export function isStateTransitionEnabled(process: FsmProcess, event: string) {
   const transitions = getStateTransitions(process.state);
@@ -18,7 +18,7 @@ export function getStateTransitions(
   state?: FsmState,
 ): [from: string, event: string, to: string][] {
   const result: [from: string, event: string, to: string][] = [];
-  let index = {};
+  const index = {};
   if (state) {
     let prevStateKey = state.key;
     for (let parent = state?.parent; parent; parent = parent.parent) {

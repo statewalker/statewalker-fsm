@@ -1,5 +1,5 @@
-import { describe, it, expect } from "./deps.ts";
-import { FsmProcess, FsmStateConfig } from "../src/index.ts";
+import { FsmProcess, type FsmStateConfig } from "../src/index.ts";
+import { describe, expect, it } from "./deps.ts";
 
 describe("FsmAsyncProcess", () => {
   const main: FsmStateConfig = {
@@ -132,10 +132,10 @@ describe("FsmAsyncProcess", () => {
       '        <SHOW_FORM event="logout">',
       "         [SHOW_FORM:logout]",
     ],
-  }; 
+  };
 
   function newProcess(print: (msg: string) => void): FsmProcess {
-    let process = new FsmProcess(options.config);
+    const process = new FsmProcess(options.config);
     process.onStateCreate((state) => {
       state.onEnter(() => {
         print(`<${state?.key} event="${state.process.event}">`);
@@ -146,19 +146,19 @@ describe("FsmAsyncProcess", () => {
     });
     return process;
   }
- 
+
   it("should iterate over states and perform required state transitions", async () => {
     const testTraces: string[] = [];
     const print = (msg: string) => {
       let shift = "";
-      for (let state = process.state; !!state; state = state.parent) {
+      for (let state = process.state; state; state = state.parent) {
         shift += "  ";
       }
       testTraces.push(shift + msg);
     };
     const getPath = () => {
       const stack: string[] = [];
-      for (let state = process.state; !!state; state = state.parent) {
+      for (let state = process.state; state; state = state.parent) {
         stack.unshift(state.key);
       }
       return stack.join("/");

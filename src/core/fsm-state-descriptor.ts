@@ -3,7 +3,7 @@ import {
   type FsmStateConfig,
   STATE_ANY,
   STATE_FINAL,
-} from "./FsmStateConfig.ts";
+} from "./fsm-state-config.ts";
 
 export class FsmStateDescriptor {
   transitions: Record<string, Record<string, string>> = {};

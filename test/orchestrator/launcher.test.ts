@@ -1,7 +1,7 @@
 import { launcher } from "../../src/orchestrator/launcher.js";
 import type { StageHandler } from "../../src/orchestrator/types.js";
 import { describe, expect, it } from "../deps.js";
-import { newAsyncGenerator } from "./newAsyncGenerator.js";
+import { newAsyncGenerator } from "./new-async-generator.js";
 
 async function delay(ms: number = 0): Promise<void> {
   await new Promise((r) => setTimeout(r, ms));

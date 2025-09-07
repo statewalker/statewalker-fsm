@@ -1,12 +1,12 @@
-import { describe, it, expect } from "./deps.ts";
 import {
   FsmProcess,
-  FsmProcessDump,
-  FsmState,
-  FsmStateConfig,
+  type FsmProcessDump,
+  type FsmState,
+  type FsmStateConfig,
 } from "../src/index.ts";
 import { getPrinter, setProcessPrinter } from "../src/utils/printer.ts";
 import { setProcessTracer } from "../src/utils/tracer.ts";
+import { describe, expect, it } from "./deps.ts";
 
 describe("dump/restore: process is dumped and restored at each step", () => {
   const config: FsmStateConfig = {
@@ -49,7 +49,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
 
   let dumped: string[] = [];
   let restored: string[] = [];
-  let control: any[] = [];
+  const control: any[] = [];
 
   async function run(...events: string[]) {
     const process = new FsmProcess(config);
@@ -72,7 +72,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
     if (dump) await process.restore(dump);
     for (let i = 0; i < events.length; i++) {
       const event = events[i];
-      let ok = await process.dispatch(event);
+      const ok = await process.dispatch(event);
       if (!process.state) break;
       // await process.running;
 

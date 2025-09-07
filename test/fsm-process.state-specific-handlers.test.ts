@@ -1,19 +1,23 @@
-import { FsmProcess, FsmState, FsmStateConfig } from "../src/index.ts";
-import { getPrinter, setProcessPrinter } from "../src/utils/printer.ts";
-import { setProcessTracer } from "../src/utils/tracer.ts";
-import { describe, it, expect } from "./deps.ts";
-import config from "./process.ProductCatalog.ts";
+import {
+  FsmProcess,
+  type FsmState,
+  type FsmStateConfig,
+} from "../src/index.ts";
 import {
   addSubstateHandlers,
   callStateHandlers,
 } from "../src/utils/handlers.ts";
+import { getPrinter, setProcessPrinter } from "../src/utils/printer.ts";
+import { setProcessTracer } from "../src/utils/tracer.ts";
+import { describe, expect, it } from "./deps.ts";
+import config from "./process.ProductCatalog.ts";
 
 describe("dispatch state handlers", () => {
   function newPrintChecker() {
-    const lines: string[][] = [];
+    const lines: unknown[][] = [];
     return [
-      (...args: string[]) => lines.push(args),
-      (...control: string[]) => {
+      (...args: unknown[]) => lines.push(args),
+      (...control: unknown[]) => {
         expect(lines.map((items) => items.join(""))).toEqual(control);
       },
     ];
@@ -43,13 +47,11 @@ describe("dispatch state handlers", () => {
     root: FsmStateConfig,
     config: {
       prefix?: string;
-      print: (...args: string[]) => void;
+      print: (...args: unknown[]) => void;
       lineNumbers: boolean;
     },
   ): FsmProcess {
-    let process: FsmProcess;
-    // let printLine: (...args: string[]) => void;
-    process = new FsmProcess(root);
+    const process = new FsmProcess(root);
     setProcessTracer(process);
     setProcessPrinter(process, {
       prefix: config.prefix,

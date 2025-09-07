@@ -1,6 +1,6 @@
-import { FsmProcess } from "./FsmProcess.ts";
-import type { FsmStateConfig } from "./FsmStateConfig.ts";
-import { isStateTransitionEnabled } from "./utils/transitions.ts";
+import { isStateTransitionEnabled } from "../utils/transitions.ts";
+import { FsmProcess } from "./fsm-process.ts";
+import type { FsmStateConfig } from "./fsm-state-config.ts";
 
 export type Module<C = unknown> = (context: C) =>
   | void

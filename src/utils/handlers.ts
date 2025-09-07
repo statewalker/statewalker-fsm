@@ -1,4 +1,4 @@
-import type { FsmState, FsmStateHandler } from "../FsmState.ts";
+import type { FsmState, FsmStateHandler } from "../core/fsm-state.ts";
 
 export const KEY_HANDLERS = "handlers";
 

@@ -1,4 +1,4 @@
-import { FsmStateConfig } from "../src/FsmStateConfig.ts";
+import type { FsmStateConfig } from "../src/core/fsm-state-config.ts";
 
 export default {
   key: "App",

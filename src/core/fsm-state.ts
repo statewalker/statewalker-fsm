@@ -1,6 +1,6 @@
-import { bindMethods, FsmBaseClass } from "./FsmBaseClass.ts";
-import type { FsmProcess } from "./FsmProcess.ts";
-import type { FsmStateDescriptor } from "./FsmStateDescriptor.ts";
+import { bindMethods, FsmBaseClass } from "./fsm-base-class.ts";
+import type { FsmProcess } from "./fsm-process.ts";
+import type { FsmStateDescriptor } from "./fsm-state-descriptor.ts";
 
 export type FsmStateDump = Record<string, unknown> & {
   key: string;
