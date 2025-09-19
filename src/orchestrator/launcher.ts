@@ -119,16 +119,22 @@ export async function launcher(options: unknown) {
       return v;
     },
   );
+
+  const processesToStart = {} as Record<string, undefined | boolean>;
   for (const process of processes) {
+    const processName = process.name;
+    const start = process.start;
+    if (start === undefined) {
+      if (!(processName in processesToStart)) {
+        processesToStart[processName] = undefined;
+      }
+    } else {
+      processesToStart[processName] = start;
+    }
     registerProcess(configsManager, process);
   }
 
   const shutdowns: (() => Promise<void>)[] = [];
-  let startProcesses = asArray<string>(config.start);
-  if (startProcesses.length === 0) {
-    startProcesses = processes.map((p) => p.name).filter(Boolean) as string[];
-  }
-
   let initContext: (
     parent: Record<string, unknown>,
   ) => Record<string, unknown> = (context) => context;
@@ -142,7 +148,8 @@ export async function launcher(options: unknown) {
       throw new Error("Invalid launcher configuration: context");
     }
   }
-  for (const processName of startProcesses) {
+  for (const [processName, start] of Object.entries(processesToStart)) {
+    if (start === false) continue;
     let context: Record<string, unknown> = {
       parent: rootContext,
       "fsm:name": processName,

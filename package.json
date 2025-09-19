@@ -10,7 +10,11 @@
   },
   "license": "MIT",
   "type": "module",
+  "bin": {
+    "fsm": "./bin/cli.js"
+  },
   "files": [
+    "bin",
     "dist",
     "src"
   ],
