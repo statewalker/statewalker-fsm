@@ -1,3 +1,26 @@
+export {
+  commonMistakes,
+  dataModel,
+  eventConsistencyRules,
+  examples,
+  namingConventions,
+  namingRules,
+  outputFormat,
+  prompts,
+  semanticConsistencyRules,
+  structureRules,
+  transformationMethodology,
+  transitionPatterns,
+} from "./agent-instructions.ts";
+export type { RuleDefinition } from "./agent-rules.ts";
+export {
+  formatRulesAsText,
+  getRulesByIds,
+  lexicalRules,
+  ruleDefinitions,
+  semanticRules,
+  structuralRules,
+} from "./agent-rules.ts";
 export { allRules } from "./rules/index.ts";
 export type {
   FsmEventKey,
