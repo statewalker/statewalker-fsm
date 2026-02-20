@@ -1,6 +1,7 @@
 export { allRules } from "./rules/index.ts";
 export type {
   FsmEventKey,
+  FsmEvents,
   FsmStateConfig,
   FsmStateKey,
   FsmTransition,

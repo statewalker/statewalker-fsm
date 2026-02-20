@@ -277,7 +277,7 @@ export function leafStatesDeclareEvents(ctx: RuleContext): ValidationIssue[] {
     {
       rule: "S9",
       severity: "info",
-      message: `Leaf state "${config.key}" does not declare an events[] field`,
+      message: `Leaf state "${config.key}" does not declare an events field`,
       path: [...path, config.key],
     },
   ];

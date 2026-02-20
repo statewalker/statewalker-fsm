@@ -20,8 +20,14 @@ describe("Semantic rules", () => {
           ["A", "go", "B"],
         ],
         states: [
-          { key: "A", events: ["go", "orphanEvent"] },
-          { key: "B", events: [] },
+          {
+            key: "A",
+            events: {
+              go: "When ready to proceed",
+              orphanEvent: "When something happens",
+            },
+          },
+          { key: "B", events: {} },
         ],
       };
       const result = validate(config, { rules: ["M1"] });
@@ -37,8 +43,14 @@ describe("Semantic rules", () => {
           ["A", "*", "B"],
         ],
         states: [
-          { key: "A", events: ["anything", "whatever"] },
-          { key: "B", events: [] },
+          {
+            key: "A",
+            events: {
+              anything: "Any condition",
+              whatever: "Any other condition",
+            },
+          },
+          { key: "B", events: {} },
         ],
       };
       const result = validate(config, { rules: ["M1"] });
@@ -53,15 +65,15 @@ describe("Semantic rules", () => {
           ["*", "error", "Error"],
         ],
         states: [
-          { key: "A", events: ["error"] },
-          { key: "Error", events: [] },
+          { key: "A", events: { error: "When an error occurs" } },
+          { key: "Error", events: {} },
         ],
       };
       const result = validate(config, { rules: ["M1"] });
       expect(result.warnings).toHaveLength(0);
     });
 
-    it("should skip states without events array", () => {
+    it("should skip states without events", () => {
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [["", "*", "A"]],
@@ -74,7 +86,7 @@ describe("Semantic rules", () => {
     it("should skip root state (no parent)", () => {
       const config: FsmStateConfig = {
         key: "Root",
-        events: ["someEvent"],
+        events: { someEvent: "Something happens" },
       };
       const result = validate(config, { rules: ["M1"] });
       expect(result.warnings).toHaveLength(0);
@@ -89,7 +101,16 @@ describe("Semantic rules", () => {
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [["", "*", "A"]],
-        states: [{ key: "A", events: ["eventA", "eventB", "eventC"] }],
+        states: [
+          {
+            key: "A",
+            events: {
+              eventA: "Condition A",
+              eventB: "Condition B",
+              eventC: "Condition C",
+            },
+          },
+        ],
       };
       const result = validate(config, { rules: ["M1"] });
       expect(result.warnings).toHaveLength(3);
@@ -104,7 +125,7 @@ describe("Semantic rules", () => {
       expect(result.warnings).toHaveLength(0);
     });
 
-    it("should warn for transition event not in source's events[]", () => {
+    it("should warn for transition event not in source's events", () => {
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [
@@ -112,8 +133,8 @@ describe("Semantic rules", () => {
           ["A", "undeclared", "B"],
         ],
         states: [
-          { key: "A", events: ["declared"] },
-          { key: "B", events: [] },
+          { key: "A", events: { declared: "A declared event" } },
+          { key: "B", events: {} },
         ],
       };
       const result = validate(config, { rules: ["M2"] });
@@ -129,8 +150,8 @@ describe("Semantic rules", () => {
           ["A", "*", "B"],
         ],
         states: [
-          { key: "A", events: ["go"] },
-          { key: "B", events: [] },
+          { key: "A", events: { go: "When ready" } },
+          { key: "B", events: {} },
         ],
       };
       const result = validate(config, { rules: ["M2"] });
@@ -145,8 +166,8 @@ describe("Semantic rules", () => {
           ["*", "error", "Err"],
         ],
         states: [
-          { key: "A", events: ["go"] },
-          { key: "Err", events: [] },
+          { key: "A", events: { go: "When ready" } },
+          { key: "Err", events: {} },
         ],
       };
       const result = validate(config, { rules: ["M2"] });
@@ -178,8 +199,8 @@ describe("Semantic rules", () => {
           ["B", "nope", "A"],
         ],
         states: [
-          { key: "A", events: ["declared"] }, // has events → "undeclared" is flagged
-          { key: "B" } as FsmStateConfig, // no events → "nope" is not checked
+          { key: "A", events: { declared: "A declared event" } },
+          { key: "B" } as FsmStateConfig,
         ],
       };
       const result = validate(config, { rules: ["M2"] });
@@ -198,7 +219,7 @@ describe("Semantic rules", () => {
     it("should return no issues for leaf states", () => {
       const config: FsmStateConfig = {
         key: "Root",
-        events: ["done"],
+        events: { done: "When complete" },
       };
       const result = validate(config, { rules: ["M3"] });
       expect(result.issues.filter((i) => i.rule === "M3")).toHaveLength(0);
@@ -208,13 +229,13 @@ describe("Semantic rules", () => {
   // ── M4: semantic compatibility ────────────────────────────────────────
 
   describe("M4: semantic compatibility", () => {
-    it("should report info for convergent transitions from same source", () => {
+    it("should report semantic issue for convergent transitions from same source", () => {
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [
           ["", "*", "A"],
           ["A", "ok", "B"],
-          ["A", "error", "B"], // same source, different events, same target
+          ["A", "error", "B"],
         ],
         states: [
           { key: "A" } as FsmStateConfig,
@@ -222,11 +243,11 @@ describe("Semantic rules", () => {
         ],
       };
       const result = validate(config, { rules: ["M4"] });
-      expect(result.issues).toHaveLength(1);
-      expect(result.issues[0].severity).toBe("info");
-      expect(result.issues[0].message).toContain("ok");
-      expect(result.issues[0].message).toContain("error");
-      expect(result.issues[0].message).toContain("semantically compatible");
+      expect(result.semantic).toHaveLength(1);
+      expect(result.semantic[0].severity).toBe("semantic");
+      expect(result.semantic[0].message).toContain("ok");
+      expect(result.semantic[0].message).toContain("error");
+      expect(result.semantic[0].message).toContain("semantically compatible");
     });
 
     it("should not report for different sources converging to same target", () => {
@@ -235,7 +256,7 @@ describe("Semantic rules", () => {
         transitions: [
           ["", "*", "A"],
           ["A", "ok", "C"],
-          ["B", "ok", "C"], // different sources, same target — normal
+          ["B", "ok", "C"],
         ],
         states: [
           { key: "A" } as FsmStateConfig,
@@ -244,20 +265,18 @@ describe("Semantic rules", () => {
         ],
       };
       const result = validate(config, { rules: ["M4"] });
-      expect(result.issues).toHaveLength(0);
+      expect(result.semantic).toHaveLength(0);
     });
 
     it("should not report for single transition to a target", () => {
       const result = validate(lightBulb, { rules: ["M4"] });
-      expect(result.issues).toHaveLength(0);
+      expect(result.semantic).toHaveLength(0);
     });
   });
 
   // ── M5: cycle break requirement ───────────────────────────────────────
 
   describe("M5: cycle break requirement", () => {
-    // Helper: wraps a state config inside a parent so M5 does not skip it
-    // (M5 skips root-level cycles since machine exit is external)
     function wrapInParent(child: FsmStateConfig): FsmStateConfig {
       return {
         key: "Wrapper",
@@ -267,7 +286,9 @@ describe("Semantic rules", () => {
     }
 
     it("should pass for cycle with exit transition", () => {
-      const result = validate(wrapInParent(documentReview), { rules: ["M5"] });
+      const result = validate(wrapInParent(documentReview), {
+        rules: ["M5"],
+      });
       expect(result.warnings.filter((w) => w.rule === "M5")).toHaveLength(0);
     });
 
@@ -437,8 +458,14 @@ describe("Semantic rules", () => {
           ["A", "success", "B"],
         ],
         states: [
-          { key: "A", events: ["success", "failure"] }, // failure has no transition
-          { key: "B", events: [] },
+          {
+            key: "A",
+            events: {
+              success: "When operation succeeds",
+              failure: "When operation fails",
+            },
+          },
+          { key: "B", events: {} },
         ],
       };
       const result = validate(config, { rules: ["M6"] });
@@ -454,8 +481,14 @@ describe("Semantic rules", () => {
           ["A", "*", "B"],
         ],
         states: [
-          { key: "A", events: ["anything", "whatever"] },
-          { key: "B", events: [] },
+          {
+            key: "A",
+            events: {
+              anything: "Any condition",
+              whatever: "Any other condition",
+            },
+          },
+          { key: "B", events: {} },
         ],
       };
       const result = validate(config, { rules: ["M6"] });
@@ -486,8 +519,15 @@ describe("Semantic rules", () => {
           ["A", "success", "B"],
         ],
         states: [
-          { key: "A", events: ["success", "failure", "timeout"] },
-          { key: "B", events: [] },
+          {
+            key: "A",
+            events: {
+              success: "Operation succeeded",
+              failure: "Operation failed",
+              timeout: "Operation timed out",
+            },
+          },
+          { key: "B", events: {} },
         ],
       };
       const result = validate(config, { rules: ["M6"] });
@@ -557,6 +597,215 @@ describe("Semantic rules", () => {
       };
       const result = validate(config, { rules: ["M7"] });
       expect(result.issues.filter((i) => i.rule === "M7")).toHaveLength(0);
+    });
+  });
+
+  // ── M8: event-state semantic consistency ──────────────────────────────
+
+  describe("M8: event-state semantic consistency", () => {
+    it("should report semantic issues for events with descriptions in described states", () => {
+      const config: FsmStateConfig = {
+        key: "Validate",
+        description: "Validate user input",
+        outcome: "Input is verified",
+        events: {
+          valid: "When all validation checks pass",
+          invalid: "When validation fails",
+        },
+      };
+      const result = validate(config, { rules: ["M8"] });
+      expect(result.semantic).toHaveLength(2);
+      expect(result.semantic[0].severity).toBe("semantic");
+      expect(result.semantic[0].rule).toBe("M8");
+      expect(result.semantic[0].message).toContain("Validate");
+      expect(result.semantic[0].message).toContain("valid");
+    });
+
+    it("should skip states without description or outcome", () => {
+      const config: FsmStateConfig = {
+        key: "State",
+        events: {
+          done: "When processing is complete",
+        },
+      };
+      const result = validate(config, { rules: ["M8"] });
+      expect(result.semantic).toHaveLength(0);
+    });
+
+    it("should skip states without events", () => {
+      const config: FsmStateConfig = {
+        key: "State",
+        description: "Some state",
+      };
+      const result = validate(config, { rules: ["M8"] });
+      expect(result.semantic).toHaveLength(0);
+    });
+
+    it("should skip events with empty descriptions", () => {
+      const config: FsmStateConfig = {
+        key: "State",
+        description: "Some state",
+        events: {
+          done: "",
+          proceed: "When ready to move on",
+        },
+      };
+      const result = validate(config, { rules: ["M8"] });
+      expect(result.semantic).toHaveLength(1);
+      expect(result.semantic[0].message).toContain("proceed");
+    });
+
+    it("should work with outcome only (no description)", () => {
+      const config: FsmStateConfig = {
+        key: "Process",
+        outcome: "Data is processed",
+        events: {
+          complete: "When processing finishes",
+        },
+      };
+      const result = validate(config, { rules: ["M8"] });
+      expect(result.semantic).toHaveLength(1);
+      expect(result.semantic[0].message).toContain("Process");
+    });
+
+    it("should report for nested states with descriptions and events", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        description: "Main process",
+        transitions: [["", "*", "Step"]],
+        states: [
+          {
+            key: "Step",
+            description: "Processing step",
+            events: {
+              done: "When step is complete",
+            },
+          },
+        ],
+      };
+      const result = validate(config, { rules: ["M8"] });
+      // Root has no events, Step has description + events
+      expect(result.semantic).toHaveLength(1);
+      expect(result.semantic[0].message).toContain("Step");
+    });
+
+    it("should report for real-world fixture with descriptions", () => {
+      const result = validate(lightBulb, { rules: ["M8"] });
+      // Off and On states both have descriptions and events
+      expect(result.semantic.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  // ── M9: parent-child goal alignment ───────────────────────────────────
+
+  describe("M9: parent-child goal alignment", () => {
+    it("should report semantic issue when both parent and child have descriptions", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        description: "Main workflow",
+        transitions: [["", "*", "Step"]],
+        states: [
+          {
+            key: "Step",
+            description: "A processing step",
+            outcome: "Step is complete",
+          },
+        ],
+      };
+      const result = validate(config, { rules: ["M9"] });
+      expect(result.semantic).toHaveLength(1);
+      expect(result.semantic[0].severity).toBe("semantic");
+      expect(result.semantic[0].rule).toBe("M9");
+      expect(result.semantic[0].message).toContain("Step");
+      expect(result.semantic[0].message).toContain("Root");
+      expect(result.semantic[0].message).toContain(
+        "Verify child goals do not contradict parent goals",
+      );
+    });
+
+    it("should skip when child has no description or outcome", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        description: "Main workflow",
+        transitions: [["", "*", "Step"]],
+        states: [{ key: "Step" } as FsmStateConfig],
+      };
+      const result = validate(config, { rules: ["M9"] });
+      expect(result.semantic).toHaveLength(0);
+    });
+
+    it("should skip when parent has no description or outcome", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [["", "*", "Step"]],
+        states: [
+          {
+            key: "Step",
+            description: "A step",
+          },
+        ],
+      };
+      const result = validate(config, { rules: ["M9"] });
+      expect(result.semantic).toHaveLength(0);
+    });
+
+    it("should skip root state (no parent)", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        description: "Root state",
+      };
+      const result = validate(config, { rules: ["M9"] });
+      expect(result.semantic).toHaveLength(0);
+    });
+
+    it("should report for each described child in hierarchy", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        description: "Main process",
+        transitions: [["", "*", "A"]],
+        states: [
+          {
+            key: "A",
+            description: "Phase A",
+            transitions: [["", "*", "Sub"]],
+            states: [
+              {
+                key: "Sub",
+                description: "Sub-step of A",
+              },
+            ],
+          },
+        ],
+      };
+      const result = validate(config, { rules: ["M9"] });
+      // A → Root, Sub → A
+      expect(result.semantic).toHaveLength(2);
+    });
+
+    it("should include state descriptions in message", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        description: "Manage orders",
+        outcome: "All orders processed",
+        transitions: [["", "*", "Validate"]],
+        states: [
+          {
+            key: "Validate",
+            description: "Check order validity",
+            outcome: "Order is valid",
+          },
+        ],
+      };
+      const result = validate(config, { rules: ["M9"] });
+      expect(result.semantic).toHaveLength(1);
+      expect(result.semantic[0].message).toContain("Check order validity");
+      expect(result.semantic[0].message).toContain("Manage orders");
+    });
+
+    it("should report for real-world fixture with descriptions", () => {
+      const result = validate(ticketFlow, { rules: ["M9"] });
+      // Handle → TicketFlow, Diagnose → Handle, Escalate → Handle, Closed → TicketFlow
+      expect(result.semantic.length).toBeGreaterThanOrEqual(2);
     });
   });
 

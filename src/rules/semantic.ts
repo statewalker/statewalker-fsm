@@ -1,4 +1,5 @@
 import type {
+  FsmStateConfig,
   RuleContext,
   RuleFunction,
   RuleId,
@@ -8,7 +9,7 @@ import type {
 export function forwardEventCoverage(ctx: RuleContext): ValidationIssue[] {
   const { config, path, parent } = ctx;
   const events = config.events;
-  if (!events || events.length === 0) return [];
+  if (!events || Object.keys(events).length === 0) return [];
   if (!parent) return [];
 
   const parentTransitions = parent.transitions;
@@ -16,7 +17,7 @@ export function forwardEventCoverage(ctx: RuleContext): ValidationIssue[] {
 
   const issues: ValidationIssue[] = [];
 
-  for (const event of events) {
+  for (const event of Object.keys(events)) {
     const handled = parentTransitions.some(
       ([from, evt]) =>
         (from === config.key || from === "*") && (evt === event || evt === "*"),
@@ -41,12 +42,12 @@ export function reverseEventCoverage(ctx: RuleContext): ValidationIssue[] {
 
   const issues: ValidationIssue[] = [];
 
-  // Build a map of child key → events[]
+  // Build a map of child key → event keys set
   const childEventsMap = new Map<string, Set<string>>();
   let anyChildHasEvents = false;
   for (const child of config.states) {
     if (child.events) {
-      childEventsMap.set(child.key, new Set(child.events));
+      childEventsMap.set(child.key, new Set(Object.keys(child.events)));
       anyChildHasEvents = true;
     }
   }
@@ -63,7 +64,7 @@ export function reverseEventCoverage(ctx: RuleContext): ValidationIssue[] {
       issues.push({
         rule: "M2",
         severity: "warning",
-        message: `Transition event "${event}" from "${from}" is not declared in "${from}"'s events[]`,
+        message: `Transition event "${event}" from "${from}" is not declared in "${from}"'s events`,
         path: [...path, config.key],
       });
     }
@@ -140,7 +141,7 @@ export function semanticCompatibility(ctx: RuleContext): ValidationIssue[] {
       if (events.length < 2) continue;
       issues.push({
         rule: "M4",
-        severity: "info",
+        severity: "semantic",
         message: `State "${from}" has ${events.length} transitions to "${target}" via events [${events.join(", ")}]. Verify that these outcomes are semantically compatible`,
         path: [...path, config.key],
       });
@@ -283,7 +284,9 @@ export function decisionPointExhaustiveness(
 
   // For each child with declared events, check coverage
   for (const child of config.states) {
-    if (!child.events || child.events.length === 0) continue;
+    if (!child.events) continue;
+    const eventKeys = Object.keys(child.events);
+    if (eventKeys.length === 0) continue;
 
     const outgoing = outgoingEvents.get(child.key);
     if (!outgoing) continue;
@@ -294,7 +297,7 @@ export function decisionPointExhaustiveness(
     );
     if (childHasWildcard) continue;
 
-    const uncovered = child.events.filter((e) => !outgoing.has(e));
+    const uncovered = eventKeys.filter((e) => !outgoing.has(e));
     if (uncovered.length > 0) {
       issues.push({
         rule: "M6",
@@ -340,6 +343,72 @@ export function manageableComplexity(ctx: RuleContext): ValidationIssue[] {
   return [];
 }
 
+// ── M8: event-state semantic consistency ──────────────────────────────────
+// Reports event descriptions alongside state descriptions/outcomes for human
+// review. The validator cannot judge semantic consistency, but flags the
+// relationships that need checking.
+
+export function eventStateSemanticConsistency(
+  ctx: RuleContext,
+): ValidationIssue[] {
+  const { config, path } = ctx;
+  const events = config.events;
+  if (!events) return [];
+
+  const eventEntries = Object.entries(events);
+  if (eventEntries.length === 0) return [];
+
+  const stateDescription = config.description || config.outcome;
+  if (!stateDescription) return [];
+
+  const issues: ValidationIssue[] = [];
+
+  for (const [eventName, eventDescription] of eventEntries) {
+    if (!eventDescription) continue;
+    issues.push({
+      rule: "M8",
+      severity: "semantic",
+      message: `State "${config.key}" (${describeState(config)}) declares event "${eventName}" described as "${eventDescription}". Verify the event conditions do not contradict the state's goals and outcomes`,
+      path: [...path, config.key],
+    });
+  }
+
+  return issues;
+}
+
+// ── M9: parent-child goal alignment ───────────────────────────────────────
+// Reports child state goals/outcomes alongside parent goals/outcomes for human
+// review. Children should align with parent goals; if they contradict the
+// parent, they should align with a grandparent/ancestor.
+
+export function parentChildGoalAlignment(ctx: RuleContext): ValidationIssue[] {
+  const { config, path, parent } = ctx;
+  if (!parent) return [];
+
+  const childDescription = config.description || config.outcome;
+  if (!childDescription) return [];
+
+  const parentDescription = parent.description || parent.outcome;
+  if (!parentDescription) return [];
+
+  return [
+    {
+      rule: "M9",
+      severity: "semantic",
+      message: `Child state "${config.key}" (${describeState(config)}) is nested in "${parent.key}" (${describeState(parent)}). Verify child goals do not contradict parent goals, or if they do, that they align with an ancestor's goals`,
+      path: [...path, config.key],
+    },
+  ];
+}
+
+function describeState(config: FsmStateConfig): string {
+  const parts: string[] = [];
+  if (config.description) parts.push(`description: "${config.description}"`);
+  if (config.outcome) parts.push(`outcome: "${config.outcome}"`);
+  if (parts.length === 0) return "no description";
+  return parts.join(", ");
+}
+
 export const semanticRules: [RuleId, RuleFunction][] = [
   ["M1", forwardEventCoverage],
   ["M2", reverseEventCoverage],
@@ -348,4 +417,6 @@ export const semanticRules: [RuleId, RuleFunction][] = [
   ["M5", cycleBreakRequirement],
   ["M6", decisionPointExhaustiveness],
   ["M7", manageableComplexity],
+  ["M8", eventStateSemanticConsistency],
+  ["M9", parentChildGoalAlignment],
 ];

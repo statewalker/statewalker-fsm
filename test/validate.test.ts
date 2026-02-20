@@ -133,19 +133,24 @@ describe("validate() integration", () => {
       expect(result).toHaveProperty("issues");
       expect(result).toHaveProperty("errors");
       expect(result).toHaveProperty("warnings");
+      expect(result).toHaveProperty("semantic");
       expect(typeof result.valid).toBe("boolean");
       expect(Array.isArray(result.issues)).toBe(true);
       expect(Array.isArray(result.errors)).toBe(true);
       expect(Array.isArray(result.warnings)).toBe(true);
+      expect(Array.isArray(result.semantic)).toBe(true);
     });
 
-    it("should have issues = errors + warnings + info", () => {
+    it("should have issues = errors + warnings + info + semantic", () => {
       const result = validate(lightBulb);
       const infoCount = result.issues.filter(
         (i) => i.severity === "info",
       ).length;
       expect(result.issues.length).toBe(
-        result.errors.length + result.warnings.length + infoCount,
+        result.errors.length +
+          result.warnings.length +
+          result.semantic.length +
+          infoCount,
       );
     });
 
@@ -176,20 +181,38 @@ describe("validate() integration", () => {
           ["A", "Bad_Event", "B"],
         ],
         states: [
-          { key: "A", events: [] },
-          { key: "B", events: [] },
+          { key: "A", events: {} },
+          { key: "B", events: {} },
         ],
       };
       const result = validate(config, { rules: ["L2", "L3"] });
       expect(result.valid).toBe(true);
       expect(result.warnings.length).toBeGreaterThan(0);
     });
+
+    it("valid is true when only semantic issues present, no errors", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        description: "Main process",
+        transitions: [["", "*", "Step"]],
+        states: [
+          {
+            key: "Step",
+            description: "A step",
+            events: { done: "When complete" },
+          },
+        ],
+      };
+      const result = validate(config, { rules: ["M8", "M9"] });
+      expect(result.valid).toBe(true);
+      expect(result.semantic.length).toBeGreaterThan(0);
+    });
   });
 
   // ── Minimal config ────────────────────────────────────────────────────
 
   describe("minimal config", () => {
-    it("should validate a single leaf state with no issues beyond info", () => {
+    it("should validate a single leaf state with no issues beyond info/semantic", () => {
       const config: FsmStateConfig = { key: "Single" };
       const result = validate(config);
       expect(result.valid).toBe(true);

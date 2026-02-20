@@ -125,12 +125,12 @@ export function eventsArrayFormat(ctx: RuleContext): ValidationIssue[] {
   const events = ctx.config.events;
   if (!events) return [];
   const issues: ValidationIssue[] = [];
-  for (const e of events) {
+  for (const e of Object.keys(events)) {
     if (!EVENT_KEY_PATTERN.test(e)) {
       issues.push({
         rule: "L7",
         severity: "warning",
-        message: `Event "${e}" in events array does not follow camelCase convention`,
+        message: `Event "${e}" in events does not follow camelCase convention`,
         path: [...ctx.path, ctx.config.key],
       });
     }

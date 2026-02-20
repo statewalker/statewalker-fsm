@@ -139,7 +139,6 @@ describe("Structural rules", () => {
         key: "Root",
         transitions: [["A", "go", "B"]],
       };
-      // No states array → no siblings to check against → no errors
       const result = validate(config, { rules: ["S2"] });
       expect(result.valid).toBe(true);
     });
@@ -248,7 +247,7 @@ describe("Structural rules", () => {
         transitions: [
           ["", "*", "A"],
           ["A", "go", "B"],
-          ["C", "go", "D"], // C and D form an island
+          ["C", "go", "D"],
         ],
         states: [
           { key: "A" } as FsmStateConfig,
@@ -331,7 +330,7 @@ describe("Structural rules", () => {
         ],
         states: [
           { key: "A" } as FsmStateConfig,
-          { key: "B" } as FsmStateConfig, // leaf, no outgoing
+          { key: "B" } as FsmStateConfig,
         ],
       };
       const result = validate(config, { rules: ["S5"] });
@@ -358,7 +357,12 @@ describe("Structural rules", () => {
               ["", "*", "Sub"],
               ["Sub", "done", ""],
             ],
-            states: [{ key: "Sub", events: ["done"] }],
+            states: [
+              {
+                key: "Sub",
+                events: { done: "When processing is complete" },
+              },
+            ],
           },
         ],
       };
@@ -383,7 +387,12 @@ describe("Structural rules", () => {
               ["", "*", "Sub"],
               ["Sub", "finished", ""],
             ],
-            states: [{ key: "Sub", events: ["finished"] }],
+            states: [
+              {
+                key: "Sub",
+                events: { finished: "When task is finished" },
+              },
+            ],
           },
           { key: "Other" } as FsmStateConfig,
         ],
@@ -406,7 +415,12 @@ describe("Structural rules", () => {
               ["", "*", "Sub"],
               ["Sub", "done", ""],
             ],
-            states: [{ key: "Sub", events: ["done"] }],
+            states: [
+              {
+                key: "Sub",
+                events: { done: "When processing is done" },
+              },
+            ],
           },
           { key: "Other" } as FsmStateConfig,
         ],
@@ -450,7 +464,7 @@ describe("Structural rules", () => {
         transitions: [
           ["", "*", "A"],
           ["A", "go", "B"],
-          ["A", "go", "B"], // duplicate but same target
+          ["A", "go", "B"],
         ],
         states: [
           { key: "A" } as FsmStateConfig,
@@ -529,7 +543,12 @@ describe("Structural rules", () => {
           {
             key: "Composite",
             transitions: [["", "*", "Sub"]],
-            states: [{ key: "Sub", events: ["done"] }],
+            states: [
+              {
+                key: "Sub",
+                events: { done: "When complete" },
+              },
+            ],
           },
         ],
       };

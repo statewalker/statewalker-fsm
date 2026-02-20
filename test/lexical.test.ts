@@ -65,7 +65,6 @@ describe("Lexical rules", () => {
     });
 
     it("should not warn for keys that fail STATE_KEY_PATTERN entirely (L1/L5 handles that)", () => {
-      // Keys like "123" don't match STATE_KEY_PATTERN, so L2 silently skips them
       const config: FsmStateConfig = { key: "123invalid" };
       const result = validate(config, { rules: ["L2"] });
       expect(result.warnings).toHaveLength(0);
@@ -75,10 +74,9 @@ describe("Lexical rules", () => {
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [["", "*", "CHILD_STATE"]],
-        states: [{ key: "CHILD_STATE", events: [] }],
+        states: [{ key: "CHILD_STATE", events: {} }],
       };
       const result = validate(config, { rules: ["L2"] });
-      // Root is fine, CHILD_STATE gets a warning
       expect(result.warnings).toHaveLength(1);
       expect(result.warnings[0].message).toContain("CHILD_STATE");
     });
@@ -96,8 +94,8 @@ describe("Lexical rules", () => {
           ["B", "dataLoaded", "A"],
         ],
         states: [
-          { key: "A", events: [] },
-          { key: "B", events: [] },
+          { key: "A", events: {} },
+          { key: "B", events: {} },
         ],
       };
       const result = validate(config, { rules: ["L3"] });
@@ -108,7 +106,7 @@ describe("Lexical rules", () => {
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [["", "*", "A"]],
-        states: [{ key: "A", events: [] }],
+        states: [{ key: "A", events: {} }],
       };
       const result = validate(config, { rules: ["L3"] });
       expect(result.warnings).toHaveLength(0);
@@ -153,7 +151,7 @@ describe("Lexical rules", () => {
         transitions: [["A", "B"] as unknown as [string, string, string]],
       };
       const result = validate(config, { rules: ["L3"] });
-      expect(result.warnings).toHaveLength(0); // skips because length !== 3
+      expect(result.warnings).toHaveLength(0);
     });
   });
 
@@ -296,45 +294,52 @@ describe("Lexical rules", () => {
     });
   });
 
-  // ── L7: events array format ───────────────────────────────────────────
+  // ── L7: events format ─────────────────────────────────────────────────
 
-  describe("L7: events array format", () => {
-    it("should pass for camelCase events in array", () => {
+  describe("L7: events format", () => {
+    it("should pass for camelCase event keys", () => {
       const config: FsmStateConfig = {
         key: "State",
-        events: ["success", "failure", "dataLoaded"],
+        events: {
+          success: "When operation succeeds",
+          failure: "When operation fails",
+          dataLoaded: "When data is loaded",
+        },
       };
       const result = validate(config, { rules: ["L7"] });
       expect(result.warnings).toHaveLength(0);
     });
 
-    it("should warn for PascalCase events in array", () => {
+    it("should warn for PascalCase event keys", () => {
       const config: FsmStateConfig = {
         key: "State",
-        events: ["Success", "failure"],
+        events: {
+          Success: "When operation succeeds",
+          failure: "When operation fails",
+        },
       };
       const result = validate(config, { rules: ["L7"] });
       expect(result.warnings).toHaveLength(1);
       expect(result.warnings[0].message).toContain("Success");
     });
 
-    it("should warn for snake_case events in array", () => {
+    it("should warn for snake_case event keys", () => {
       const config: FsmStateConfig = {
         key: "State",
-        events: ["data_loaded"],
+        events: { data_loaded: "When data is loaded" },
       };
       const result = validate(config, { rules: ["L7"] });
       expect(result.warnings).toHaveLength(1);
     });
 
-    it("should pass when no events array", () => {
+    it("should pass when no events", () => {
       const config: FsmStateConfig = { key: "State" };
       const result = validate(config, { rules: ["L7"] });
       expect(result.warnings).toHaveLength(0);
     });
 
-    it("should pass for empty events array", () => {
-      const config: FsmStateConfig = { key: "State", events: [] };
+    it("should pass for empty events record", () => {
+      const config: FsmStateConfig = { key: "State", events: {} };
       const result = validate(config, { rules: ["L7"] });
       expect(result.warnings).toHaveLength(0);
     });

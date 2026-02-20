@@ -6,11 +6,13 @@ export type FsmTransition = [
   to: FsmStateKey,
 ];
 
+export type FsmEvents = Record<FsmEventKey, string>;
+
 export type FsmStateConfig = {
   key: FsmStateKey;
   transitions?: FsmTransition[];
   states?: FsmStateConfig[];
-  events?: FsmEventKey[];
+  events?: FsmEvents;
   name?: string;
   description?: string;
   outcome?: string;
@@ -18,7 +20,7 @@ export type FsmStateConfig = {
   object?: string;
 } & Record<string, unknown>;
 
-export type Severity = "error" | "warning" | "info";
+export type Severity = "error" | "warning" | "info" | "semantic";
 
 export type RuleId =
   | "L1"
@@ -44,7 +46,9 @@ export type RuleId =
   | "M4"
   | "M5"
   | "M6"
-  | "M7";
+  | "M7"
+  | "M8"
+  | "M9";
 
 export type ValidationIssue = {
   rule: RuleId;
@@ -58,6 +62,7 @@ export type ValidationResult = {
   issues: ValidationIssue[];
   errors: ValidationIssue[];
   warnings: ValidationIssue[];
+  semantic: ValidationIssue[];
 };
 
 export type ValidationOptions = {
