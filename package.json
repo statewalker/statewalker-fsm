@@ -1,0 +1,62 @@
+{
+  "name": "@statewalker/fsm-validator",
+  "version": "0.1.0",
+  "description": "Validation library for Hierarchical Finite State Machine configurations",
+  "keywords": [
+    "fsm",
+    "hfsm",
+    "validation",
+    "state-machine"
+  ],
+  "homepage": "https://github.com/statewalker/statewalker-fsm-validator",
+  "author": {
+    "name": "Mikhail Kotelnikov",
+    "email": "mikhail.kotelnikov@gmail.com"
+  },
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "source": "./src/index.ts",
+  "module": "./dist/index.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./*": {
+      "source": "./src/*.ts",
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js",
+      "default": "./dist/*.js"
+    }
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  },
+  "scripts": {
+    "dist": "yarn test && tsup",
+    "build": "yarn dist",
+    "watch": "tsup --watch",
+    "clean": "rm -rf dist",
+    "format": "biome format . --write",
+    "check": "biome check .",
+    "fix": "yarn format && biome check . --fix --unsafe",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "prepublish": "yarn dist"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  }
+}
