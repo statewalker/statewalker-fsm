@@ -54,14 +54,40 @@ states:
 | `["A", "evt", ""]` | Exit | A emits evt: exit parent scope |
 | `["*", "evt", ""]` | Global exit | Any state emits evt: exit parent |
 
-## Structural Rules
+## Rules
 
-1. **Sibling transitions at parent level** — all transitions between siblings go in the parent's `transitions`, never inside a child
-2. **Initial transition required** — every composite state (has `states`) must have `["", "*", X]`
-3. **Exit propagation** — when a sub-state exits with `[X, evt, ""]`, the parent must have a transition `[CompositeParent, evt, Y]` consuming that event
-4. **References are siblings only** — transitions reference only states defined in the same parent's `states[]`
-5. **Reachability** — every state must be reachable from the initial transition
-6. **No dead-ends** — every non-final state needs at least one outgoing transition
+### Naming
+
+- State keys: **PascalCase** matching `/^[A-Z][a-zA-Z0-9]*$/` [L2]
+- Event names in transitions: **camelCase** matching `/^[a-z][a-zA-Z0-9]*$/` [L3, L6]
+- Event keys in `events` records: **camelCase** [L7]
+- State references in transitions: `""`, `"*"`, or PascalCase key [L5]
+
+### Structure
+
+1. Every state MUST have a non-empty `key` [L1]
+2. No duplicate keys among sibling states [L8]
+3. Every transition MUST be a 3-element array `[from, event, to]` [L4]
+4. **Sibling transitions at parent level** — all transitions between siblings go in the parent's `transitions`, never inside a child [S3]
+5. **Initial transition required** — every composite state (has `states`) must have `["", "*", X]` [S1]
+6. **References are siblings only** — transitions reference only states defined in the same parent's `states[]` [S2]
+7. **Reachability** — every state must be reachable from the initial transition [S4]
+8. **No dead-ends** — every non-final state needs at least one outgoing transition [S5]
+9. **Exit propagation** — when a sub-state exits with `[X, evt, ""]`, the parent must have a transition `[CompositeParent, evt, Y]` consuming that event [S6]
+10. **Wildcard determinism** — wildcard transitions must not create ambiguity; two wildcards covering the same (state, event) pair are invalid [S7]
+11. **Leaf states must declare `events`** — states without `states[]` SHOULD have an `events` field [S9]
+
+### Event consistency
+
+- Every event in `events` MUST have a matching transition `[StateKey, event, _]` in the parent, or be covered by a wildcard [M1]
+- Every non-wildcard transition event MUST be declared in the source state's `events` [M2]
+- If a child state emits an event handled by an ancestor, that event MUST be listed in the child's `events` [M3]
+
+### Semantic Consistency
+
+- **Convergent transitions** — when multiple transitions from the same source go to the same target via different events, verify the outcomes are semantically compatible [M4]
+- **Event-state consistency** — event descriptions (when/how) must not contradict the declaring state's goals and outcomes [M8]
+- **Parent-child goal alignment** — child state goals should not contradict parent goals; if they do, they should align with an ancestor's goals [M9]
 
 ## How to Transform Text into HFSM
 
@@ -117,8 +143,17 @@ For each state:
 
 - If the text is ambiguous, make reasonable assumptions and note them in state descriptions
 - Verify every state is reachable and every non-final state has an outgoing transition
-- Verify every event in `events` has a matching transition in the parent
-- Verify every transition event is declared in the source state's `events`
+- Verify every event in `events` has a matching transition in the parent [M1]
+- Verify every transition event is declared in the source state's `events` [M2]
+- Verify child exit events are declared in the child's `events` [M3]
+- Verify leaf states (no sub-states) declare `events` [S9]
+- Verify no duplicate keys among sibling states [L8]
+
+### Step 7: Semantic review
+
+- Verify event descriptions do not contradict the declaring state's goals and outcomes [M8]
+- Verify child state goals align with parent goals (or with ancestor goals if contradicting parent) [M9]
+- Review convergent transitions — same source, different events, same target — for semantic compatibility [M4]
 
 ## Naming Conventions
 
@@ -189,9 +224,15 @@ states:
 
 ## Common Mistakes
 
-- Placing sibling transitions inside child states instead of the parent
-- Missing initial transition `["", "*", X]` on composite states
-- Cycles without exit events (infinite loops)
-- Events declared in `events` with no matching transition in parent
-- Cross-level references (transitions pointing to non-sibling states)
-- Convergent transitions with incompatible outcomes (e.g., `ok` and `error` both leading to the same state)
+- Placing sibling transitions inside child states instead of the parent [S3]
+- Missing initial transition `["", "*", X]` on composite states [S1]
+- Cycles without exit events (infinite loops) [M5]
+- Events declared in `events` with no matching transition in parent [M1]
+- Transition events not declared in source state's `events` [M2]
+- Cross-level references (transitions pointing to non-sibling states) [S2]
+- Duplicate keys among sibling states [L8]
+- Convergent transitions with incompatible outcomes (e.g., `ok` and `error` both leading to the same state) [M4]
+- Leaf states without `events` declarations [S9]
+- Event descriptions that contradict the state's goals [M8]
+- Child state goals that contradict parent goals without ancestor alignment [M9]
+- Ambiguous wildcard transitions covering the same (state, event) pair [S7]
