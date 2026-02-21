@@ -1,6 +1,6 @@
 import type { FsmStateConfig } from "../src/types.ts";
 
-/** Valid: Simple light bulb toggle */
+/** Valid: Simple light bulb toggle with burnout exit */
 export const lightBulb: FsmStateConfig = {
   key: "LightBulb",
   description: "A simple on/off light bulb",
@@ -8,17 +8,24 @@ export const lightBulb: FsmStateConfig = {
     ["", "*", "Off"],
     ["Off", "toggle", "On"],
     ["On", "toggle", "Off"],
+    ["*", "burnOut", ""],
   ],
   states: [
     {
       key: "Off",
       description: "Light is off",
-      events: { toggle: "When user presses the light switch" },
+      events: {
+        toggle: "When user presses the light switch",
+        burnOut: "When the bulb burns out",
+      },
     },
     {
       key: "On",
       description: "Light is on",
-      events: { toggle: "When user presses the light switch" },
+      events: {
+        toggle: "When user presses the light switch",
+        burnOut: "When the bulb burns out",
+      },
     },
   ],
 };
@@ -26,8 +33,11 @@ export const lightBulb: FsmStateConfig = {
 /** Valid: Nested ticket flow with exit propagation */
 export const ticketFlow: FsmStateConfig = {
   key: "TicketFlow",
+  name: "Support Ticket Flow",
   description: "Support ticket lifecycle",
   outcome: "Ticket is resolved and closed",
+  actors: ["Support Agent", "L2 Team"],
+  object: "Support Ticket",
   transitions: [
     ["", "*", "Handle"],
     ["Handle", "resolved", "Closed"],
@@ -82,7 +92,7 @@ export const coffeeMachine: FsmStateConfig = {
     ["Idle", "userApproach", "WelcomeScreen"],
     ["WelcomeScreen", "selectDrink", "PreparingDrink"],
     ["WelcomeScreen", "timeout", "Idle"],
-    ["PreparingDrink", "drinkReady", "Idle"],
+    ["PreparingDrink", "brewingComplete", "Idle"],
     ["*", "maintenanceMode", "Maintenance"],
     ["Maintenance", "maintenanceComplete", "Idle"],
   ],
@@ -109,7 +119,7 @@ export const coffeeMachine: FsmStateConfig = {
       description: "Preparing the selected drink",
       outcome: "Drink is ready for pickup",
       events: {
-        drinkReady: "When all preparation steps are complete",
+        brewingComplete: "When all preparation steps are complete",
         maintenanceMode: "When maintenance schedule triggers",
       },
       transitions: [

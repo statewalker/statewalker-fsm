@@ -98,7 +98,7 @@ export function hierarchicalEventDeclaration(
         if (!handled) {
           issues.push({
             rule: "M3",
-            severity: "info",
+            severity: "warning",
             message: `Exit event "${event}" from "${config.key}" sub-states is not handled by parent "${parent.key}"`,
             path: [...path, config.key],
           });
@@ -106,7 +106,7 @@ export function hierarchicalEventDeclaration(
       }
     }
   }
-  return [];
+  return issues;
 }
 
 export function semanticCompatibility(ctx: RuleContext): ValidationIssue[] {
@@ -141,7 +141,7 @@ export function semanticCompatibility(ctx: RuleContext): ValidationIssue[] {
       if (events.length < 2) continue;
       issues.push({
         rule: "M4",
-        severity: "semantic",
+        severity: "review",
         message: `State "${from}" has ${events.length} transitions to "${target}" via events [${events.join(", ")}]. Verify that these outcomes are semantically compatible`,
         path: [...path, config.key],
       });
@@ -268,12 +268,17 @@ export function decisionPointExhaustiveness(
 
   // Build map of from-state → set of events
   const outgoingEvents = new Map<string, Set<string>>();
+  const wildcardSourceEvents = new Set<string>();
   let hasWildcardEvent = false;
 
   for (const [from, event] of transitions) {
-    if (from === "" || from === "*") continue;
+    if (from === "") continue;
     if (event === "*") {
       hasWildcardEvent = true;
+      continue;
+    }
+    if (from === "*") {
+      wildcardSourceEvents.add(event);
       continue;
     }
     if (!outgoingEvents.has(from)) outgoingEvents.set(from, new Set());
@@ -289,7 +294,7 @@ export function decisionPointExhaustiveness(
     if (eventKeys.length === 0) continue;
 
     const outgoing = outgoingEvents.get(child.key);
-    if (!outgoing) continue;
+    if (!outgoing && wildcardSourceEvents.size === 0) continue;
 
     // Check if child has a wildcard-event transition
     const childHasWildcard = transitions.some(
@@ -297,7 +302,9 @@ export function decisionPointExhaustiveness(
     );
     if (childHasWildcard) continue;
 
-    const uncovered = eventKeys.filter((e) => !outgoing.has(e));
+    const uncovered = eventKeys.filter(
+      (e) => !(outgoing?.has(e) ?? false) && !wildcardSourceEvents.has(e),
+    );
     if (uncovered.length > 0) {
       issues.push({
         rule: "M6",
@@ -367,7 +374,7 @@ export function eventStateSemanticConsistency(
     if (!eventDescription) continue;
     issues.push({
       rule: "M8",
-      severity: "semantic",
+      severity: "review",
       message: `State "${config.key}" (${describeState(config)}) declares event "${eventName}" described as "${eventDescription}". Verify the event conditions do not contradict the state's goals and outcomes`,
       path: [...path, config.key],
     });
@@ -394,7 +401,7 @@ export function parentChildGoalAlignment(ctx: RuleContext): ValidationIssue[] {
   return [
     {
       rule: "M9",
-      severity: "semantic",
+      severity: "review",
       message: `Child state "${config.key}" (${describeState(config)}) is nested in "${parent.key}" (${describeState(parent)}). Verify child goals do not contradict parent goals, or if they do, that they align with an ancestor's goals`,
       path: [...path, config.key],
     },

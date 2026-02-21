@@ -243,11 +243,11 @@ describe("Semantic rules", () => {
         ],
       };
       const result = validate(config, { rules: ["M4"] });
-      expect(result.semantic).toHaveLength(1);
-      expect(result.semantic[0].severity).toBe("semantic");
-      expect(result.semantic[0].message).toContain("ok");
-      expect(result.semantic[0].message).toContain("error");
-      expect(result.semantic[0].message).toContain("semantically compatible");
+      expect(result.review).toHaveLength(1);
+      expect(result.review[0].severity).toBe("review");
+      expect(result.review[0].message).toContain("ok");
+      expect(result.review[0].message).toContain("error");
+      expect(result.review[0].message).toContain("semantically compatible");
     });
 
     it("should not report for different sources converging to same target", () => {
@@ -265,12 +265,12 @@ describe("Semantic rules", () => {
         ],
       };
       const result = validate(config, { rules: ["M4"] });
-      expect(result.semantic).toHaveLength(0);
+      expect(result.review).toHaveLength(0);
     });
 
     it("should not report for single transition to a target", () => {
       const result = validate(lightBulb, { rules: ["M4"] });
-      expect(result.semantic).toHaveLength(0);
+      expect(result.review).toHaveLength(0);
     });
   });
 
@@ -614,11 +614,11 @@ describe("Semantic rules", () => {
         },
       };
       const result = validate(config, { rules: ["M8"] });
-      expect(result.semantic).toHaveLength(2);
-      expect(result.semantic[0].severity).toBe("semantic");
-      expect(result.semantic[0].rule).toBe("M8");
-      expect(result.semantic[0].message).toContain("Validate");
-      expect(result.semantic[0].message).toContain("valid");
+      expect(result.review).toHaveLength(2);
+      expect(result.review[0].severity).toBe("review");
+      expect(result.review[0].rule).toBe("M8");
+      expect(result.review[0].message).toContain("Validate");
+      expect(result.review[0].message).toContain("valid");
     });
 
     it("should skip states without description or outcome", () => {
@@ -629,7 +629,7 @@ describe("Semantic rules", () => {
         },
       };
       const result = validate(config, { rules: ["M8"] });
-      expect(result.semantic).toHaveLength(0);
+      expect(result.review).toHaveLength(0);
     });
 
     it("should skip states without events", () => {
@@ -638,7 +638,7 @@ describe("Semantic rules", () => {
         description: "Some state",
       };
       const result = validate(config, { rules: ["M8"] });
-      expect(result.semantic).toHaveLength(0);
+      expect(result.review).toHaveLength(0);
     });
 
     it("should skip events with empty descriptions", () => {
@@ -651,8 +651,8 @@ describe("Semantic rules", () => {
         },
       };
       const result = validate(config, { rules: ["M8"] });
-      expect(result.semantic).toHaveLength(1);
-      expect(result.semantic[0].message).toContain("proceed");
+      expect(result.review).toHaveLength(1);
+      expect(result.review[0].message).toContain("proceed");
     });
 
     it("should work with outcome only (no description)", () => {
@@ -664,8 +664,8 @@ describe("Semantic rules", () => {
         },
       };
       const result = validate(config, { rules: ["M8"] });
-      expect(result.semantic).toHaveLength(1);
-      expect(result.semantic[0].message).toContain("Process");
+      expect(result.review).toHaveLength(1);
+      expect(result.review[0].message).toContain("Process");
     });
 
     it("should report for nested states with descriptions and events", () => {
@@ -685,14 +685,14 @@ describe("Semantic rules", () => {
       };
       const result = validate(config, { rules: ["M8"] });
       // Root has no events, Step has description + events
-      expect(result.semantic).toHaveLength(1);
-      expect(result.semantic[0].message).toContain("Step");
+      expect(result.review).toHaveLength(1);
+      expect(result.review[0].message).toContain("Step");
     });
 
     it("should report for real-world fixture with descriptions", () => {
       const result = validate(lightBulb, { rules: ["M8"] });
       // Off and On states both have descriptions and events
-      expect(result.semantic.length).toBeGreaterThanOrEqual(2);
+      expect(result.review.length).toBeGreaterThanOrEqual(2);
     });
   });
 
@@ -713,12 +713,12 @@ describe("Semantic rules", () => {
         ],
       };
       const result = validate(config, { rules: ["M9"] });
-      expect(result.semantic).toHaveLength(1);
-      expect(result.semantic[0].severity).toBe("semantic");
-      expect(result.semantic[0].rule).toBe("M9");
-      expect(result.semantic[0].message).toContain("Step");
-      expect(result.semantic[0].message).toContain("Root");
-      expect(result.semantic[0].message).toContain(
+      expect(result.review).toHaveLength(1);
+      expect(result.review[0].severity).toBe("review");
+      expect(result.review[0].rule).toBe("M9");
+      expect(result.review[0].message).toContain("Step");
+      expect(result.review[0].message).toContain("Root");
+      expect(result.review[0].message).toContain(
         "Verify child goals do not contradict parent goals",
       );
     });
@@ -731,7 +731,7 @@ describe("Semantic rules", () => {
         states: [{ key: "Step" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["M9"] });
-      expect(result.semantic).toHaveLength(0);
+      expect(result.review).toHaveLength(0);
     });
 
     it("should skip when parent has no description or outcome", () => {
@@ -746,7 +746,7 @@ describe("Semantic rules", () => {
         ],
       };
       const result = validate(config, { rules: ["M9"] });
-      expect(result.semantic).toHaveLength(0);
+      expect(result.review).toHaveLength(0);
     });
 
     it("should skip root state (no parent)", () => {
@@ -755,7 +755,7 @@ describe("Semantic rules", () => {
         description: "Root state",
       };
       const result = validate(config, { rules: ["M9"] });
-      expect(result.semantic).toHaveLength(0);
+      expect(result.review).toHaveLength(0);
     });
 
     it("should report for each described child in hierarchy", () => {
@@ -779,7 +779,7 @@ describe("Semantic rules", () => {
       };
       const result = validate(config, { rules: ["M9"] });
       // A → Root, Sub → A
-      expect(result.semantic).toHaveLength(2);
+      expect(result.review).toHaveLength(2);
     });
 
     it("should include state descriptions in message", () => {
@@ -797,15 +797,15 @@ describe("Semantic rules", () => {
         ],
       };
       const result = validate(config, { rules: ["M9"] });
-      expect(result.semantic).toHaveLength(1);
-      expect(result.semantic[0].message).toContain("Check order validity");
-      expect(result.semantic[0].message).toContain("Manage orders");
+      expect(result.review).toHaveLength(1);
+      expect(result.review[0].message).toContain("Check order validity");
+      expect(result.review[0].message).toContain("Manage orders");
     });
 
     it("should report for real-world fixture with descriptions", () => {
       const result = validate(ticketFlow, { rules: ["M9"] });
       // Handle → TicketFlow, Diagnose → Handle, Escalate → Handle, Closed → TicketFlow
-      expect(result.semantic.length).toBeGreaterThanOrEqual(2);
+      expect(result.review.length).toBeGreaterThanOrEqual(2);
     });
   });
 

@@ -38,26 +38,6 @@ export function stateKeyFormat(ctx: RuleContext): ValidationIssue[] {
   return [];
 }
 
-export function eventNameFormat(ctx: RuleContext): ValidationIssue[] {
-  const transitions = ctx.config.transitions;
-  if (!transitions) return [];
-  const issues: ValidationIssue[] = [];
-  for (const t of transitions) {
-    if (!Array.isArray(t) || t.length !== 3) continue;
-    const event = t[1];
-    if (event === "*" || event === "") continue;
-    if (!EVENT_KEY_PATTERN.test(event)) {
-      issues.push({
-        rule: "L3",
-        severity: "warning",
-        message: `Event name "${event}" does not follow camelCase convention`,
-        path: [...ctx.path, ctx.config.key],
-      });
-    }
-  }
-  return issues;
-}
-
 export function transitionTupleLength(ctx: RuleContext): ValidationIssue[] {
   const transitions = ctx.config.transitions;
   if (!transitions) return [];
@@ -66,7 +46,7 @@ export function transitionTupleLength(ctx: RuleContext): ValidationIssue[] {
     const t = transitions[i];
     if (!Array.isArray(t) || t.length !== 3) {
       issues.push({
-        rule: "L4",
+        rule: "L3",
         severity: "error",
         message: `Transition at index ${i} must be a 3-element array [from, event, to], got ${Array.isArray(t) ? `${t.length} elements` : typeof t}`,
         path: [...ctx.path, ctx.config.key],
@@ -87,7 +67,7 @@ export function stateRefFormat(ctx: RuleContext): ValidationIssue[] {
       if (ref === "" || ref === "*") continue;
       if (typeof ref !== "string" || !STATE_KEY_PATTERN.test(ref)) {
         issues.push({
-          rule: "L5",
+          rule: "L4",
           severity: "warning",
           message: `State reference "${ref}" does not match expected format`,
           path: [...ctx.path, ctx.config.key],
@@ -105,15 +85,12 @@ export function eventRefFormat(ctx: RuleContext): ValidationIssue[] {
   for (const t of transitions) {
     if (!Array.isArray(t) || t.length !== 3) continue;
     const event = t[1];
-    if (event === "*") continue;
-    if (
-      typeof event !== "string" ||
-      (!EVENT_KEY_PATTERN.test(event) && event !== "")
-    ) {
+    if (event === "*" || event === "") continue;
+    if (typeof event !== "string" || !EVENT_KEY_PATTERN.test(event)) {
       issues.push({
-        rule: "L6",
+        rule: "L5",
         severity: "warning",
-        message: `Event reference "${event}" does not match expected format`,
+        message: `Event reference "${event}" does not follow camelCase convention`,
         path: [...ctx.path, ctx.config.key],
       });
     }
@@ -128,7 +105,7 @@ export function eventsArrayFormat(ctx: RuleContext): ValidationIssue[] {
   for (const e of Object.keys(events)) {
     if (!EVENT_KEY_PATTERN.test(e)) {
       issues.push({
-        rule: "L7",
+        rule: "L6",
         severity: "warning",
         message: `Event "${e}" in events does not follow camelCase convention`,
         path: [...ctx.path, ctx.config.key],
@@ -146,7 +123,7 @@ export function noDuplicateSiblingKeys(ctx: RuleContext): ValidationIssue[] {
   for (const child of states) {
     if (seen.has(child.key)) {
       issues.push({
-        rule: "L8",
+        rule: "L7",
         severity: "error",
         message: `Duplicate sibling state key "${child.key}"`,
         path: [...ctx.path, ctx.config.key],
@@ -160,10 +137,9 @@ export function noDuplicateSiblingKeys(ctx: RuleContext): ValidationIssue[] {
 export const lexicalRules: [RuleId, RuleFunction][] = [
   ["L1", keyRequired],
   ["L2", stateKeyFormat],
-  ["L3", eventNameFormat],
-  ["L4", transitionTupleLength],
-  ["L5", stateRefFormat],
-  ["L6", eventRefFormat],
-  ["L7", eventsArrayFormat],
-  ["L8", noDuplicateSiblingKeys],
+  ["L3", transitionTupleLength],
+  ["L4", stateRefFormat],
+  ["L5", eventRefFormat],
+  ["L6", eventsArrayFormat],
+  ["L7", noDuplicateSiblingKeys],
 ];

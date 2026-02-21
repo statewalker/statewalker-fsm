@@ -6,6 +6,7 @@
 export const dataModel = `\
 type FsmStateConfig = {
   key: string;                           // PascalCase identifier (mandatory)
+  name?: string;                         // human-readable display name
   description?: string;                  // purpose & behavior of this state
   outcome?: string;                      // expected result upon completion
   events?: Record<string, string>;       // event name → description of when/how it occurs
@@ -17,14 +18,20 @@ type FsmStateConfig = {
 
 export const outputFormat = `\
 key: <ProcessKey>
+name: <Human-readable process name>
 description: <High-level process description>
 outcome: <Expected result of the entire process>
+actors:
+  - <Actor1>
+  - <Actor2>
+object: <Primary entity acted upon>
 transitions:
   - ["", "*", <InitialState>]
   - [<From>, <event>, <To>]
   - [<From>, <event>, ""]        # exit transition
 states:
   - key: <StateKey>
+    name: <Human-readable state name>
     description: <What this state does>
     outcome: <Expected result when complete>
     events:
@@ -46,26 +53,30 @@ export const transitionPatterns = `\
 | ["*", "evt", "X"] | Wildcard source | From any state on evt: go to X |
 | ["A", "*", "X"] | Wildcard event | From A on any event: go to X |
 | ["A", "evt", ""] | Exit | A emits evt: exit parent scope |
-| ["*", "evt", ""] | Global exit | Any state emits evt: exit parent |`;
+| ["*", "evt", ""] | Global exit | Any state emits evt: exit parent |
+
+> ["", "*", X] is a fixed idiom — the * is required syntax, not a meaningful wildcard.
+
+> Specific transitions take priority over wildcards (see S7).`;
 
 export const namingRules = `\
 - State keys: PascalCase matching /^[A-Z][a-zA-Z0-9]*$/ [L2]
-- Event names in transitions: camelCase matching /^[a-z][a-zA-Z0-9]*$/ [L3, L6]
-- Event keys in events records: camelCase [L7]
-- State references in transitions: "", "*", or PascalCase key [L5]`;
+- Event names in transitions: camelCase matching /^[a-z][a-zA-Z0-9]*$/ [L5]
+- Event keys in events records: camelCase [L6]
+- State references in transitions: "", "*", or PascalCase key [L4]`;
 
 export const structureRules = `\
 1. Every state MUST have a non-empty key [L1]
-2. No duplicate keys among sibling states [L8]
-3. Every transition MUST be a 3-element array [from, event, to] [L4]
+2. No duplicate keys among sibling states [L7]
+3. Every transition MUST be a 3-element array [from, event, to] [L3]
 4. Sibling transitions at parent level — all transitions between siblings go in the parent's transitions, never inside a child [S3]
 5. Initial transition required — every composite state (has states) must have ["", "*", X] [S1]
-6. References are siblings only — transitions reference only states defined in the same parent's states[] [S2]
+6. References are siblings only — transitions reference only states defined in the same parent's states[]. Cross-level references are therefore prohibited [S2]
 7. Reachability — every state must be reachable from the initial transition [S4]
 8. No dead-ends — every non-final state needs at least one outgoing transition [S5]
 9. Exit propagation — when a sub-state exits with [X, evt, ""], the parent must have a transition [CompositeParent, evt, Y] consuming that event [S6]
 10. Wildcard determinism — wildcard transitions must not create ambiguity; two wildcards covering the same (state, event) pair are invalid [S7]
-11. Leaf states must declare events — states without states[] SHOULD have an events field [S9]`;
+11. Leaf states must declare events — states without states[] MUST have an events field [S8]`;
 
 export const eventConsistencyRules = `\
 - Every event in events MUST have a matching transition [StateKey, event, _] in the parent, or be covered by a wildcard [M1]
@@ -85,7 +96,7 @@ Break the text into individual steps. For each step extract:
 - Object — what is acted upon (if stated)
 - Conditions — prerequisites for the step
 - Outcome — the result when the step completes
-- Events — outcome-driven signals that trigger the next step
+- Events — outcome-driven signals that cause a transition to the next state
 Use sequential indicators in the text ("first", "then", "after", "finally") to determine ordering.
 
 Step 2: Build hierarchy
@@ -103,9 +114,7 @@ Look for conditional language ("if", "depending on", "either...or", "when X fail
 Step 4: Identify cycles and ensure exits
 Look for repetition language ("retry", "try again", "repeat until", "review again", "reprocess").
 - Model cycles as transitions that loop back to earlier sibling states
-- Every cycle must have exit events to prevent infinite loops:
-  - A success exit — the cycle's goal is achieved (e.g., approved, validated)
-  - A failure exit — a limit or error condition breaks the cycle (e.g., maxRetriesExceeded, timeout)
+- Every cycle must have at least one exit event/transition to prevent infinite loops
 
 Step 5: Map outcomes to events and transitions
 For each state:
@@ -121,8 +130,8 @@ Step 6: Fill gaps and refine
 - Verify every event in events has a matching transition in the parent [M1]
 - Verify every transition event is declared in the source state's events [M2]
 - Verify child exit events are declared in the child's events [M3]
-- Verify leaf states (no sub-states) declare events [S9]
-- Verify no duplicate keys among sibling states [L8]
+- Verify leaf states (no sub-states) declare events [S8]
+- Verify no duplicate keys among sibling states [L7]
 
 Step 7: Semantic review
 - Verify event descriptions do not contradict the declaring state's goals and outcomes [M8]
@@ -132,7 +141,9 @@ Step 7: Semantic review
 export const namingConventions = `\
 - State keys: PascalCase, action-oriented (ProcessingOrder, ValidatingInput)
 - Event names: camelCase (orderValid, paymentFailed, timeout)
-- Process keys: PascalCase, business-workflow names (OrderFulfillment, UserRegistration)`;
+- Process keys: PascalCase, business-workflow names (OrderFulfillment, UserRegistration)
+- Actors: plain strings describing participating entities (Customer, L1 Agent, System)
+- Object: a noun phrase describing the primary entity acted upon (support ticket, purchase order)`;
 
 export const examples = {
   lightBulb: `\
@@ -142,20 +153,29 @@ transitions:
   - ["", "*", "Off"]
   - ["Off", "toggle", "On"]
   - ["On", "toggle", "Off"]
+  - ["*", "burnOut", ""]
 states:
   - key: Off
     description: Light is off
     events:
       toggle: When user presses the light switch
+      burnOut: When the bulb fails due to age or damage
   - key: On
     description: Light is on
     events:
-      toggle: When user presses the light switch`,
+      toggle: When user presses the light switch
+      burnOut: When the bulb fails due to age or damage`,
 
   ticketFlow: `\
 key: TicketFlow
+name: Support Ticket Lifecycle
 description: Support ticket lifecycle
 outcome: Ticket is resolved and closed
+actors:
+  - Customer
+  - L1 Agent
+  - L2 Agent
+object: support ticket
 transitions:
   - ["", "*", "Handle"]
   - ["Handle", "resolved", "Closed"]
@@ -192,13 +212,14 @@ states:
 export const commonMistakes = `\
 - Placing sibling transitions inside child states instead of the parent [S3]
 - Missing initial transition ["", "*", X] on composite states [S1]
-- Cycles without exit events (infinite loops) [M5]
+- Cycles without exit events — infinite loops [M5]
+- Decision points with missing outcomes — not all branches covered [M6]
 - Events declared in events with no matching transition in parent [M1]
 - Transition events not declared in source state's events [M2]
-- Cross-level references (transitions pointing to non-sibling states) [S2]
-- Duplicate keys among sibling states [L8]
+- Cross-level references — transitions pointing to non-sibling states [S2]
+- Duplicate keys among sibling states [L7]
 - Convergent transitions with incompatible outcomes (e.g., ok and error both leading to the same state) [M4]
-- Leaf states without events declarations [S9]
+- Leaf states without events declarations [S8]
 - Event descriptions that contradict the state's goals [M8]
 - Child state goals that contradict parent goals without ancestor alignment [M9]
 - Ambiguous wildcard transitions covering the same (state, event) pair [S7]`;

@@ -20,13 +20,13 @@ export function validate(
 
   const errors = issues.filter((i) => i.severity === "error");
   const warnings = issues.filter((i) => i.severity === "warning");
-  const semantic = issues.filter((i) => i.severity === "semantic");
+  const review = issues.filter((i) => i.severity === "review");
   return {
     valid: errors.length === 0,
     issues,
     errors,
     warnings,
-    semantic,
+    review,
   };
 }
 

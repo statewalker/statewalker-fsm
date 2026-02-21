@@ -20,7 +20,7 @@ export type FsmStateConfig = {
   object?: string;
 } & Record<string, unknown>;
 
-export type Severity = "error" | "warning" | "info" | "semantic";
+export type Severity = "error" | "warning" | "info" | "review";
 
 export type RuleId =
   | "L1"
@@ -30,7 +30,6 @@ export type RuleId =
   | "L5"
   | "L6"
   | "L7"
-  | "L8"
   | "S1"
   | "S2"
   | "S3"
@@ -39,7 +38,6 @@ export type RuleId =
   | "S6"
   | "S7"
   | "S8"
-  | "S9"
   | "M1"
   | "M2"
   | "M3"
@@ -62,7 +60,7 @@ export type ValidationResult = {
   issues: ValidationIssue[];
   errors: ValidationIssue[];
   warnings: ValidationIssue[];
-  semantic: ValidationIssue[];
+  review: ValidationIssue[];
 };
 
 export type ValidationOptions = {

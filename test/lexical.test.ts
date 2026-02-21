@@ -64,7 +64,7 @@ describe("Lexical rules", () => {
       expect(result.warnings[0].message).toContain("MAIN_VIEW");
     });
 
-    it("should not warn for keys that fail STATE_KEY_PATTERN entirely (L1/L5 handles that)", () => {
+    it("should not warn for keys that fail STATE_KEY_PATTERN entirely (L1/L4 handles that)", () => {
       const config: FsmStateConfig = { key: "123invalid" };
       const result = validate(config, { rules: ["L2"] });
       expect(result.warnings).toHaveLength(0);
@@ -82,88 +82,15 @@ describe("Lexical rules", () => {
     });
   });
 
-  // ── L3: event name format ─────────────────────────────────────────────
+  // ── L3: transition tuple length ───────────────────────────────────────
 
-  describe("L3: event name format", () => {
-    it("should pass for camelCase events", () => {
-      const config: FsmStateConfig = {
-        key: "Root",
-        transitions: [
-          ["", "*", "A"],
-          ["A", "toggle", "B"],
-          ["B", "dataLoaded", "A"],
-        ],
-        states: [
-          { key: "A", events: {} },
-          { key: "B", events: {} },
-        ],
-      };
-      const result = validate(config, { rules: ["L3"] });
-      expect(result.warnings).toHaveLength(0);
-    });
-
-    it("should pass for wildcard event '*'", () => {
-      const config: FsmStateConfig = {
-        key: "Root",
-        transitions: [["", "*", "A"]],
-        states: [{ key: "A", events: {} }],
-      };
-      const result = validate(config, { rules: ["L3"] });
-      expect(result.warnings).toHaveLength(0);
-    });
-
-    it("should warn for PascalCase event names", () => {
-      const config: FsmStateConfig = {
-        key: "Root",
-        transitions: [["A", "Toggle", "B"]],
-      };
-      const result = validate(config, { rules: ["L3"] });
-      expect(result.warnings).toHaveLength(1);
-      expect(result.warnings[0].rule).toBe("L3");
-      expect(result.warnings[0].message).toContain("Toggle");
-    });
-
-    it("should warn for snake_case event names", () => {
-      const config: FsmStateConfig = {
-        key: "Root",
-        transitions: [["A", "data_loaded", "B"]],
-      };
-      const result = validate(config, { rules: ["L3"] });
-      expect(result.warnings).toHaveLength(1);
-      expect(result.warnings[0].message).toContain("data_loaded");
-    });
-
-    it("should report multiple warnings for multiple bad events", () => {
-      const config: FsmStateConfig = {
-        key: "Root",
-        transitions: [
-          ["A", "Bad_Event", "B"],
-          ["B", "ALSO_BAD", "A"],
-        ],
-      };
-      const result = validate(config, { rules: ["L3"] });
-      expect(result.warnings).toHaveLength(2);
-    });
-
-    it("should skip malformed transitions", () => {
-      const config: FsmStateConfig = {
-        key: "Root",
-        transitions: [["A", "B"] as unknown as [string, string, string]],
-      };
-      const result = validate(config, { rules: ["L3"] });
-      expect(result.warnings).toHaveLength(0);
-    });
-  });
-
-  // ── L4: transition tuple length ───────────────────────────────────────
-
-  describe("L4: transition tuple length", () => {
+  describe("L3: transition tuple length", () => {
     it("should pass for 3-element arrays", () => {
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [["A", "evt", "B"]],
       };
-      const result = validate(config, { rules: ["L4"] });
+      const result = validate(config, { rules: ["L3"] });
       expect(result.valid).toBe(true);
     });
 
@@ -172,9 +99,9 @@ describe("Lexical rules", () => {
         key: "Root",
         transitions: [["A", "B"] as unknown as [string, string, string]],
       };
-      const result = validate(config, { rules: ["L4"] });
+      const result = validate(config, { rules: ["L3"] });
       expect(result.valid).toBe(false);
-      expect(result.errors[0].rule).toBe("L4");
+      expect(result.errors[0].rule).toBe("L3");
       expect(result.errors[0].message).toContain("2 elements");
     });
 
@@ -185,7 +112,7 @@ describe("Lexical rules", () => {
           ["A", "evt", "B", "extra"] as unknown as [string, string, string],
         ],
       };
-      const result = validate(config, { rules: ["L4"] });
+      const result = validate(config, { rules: ["L3"] });
       expect(result.valid).toBe(false);
       expect(result.errors[0].message).toContain("4 elements");
     });
@@ -195,14 +122,14 @@ describe("Lexical rules", () => {
         key: "Root",
         transitions: ["not-an-array" as unknown as [string, string, string]],
       };
-      const result = validate(config, { rules: ["L4"] });
+      const result = validate(config, { rules: ["L3"] });
       expect(result.valid).toBe(false);
       expect(result.errors[0].message).toContain("string");
     });
 
     it("should pass when no transitions", () => {
       const config: FsmStateConfig = { key: "Root" };
-      const result = validate(config, { rules: ["L4"] });
+      const result = validate(config, { rules: ["L3"] });
       expect(result.valid).toBe(true);
     });
 
@@ -215,16 +142,16 @@ describe("Lexical rules", () => {
           ["C", "D"] as unknown as [string, string, string],
         ],
       };
-      const result = validate(config, { rules: ["L4"] });
+      const result = validate(config, { rules: ["L3"] });
       expect(result.errors).toHaveLength(2);
       expect(result.errors[0].message).toContain("index 0");
       expect(result.errors[1].message).toContain("index 2");
     });
   });
 
-  // ── L5: state reference format ────────────────────────────────────────
+  // ── L4: state reference format ────────────────────────────────────────
 
-  describe("L5: state reference format", () => {
+  describe("L4: state reference format", () => {
     it("should pass for valid state refs (PascalCase, empty, wildcard)", () => {
       const config: FsmStateConfig = {
         key: "Root",
@@ -235,7 +162,7 @@ describe("Lexical rules", () => {
           ["StateB", "done", ""],
         ],
       };
-      const result = validate(config, { rules: ["L5"] });
+      const result = validate(config, { rules: ["L4"] });
       expect(result.warnings).toHaveLength(0);
     });
 
@@ -244,9 +171,9 @@ describe("Lexical rules", () => {
         key: "Root",
         transitions: [["123", "go", "456"]],
       };
-      const result = validate(config, { rules: ["L5"] });
+      const result = validate(config, { rules: ["L4"] });
       expect(result.warnings.length).toBeGreaterThanOrEqual(2);
-      expect(result.warnings.every((w) => w.rule === "L5")).toBe(true);
+      expect(result.warnings.every((w) => w.rule === "L4")).toBe(true);
     });
 
     it("should warn for state refs with spaces", () => {
@@ -254,14 +181,14 @@ describe("Lexical rules", () => {
         key: "Root",
         transitions: [["Some State", "go", "Another State"]],
       };
-      const result = validate(config, { rules: ["L5"] });
+      const result = validate(config, { rules: ["L4"] });
       expect(result.warnings.length).toBeGreaterThanOrEqual(2);
     });
   });
 
-  // ── L6: event reference format ────────────────────────────────────────
+  // ── L5: event reference format ────────────────────────────────────────
 
-  describe("L6: event reference format", () => {
+  describe("L5: event reference format", () => {
     it("should pass for camelCase events and wildcard", () => {
       const config: FsmStateConfig = {
         key: "Root",
@@ -270,7 +197,7 @@ describe("Lexical rules", () => {
           ["B", "eventName", "A"],
         ],
       };
-      const result = validate(config, { rules: ["L6"] });
+      const result = validate(config, { rules: ["L5"] });
       expect(result.warnings).toHaveLength(0);
     });
 
@@ -279,9 +206,9 @@ describe("Lexical rules", () => {
         key: "Root",
         transitions: [["A", "BadEvent", "B"]],
       };
-      const result = validate(config, { rules: ["L6"] });
+      const result = validate(config, { rules: ["L5"] });
       expect(result.warnings).toHaveLength(1);
-      expect(result.warnings[0].rule).toBe("L6");
+      expect(result.warnings[0].rule).toBe("L5");
     });
 
     it("should pass for empty event (initial transition)", () => {
@@ -289,14 +216,62 @@ describe("Lexical rules", () => {
         key: "Root",
         transitions: [["", "", "Init"]],
       };
-      const result = validate(config, { rules: ["L6"] });
+      const result = validate(config, { rules: ["L5"] });
+      expect(result.warnings).toHaveLength(0);
+    });
+
+    it("should pass for camelCase events in transitions", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [
+          ["", "*", "A"],
+          ["A", "toggle", "B"],
+          ["B", "dataLoaded", "A"],
+        ],
+        states: [
+          { key: "A", events: {} },
+          { key: "B", events: {} },
+        ],
+      };
+      const result = validate(config, { rules: ["L5"] });
+      expect(result.warnings).toHaveLength(0);
+    });
+
+    it("should warn for snake_case event names", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [["A", "data_loaded", "B"]],
+      };
+      const result = validate(config, { rules: ["L5"] });
+      expect(result.warnings).toHaveLength(1);
+      expect(result.warnings[0].message).toContain("data_loaded");
+    });
+
+    it("should report multiple warnings for multiple bad events", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [
+          ["A", "Bad_Event", "B"],
+          ["B", "ALSO_BAD", "A"],
+        ],
+      };
+      const result = validate(config, { rules: ["L5"] });
+      expect(result.warnings).toHaveLength(2);
+    });
+
+    it("should skip malformed transitions", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [["A", "B"] as unknown as [string, string, string]],
+      };
+      const result = validate(config, { rules: ["L5"] });
       expect(result.warnings).toHaveLength(0);
     });
   });
 
-  // ── L7: events format ─────────────────────────────────────────────────
+  // ── L6: events format ─────────────────────────────────────────────────
 
-  describe("L7: events format", () => {
+  describe("L6: events format", () => {
     it("should pass for camelCase event keys", () => {
       const config: FsmStateConfig = {
         key: "State",
@@ -306,7 +281,7 @@ describe("Lexical rules", () => {
           dataLoaded: "When data is loaded",
         },
       };
-      const result = validate(config, { rules: ["L7"] });
+      const result = validate(config, { rules: ["L6"] });
       expect(result.warnings).toHaveLength(0);
     });
 
@@ -318,7 +293,7 @@ describe("Lexical rules", () => {
           failure: "When operation fails",
         },
       };
-      const result = validate(config, { rules: ["L7"] });
+      const result = validate(config, { rules: ["L6"] });
       expect(result.warnings).toHaveLength(1);
       expect(result.warnings[0].message).toContain("Success");
     });
@@ -328,28 +303,28 @@ describe("Lexical rules", () => {
         key: "State",
         events: { data_loaded: "When data is loaded" },
       };
-      const result = validate(config, { rules: ["L7"] });
+      const result = validate(config, { rules: ["L6"] });
       expect(result.warnings).toHaveLength(1);
     });
 
     it("should pass when no events", () => {
       const config: FsmStateConfig = { key: "State" };
-      const result = validate(config, { rules: ["L7"] });
+      const result = validate(config, { rules: ["L6"] });
       expect(result.warnings).toHaveLength(0);
     });
 
     it("should pass for empty events record", () => {
       const config: FsmStateConfig = { key: "State", events: {} };
-      const result = validate(config, { rules: ["L7"] });
+      const result = validate(config, { rules: ["L6"] });
       expect(result.warnings).toHaveLength(0);
     });
   });
 
-  // ── L8: no duplicate sibling keys ─────────────────────────────────────
+  // ── L7: no duplicate sibling keys ─────────────────────────────────────
 
-  describe("L8: no duplicate sibling keys", () => {
+  describe("L7: no duplicate sibling keys", () => {
     it("should pass for unique sibling keys", () => {
-      const result = validate(lightBulb, { rules: ["L8"] });
+      const result = validate(lightBulb, { rules: ["L7"] });
       expect(result.valid).toBe(true);
     });
 
@@ -362,10 +337,10 @@ describe("Lexical rules", () => {
           { key: "A" } as FsmStateConfig,
         ],
       };
-      const result = validate(config, { rules: ["L8"] });
+      const result = validate(config, { rules: ["L7"] });
       expect(result.valid).toBe(false);
       expect(result.errors).toHaveLength(1);
-      expect(result.errors[0].rule).toBe("L8");
+      expect(result.errors[0].rule).toBe("L7");
       expect(result.errors[0].message).toContain("A");
     });
 
@@ -379,13 +354,13 @@ describe("Lexical rules", () => {
           { key: "B" } as FsmStateConfig,
         ],
       };
-      const result = validate(config, { rules: ["L8"] });
+      const result = validate(config, { rules: ["L7"] });
       expect(result.errors).toHaveLength(2);
     });
 
     it("should pass when no states", () => {
       const config: FsmStateConfig = { key: "Root" };
-      const result = validate(config, { rules: ["L8"] });
+      const result = validate(config, { rules: ["L7"] });
       expect(result.valid).toBe(true);
     });
 
@@ -402,7 +377,7 @@ describe("Lexical rules", () => {
           { key: "B" } as FsmStateConfig,
         ],
       };
-      const result = validate(config, { rules: ["L8"] });
+      const result = validate(config, { rules: ["L7"] });
       expect(result.valid).toBe(true);
     });
   });

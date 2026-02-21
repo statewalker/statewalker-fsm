@@ -21,6 +21,13 @@ export {
   semanticRules,
   structuralRules,
 } from "./agent-rules.ts";
+export type {
+  ReportCategory,
+  ReportIssueEntry,
+  ReportRuleGroup,
+  ValidationReport,
+} from "./report.ts";
+export { buildReport, formatReport } from "./report.ts";
 export { allRules } from "./rules/index.ts";
 export type {
   FsmEventKey,

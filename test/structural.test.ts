@@ -166,19 +166,112 @@ describe("Structural rules", () => {
   // ── S3: sibling transitions at parent level ───────────────────────────
 
   describe("S3: sibling transitions at parent level", () => {
-    it("should return no issues (advisory, not enforced)", () => {
+    it("should report error when child's transition targets a sibling", () => {
       const config: FsmStateConfig = {
         key: "Root",
+        transitions: [["", "*", "A"]],
         states: [
           {
             key: "A",
-            transitions: [["A", "go", "B"]],
-          } as FsmStateConfig,
-          { key: "B" } as FsmStateConfig,
+            transitions: [
+              ["", "*", "Sub"],
+              ["Sub", "go", "B"],
+            ],
+            states: [{ key: "Sub", events: { go: "Go" } }],
+          },
+          { key: "B", events: {} },
         ],
       };
       const result = validate(config, { rules: ["S3"] });
-      expect(result.issues).toHaveLength(0);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].rule).toBe("S3");
+      expect(result.errors[0].message).toContain("B");
+    });
+
+    it("should report error when child's transition sources from a sibling", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [["", "*", "A"]],
+        states: [
+          {
+            key: "A",
+            transitions: [
+              ["", "*", "Sub"],
+              ["B", "go", "Sub"],
+            ],
+            states: [{ key: "Sub", events: { go: "Go" } }],
+          },
+          { key: "B", events: {} },
+        ],
+      };
+      const result = validate(config, { rules: ["S3"] });
+      expect(result.valid).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].rule).toBe("S3");
+      expect(result.errors[0].message).toContain("B");
+    });
+
+    it("should pass when child only references its own sub-states", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [["", "*", "A"]],
+        states: [
+          {
+            key: "A",
+            transitions: [
+              ["", "*", "Sub1"],
+              ["Sub1", "go", "Sub2"],
+            ],
+            states: [
+              { key: "Sub1", events: { go: "Go" } },
+              { key: "Sub2", events: {} },
+            ],
+          },
+          { key: "B", events: {} },
+        ],
+      };
+      const result = validate(config, { rules: ["S3"] });
+      expect(result.valid).toBe(true);
+    });
+
+    it("should pass when child has no transitions", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [["", "*", "A"]],
+        states: [
+          { key: "A", events: {} },
+          { key: "B", events: {} },
+        ],
+      };
+      const result = validate(config, { rules: ["S3"] });
+      expect(result.valid).toBe(true);
+    });
+
+    it("should pass for valid fixtures", () => {
+      const result = validate(lightBulb, { rules: ["S3"] });
+      expect(result.valid).toBe(true);
+    });
+
+    it("should allow empty and wildcard refs in child transitions", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [["", "*", "A"]],
+        states: [
+          {
+            key: "A",
+            transitions: [
+              ["", "*", "Sub"],
+              ["Sub", "done", ""],
+              ["*", "error", "Sub"],
+            ],
+            states: [{ key: "Sub", events: { done: "Done", error: "Error" } }],
+          },
+          { key: "B", events: {} },
+        ],
+      };
+      const result = validate(config, { rules: ["S3"] });
+      expect(result.valid).toBe(true);
     });
   });
 
@@ -187,10 +280,10 @@ describe("Structural rules", () => {
   describe("S4: reachability from initial transition", () => {
     it("should pass when all states are reachable", () => {
       const result = validate(lightBulb, { rules: ["S4"] });
-      expect(result.warnings).toHaveLength(0);
+      expect(result.errors).toHaveLength(0);
     });
 
-    it("should warn for unreachable state", () => {
+    it("should report error for unreachable state", () => {
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [["", "*", "A"]],
@@ -200,9 +293,9 @@ describe("Structural rules", () => {
         ],
       };
       const result = validate(config, { rules: ["S4"] });
-      expect(result.warnings).toHaveLength(1);
-      expect(result.warnings[0].rule).toBe("S4");
-      expect(result.warnings[0].message).toContain("B");
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].rule).toBe("S4");
+      expect(result.errors[0].message).toContain("B");
     });
 
     it("should handle wildcard source transitions (makes all states reachable)", () => {
@@ -218,7 +311,7 @@ describe("Structural rules", () => {
         ],
       };
       const result = validate(config, { rules: ["S4"] });
-      expect(result.warnings).toHaveLength(0);
+      expect(result.errors).toHaveLength(0);
     });
 
     it("should handle chains of transitions", () => {
@@ -238,7 +331,7 @@ describe("Structural rules", () => {
         ],
       };
       const result = validate(config, { rules: ["S4"] });
-      expect(result.warnings).toHaveLength(0);
+      expect(result.errors).toHaveLength(0);
     });
 
     it("should detect island state disconnected from main graph", () => {
@@ -257,9 +350,9 @@ describe("Structural rules", () => {
         ],
       };
       const result = validate(config, { rules: ["S4"] });
-      expect(result.warnings.length).toBeGreaterThanOrEqual(1);
-      const unreachableKeys = result.warnings.map(
-        (w) => w.message.match(/"([^"]+)"/)?.[1],
+      expect(result.errors.length).toBeGreaterThanOrEqual(1);
+      const unreachableKeys = result.errors.map(
+        (e) => e.message.match(/"([^"]+)"/)?.[1],
       );
       expect(unreachableKeys).toContain("C");
     });
@@ -267,12 +360,12 @@ describe("Structural rules", () => {
     it("should pass for leaf states (no children to check)", () => {
       const config: FsmStateConfig = { key: "Leaf" };
       const result = validate(config, { rules: ["S4"] });
-      expect(result.warnings).toHaveLength(0);
+      expect(result.errors).toHaveLength(0);
     });
 
     it("should validate nested hierarchy reachability", () => {
       const result = validate(coffeeMachine, { rules: ["S4"] });
-      expect(result.warnings).toHaveLength(0);
+      expect(result.errors).toHaveLength(0);
     });
   });
 
@@ -346,7 +439,7 @@ describe("Structural rules", () => {
       expect(result.issues.filter((i) => i.rule === "S6")).toHaveLength(0);
     });
 
-    it("should report info when parent does not handle exit event", () => {
+    it("should report error when parent does not handle exit event", () => {
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [["", "*", "Child"]],
@@ -369,7 +462,7 @@ describe("Structural rules", () => {
       const result = validate(config, { rules: ["S6"] });
       const s6Issues = result.issues.filter((i) => i.rule === "S6");
       expect(s6Issues).toHaveLength(1);
-      expect(s6Issues[0].severity).toBe("info");
+      expect(s6Issues[0].severity).toBe("error");
       expect(s6Issues[0].message).toContain("done");
     });
 
@@ -494,45 +587,31 @@ describe("Structural rules", () => {
     });
   });
 
-  // ── S8: no cross-level jumps ──────────────────────────────────────────
+  // ── S8: leaf states declare events ──────────────────────────────────
 
-  describe("S8: no cross-level jumps", () => {
-    it("should return no issues (subsumed by S2)", () => {
+  describe("S8: leaf states declare events", () => {
+    it("should pass for leaf state with events", () => {
+      const result = validate(lightBulb, { rules: ["S8"] });
+      expect(result.issues.filter((i) => i.rule === "S8")).toHaveLength(0);
+    });
+
+    it("should report error for leaf state without events", () => {
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [["", "*", "A"]],
         states: [{ key: "A" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["S8"] });
-      expect(result.issues).toHaveLength(0);
-    });
-  });
-
-  // ── S9: leaf states declare events ────────────────────────────────────
-
-  describe("S9: leaf states declare events", () => {
-    it("should pass for leaf state with events", () => {
-      const result = validate(lightBulb, { rules: ["S9"] });
-      expect(result.issues.filter((i) => i.rule === "S9")).toHaveLength(0);
-    });
-
-    it("should report info for leaf state without events", () => {
-      const config: FsmStateConfig = {
-        key: "Root",
-        transitions: [["", "*", "A"]],
-        states: [{ key: "A" } as FsmStateConfig],
-      };
-      const result = validate(config, { rules: ["S9"] });
-      const s9Issues = result.issues.filter((i) => i.rule === "S9");
-      expect(s9Issues).toHaveLength(1);
-      expect(s9Issues[0].severity).toBe("info");
-      expect(s9Issues[0].message).toContain("A");
+      const s8Issues = result.issues.filter((i) => i.rule === "S8");
+      expect(s8Issues).toHaveLength(1);
+      expect(s8Issues[0].severity).toBe("error");
+      expect(s8Issues[0].message).toContain("A");
     });
 
     it("should not report for root state without events", () => {
       const config: FsmStateConfig = { key: "Root" };
-      const result = validate(config, { rules: ["S9"] });
-      expect(result.issues.filter((i) => i.rule === "S9")).toHaveLength(0);
+      const result = validate(config, { rules: ["S8"] });
+      expect(result.issues.filter((i) => i.rule === "S8")).toHaveLength(0);
     });
 
     it("should not report for composite states", () => {
@@ -552,8 +631,8 @@ describe("Structural rules", () => {
           },
         ],
       };
-      const result = validate(config, { rules: ["S9"] });
-      expect(result.issues.filter((i) => i.rule === "S9")).toHaveLength(0);
+      const result = validate(config, { rules: ["S8"] });
+      expect(result.issues.filter((i) => i.rule === "S8")).toHaveLength(0);
     });
 
     it("should report for multiple leaf states without events", () => {
@@ -568,9 +647,9 @@ describe("Structural rules", () => {
           { key: "B" } as FsmStateConfig,
         ],
       };
-      const result = validate(config, { rules: ["S9"] });
-      const s9Issues = result.issues.filter((i) => i.rule === "S9");
-      expect(s9Issues).toHaveLength(2);
+      const result = validate(config, { rules: ["S8"] });
+      const s8Issues = result.issues.filter((i) => i.rule === "S8");
+      expect(s8Issues).toHaveLength(2);
     });
   });
 
@@ -579,28 +658,28 @@ describe("Structural rules", () => {
   describe("All structural rules on valid fixtures", () => {
     it("should produce no errors for lightBulb", () => {
       const result = validate(lightBulb, {
-        rules: ["S1", "S2", "S4", "S5", "S7"],
+        rules: ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"],
       });
       expect(result.valid).toBe(true);
     });
 
     it("should produce no errors for ticketFlow", () => {
       const result = validate(ticketFlow, {
-        rules: ["S1", "S2", "S4", "S5", "S7"],
+        rules: ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"],
       });
       expect(result.valid).toBe(true);
     });
 
     it("should produce no errors for coffeeMachine", () => {
       const result = validate(coffeeMachine, {
-        rules: ["S1", "S2", "S4", "S5", "S7"],
+        rules: ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"],
       });
       expect(result.valid).toBe(true);
     });
 
     it("should produce no errors for documentReview", () => {
       const result = validate(documentReview, {
-        rules: ["S1", "S2", "S4", "S5", "S7"],
+        rules: ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"],
       });
       expect(result.valid).toBe(true);
     });

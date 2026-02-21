@@ -75,14 +75,43 @@ export function transitionsReferenceSiblings(
 }
 
 export function siblingTransitionsAtParent(
-  _ctx: RuleContext,
+  ctx: RuleContext,
 ): ValidationIssue[] {
-  // S3: Advisory rule — hard to enforce statically without knowing intent.
-  // A child state having transitions that reference its own siblings is normal
-  // (those are the child's sub-state transitions). We cannot distinguish
-  // "accidentally placed sibling transition" from "intended sub-state transition"
-  // without deeper context. Returning empty.
-  return [];
+  const { config, path, parent } = ctx;
+  if (!parent || !parent.states) return [];
+  if (!config.transitions || config.transitions.length === 0) return [];
+
+  // Collect sibling keys from parent's states (excluding this state itself)
+  const siblingKeys = new Set(
+    parent.states.map((s) => s.key).filter((k) => k !== config.key),
+  );
+  if (siblingKeys.size === 0) return [];
+
+  const issues: ValidationIssue[] = [];
+
+  for (const t of config.transitions) {
+    if (!Array.isArray(t) || t.length !== 3) continue;
+    const [from, , to] = t;
+
+    // Check if transition references a sibling key (not child's own sub-state)
+    if (from !== "" && from !== "*" && siblingKeys.has(from)) {
+      issues.push({
+        rule: "S3",
+        severity: "error",
+        message: `Child "${config.key}" has a transition referencing sibling "${from}" — sibling transitions must be declared at the parent level`,
+        path: [...path, config.key],
+      });
+    }
+    if (to !== "" && to !== "*" && siblingKeys.has(to)) {
+      issues.push({
+        rule: "S3",
+        severity: "error",
+        message: `Child "${config.key}" has a transition targeting sibling "${to}" — sibling transitions must be declared at the parent level`,
+        path: [...path, config.key],
+      });
+    }
+  }
+  return issues;
 }
 
 export function reachabilityFromInitial(ctx: RuleContext): ValidationIssue[] {
@@ -135,7 +164,7 @@ export function reachabilityFromInitial(ctx: RuleContext): ValidationIssue[] {
     if (!reachable.has(key)) {
       issues.push({
         rule: "S4",
-        severity: "warning",
+        severity: "error",
         message: `State "${key}" is unreachable from the initial transition`,
         path: [...path, config.key],
       });
@@ -178,7 +207,6 @@ export function noDeadEnds(ctx: RuleContext): ValidationIssue[] {
           path: [...path, config.key],
         });
       }
-      // Leaf states without outgoing transitions may be intentionally final
     }
   }
   return issues;
@@ -214,7 +242,7 @@ export function exitEventPropagation(ctx: RuleContext): ValidationIssue[] {
       if (!handled) {
         issues.push({
           rule: "S6",
-          severity: "info",
+          severity: "error",
           message: `Child "${child.key}" exits with event "${exitEvent}" but parent "${config.key}" has no transition handling it`,
           path: [...path, config.key],
         });
@@ -258,12 +286,6 @@ export function deterministicWildcards(ctx: RuleContext): ValidationIssue[] {
   return issues;
 }
 
-export function noCrossLevelJumps(_ctx: RuleContext): ValidationIssue[] {
-  // S8: Subsumed by S2 (transitionsReferenceSiblings).
-  // S2 already ensures all transition refs are direct children.
-  return [];
-}
-
 export function leafStatesDeclareEvents(ctx: RuleContext): ValidationIssue[] {
   const { config, path } = ctx;
   const isLeaf = !config.states || config.states.length === 0;
@@ -275,8 +297,8 @@ export function leafStatesDeclareEvents(ctx: RuleContext): ValidationIssue[] {
 
   return [
     {
-      rule: "S9",
-      severity: "info",
+      rule: "S8",
+      severity: "error",
       message: `Leaf state "${config.key}" does not declare an events field`,
       path: [...path, config.key],
     },
@@ -291,6 +313,5 @@ export const structuralRules: [RuleId, RuleFunction][] = [
   ["S5", noDeadEnds],
   ["S6", exitEventPropagation],
   ["S7", deterministicWildcards],
-  ["S8", noCrossLevelJumps],
-  ["S9", leafStatesDeclareEvents],
+  ["S8", leafStatesDeclareEvents],
 ];

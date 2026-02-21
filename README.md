@@ -2,9 +2,9 @@
 
 Standalone validation library for **Hierarchical Finite State Machine** (HFSM) configurations used in the [StateWalker](https://github.com/statewalker) ecosystem.
 
-Implements **26 rules** across three tiers — lexical, structural, and semantic — to catch configuration errors, suspicious patterns, and conditions requiring human semantic review. Zero runtime dependencies.
+Implements **24 rules** across three tiers — lexical, structural, and semantic — to catch configuration errors, suspicious patterns, and conditions requiring human review. Zero runtime dependencies.
 
-For the full rule specification see [RULES.md](./RULES.md).
+For the full rule specification see [rules.md](./agent-rules/rules.md).
 
 ## AI agent resources
 
@@ -15,7 +15,7 @@ The [`agent-rules/`](./agent-rules/) folder contains everything an AI agent need
 | [instructions.md](./agent-rules/instructions.md) | AI agent prompt — how to transform human-readable text into HFSM definitions: step-by-step methodology, data model, output format, transition patterns, naming conventions, and examples |
 | [validation.md](./agent-rules/validation.md) | Post-generation checklist organized by category (structural, naming, event consistency, cycles, semantic review) with rule ID cross-references |
 | [rules.md](./agent-rules/rules.md) | Full formalized rule specification with pseudocode, examples, and constraint details |
-| [rules.json](./agent-rules/rules.json) | Machine-readable rule catalog — category, ruleId, severity, and constraint for all 26 rules |
+| [rules.json](./agent-rules/rules.json) | Machine-readable rule catalog — category, ruleId, severity, and constraint for all 24 rules |
 
 ## Installation
 
@@ -37,17 +37,24 @@ const config = {
     ["", "*", "Off"],
     ["Off", "toggle", "On"],
     ["On", "toggle", "Off"],
+    ["*", "burnOut", ""],
   ],
   states: [
     {
       key: "Off",
       description: "Light is off",
-      events: { toggle: "When user presses the light switch" },
+      events: {
+        toggle: "When user presses the light switch",
+        burnOut: "When the bulb fails due to age or damage",
+      },
     },
     {
       key: "On",
       description: "Light is on",
-      events: { toggle: "When user presses the light switch" },
+      events: {
+        toggle: "When user presses the light switch",
+        burnOut: "When the bulb fails due to age or damage",
+      },
     },
   ],
 };
@@ -57,8 +64,8 @@ const result = validate(config);
 console.log(result.valid);    // true
 console.log(result.errors);   // [] — severity "error"
 console.log(result.warnings); // [] — severity "warning"
-console.log(result.semantic); // [...] — conditions requiring human review
-console.log(result.issues);   // all issues (errors + warnings + info + semantic)
+console.log(result.review);   // [...] — conditions requiring human review
+console.log(result.issues);   // all issues (errors + warnings + info + review)
 ```
 
 ## Selective validation
@@ -66,8 +73,8 @@ console.log(result.issues);   // all issues (errors + warnings + info + semantic
 Run only specific rules or exclude rules you don't need:
 
 ```typescript
-// Run only lexical rules L1 and L4
-const result = validate(config, { rules: ["L1", "L4"] });
+// Run only lexical rules L1 and L3
+const result = validate(config, { rules: ["L1", "L3"] });
 
 // Run everything except complexity advisory
 const result = validate(config, { exclude: ["M7"] });
@@ -81,12 +88,12 @@ type ValidationResult = {
   issues: ValidationIssue[];   // all issues
   errors: ValidationIssue[];   // severity === "error"
   warnings: ValidationIssue[]; // severity === "warning"
-  semantic: ValidationIssue[]; // severity === "semantic"
+  review: ValidationIssue[];   // severity === "review"
 };
 
 type ValidationIssue = {
   rule: RuleId;       // e.g. "L1", "S2", "M5", "M8"
-  severity: Severity; // "error" | "warning" | "info" | "semantic"
+  severity: Severity; // "error" | "warning" | "info" | "review"
   message: string;    // human-readable description
   path: string[];     // ancestor keys leading to the state, e.g. ["Root", "Handle"]
 };
@@ -95,9 +102,9 @@ type ValidationIssue = {
 - **Errors** — will break at runtime (missing keys, malformed transitions, dangling references)
 - **Warnings** — likely bugs or bad practice (unreachable states, naming violations, missing event coverage)
 - **Info** — advisory hints (complexity, missing event declarations)
-- **Semantic** — conditions that require human judgment to verify (event-state consistency, goal alignment, convergent transitions)
+- **Review** — conditions that require human judgment to verify (event-state consistency, goal alignment, convergent transitions)
 
-Only errors affect the `valid` flag. Warnings, info, and semantic issues are reported but don't make the config invalid.
+Only errors affect the `valid` flag. Warnings, info, and review issues are reported but don't make the config invalid.
 
 ## Configuration type
 
@@ -106,14 +113,14 @@ The validator uses a self-contained `FsmStateConfig` type (no dependency on `@st
 ```typescript
 type FsmStateConfig = {
   key: string;                              // state identifier (mandatory)
+  name?: string;                            // human-readable display name
   transitions?: [string, string, string][]; // [from, event, to] tuples
   states?: FsmStateConfig[];                // nested sub-states (recursive)
   events?: Record<string, string>;          // event name → description of when/how it occurs
-  name?: string;
   description?: string;                     // purpose & behavior of this state
   outcome?: string;                         // expected result upon completion
-  actors?: string[];
-  object?: string;
+  actors?: string[];                        // participating entities
+  object?: string;                          // primary entity acted upon
 };
 ```
 
@@ -121,7 +128,7 @@ The `events` field is a key/value record where each key is the event name (camel
 
 ## Rule overview
 
-### Tier 1 — Lexical (L1–L8)
+### Tier 1 — Lexical (L1–L7)
 
 Format and naming validation applied to each state node individually.
 
@@ -129,14 +136,13 @@ Format and naming validation applied to each state node individually.
 |------|----------|-------|
 | L1 | error | `key` is mandatory and non-empty |
 | L2 | warning | State key should be PascalCase |
-| L3 | warning | Event names in transitions should be camelCase |
-| L4 | error | Each transition must be a 3-element array |
-| L5 | warning | State references in transitions should match expected format |
-| L6 | warning | Event references in transitions should match expected format |
-| L7 | warning | Event keys in `events` should be camelCase |
-| L8 | error | No duplicate keys among sibling states |
+| L3 | error | Each transition must be a 3-element array |
+| L4 | warning | State references in transitions should match expected format |
+| L5 | warning | Event references in transitions should be `"*"` or camelCase |
+| L6 | warning | Event keys in `events` should be camelCase |
+| L7 | error | No duplicate keys among sibling states |
 
-### Tier 2 — Structural (S1–S9)
+### Tier 2 — Structural (S1–S8)
 
 Graph topology validation — checks the transition graph is well-formed.
 
@@ -144,13 +150,12 @@ Graph topology validation — checks the transition graph is well-formed.
 |------|----------|-------|
 | S1 | error | Composite states must have an initial transition `["", "*", X]` |
 | S2 | error | Transitions reference only sibling states (no cross-level jumps) |
-| S3 | info | Sibling transitions should be at parent level (advisory) |
-| S4 | warning | All sub-states must be reachable from initial transition |
+| S3 | error | Sibling transitions must be at parent level, not inside children |
+| S4 | error | All sub-states must be reachable from initial transition |
 | S5 | warning | Non-final sub-states must have at least one outgoing transition |
-| S6 | info | Exit events from sub-states should be handled at parent level |
+| S6 | error | Exit events from sub-states must be handled at parent level |
 | S7 | warning | Wildcard transitions must not create ambiguity |
-| S8 | — | Subsumed by S2 |
-| S9 | info | Leaf states should declare `events` |
+| S8 | error | Leaf states must declare `events` |
 
 ### Tier 3 — Semantic (M1–M9)
 
@@ -160,19 +165,19 @@ Consistency, completeness, and semantic review rules.
 |------|----------|-------|
 | M1 | warning | Every event in `events` must have a matching parent transition |
 | M2 | warning | Every transition event must exist in the source state's `events` |
-| M3 | info | Hierarchical event declaration (advisory) |
-| M4 | **semantic** | Reports convergent transitions (same source, different events, same target) for human review |
+| M3 | warning | Hierarchical event declaration — child exit events must be in child's `events` |
+| M4 | **review** | Reports convergent transitions (same source, different events, same target) for human review |
 | M5 | warning | Every cycle in the transition graph must have an exit |
 | M6 | warning | Decision points should have exhaustive outgoing events |
 | M7 | info | Manageable complexity: 3–7 sub-states per level |
-| M8 | **semantic** | Event descriptions must not contradict state goals/outcomes — reports for human review |
-| M9 | **semantic** | Child state goals should align with parent goals (or ancestor goals) — reports for human review |
+| M8 | **review** | Event descriptions must not contradict state goals/outcomes — reports for human review |
+| M9 | **review** | Child state goals should align with parent goals (or ancestor goals) — reports for human review |
 
-See [RULES.md](./RULES.md) for the full specification with examples, pseudocode, and checklists.
+See [rules.md](./agent-rules/rules.md) for the full specification with examples, pseudocode, and checklists.
 
-## Semantic validation
+## Review validation
 
-Rules M4, M8, and M9 produce issues with `severity: "semantic"`. These are structural patterns detected by the validator that **cannot be verified programmatically** — they require human judgment.
+Rules M4, M8, and M9 produce issues with `severity: "review"`. These are structural patterns detected by the validator that **cannot be verified programmatically** — they require human judgment.
 
 The validator reports enough context in each issue message for a human reviewer to check:
 
@@ -183,8 +188,8 @@ The validator reports enough context in each issue message for a human reviewer 
 ```typescript
 const result = validate(config);
 
-// Check semantic issues that need human review
-for (const issue of result.semantic) {
+// Check review issues that need human review
+for (const issue of result.review) {
   console.log(`[${issue.rule}] ${issue.path.join(" > ")}: ${issue.message}`);
 }
 ```
@@ -206,8 +211,8 @@ for (const [id, fn] of allRules) {
 
 ```bash
 pnpm install
-pnpm test          # run all 153 tests
-pnpm build         # bundle with tsup (ESM + .d.ts)
+pnpm test          # run all tests
+pnpm build         # bundle with tsdown (ESM + .d.ts)
 pnpm check         # biome lint
 pnpm format        # biome format
 ```

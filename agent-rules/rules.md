@@ -1,10 +1,9 @@
 # HFSM Validation Rules — Formalized Reference
 
-> Date: 2026-02-20
-> Source: `statewalker-site-fsm/src/documentation/concepts/`
-> Derived from: `fsm-state-validation.md`, `fsm-state-schema.json`, `fsm-process-prompt.source.md`
+> Date: 2026-02-21
+> Source: `src/agent-instructions.md`
 
-This document formalizes the validation rules for Hierarchical Finite State Machine (HFSM) definitions used in StateWalker, distilled from documentation scattered across three source files into a unified, implementable specification.
+This document formalizes the validation rules for Hierarchical Finite State Machine (HFSM) definitions used in StateWalker.
 
 ---
 
@@ -19,7 +18,7 @@ type EventRef = "*" | EventKey;
 
 type Transition = [source: StateRef, event: EventRef, target: "" | StateKey];
 
-interface FSMState {
+type FsmStateConfig = {
   key: StateKey;                          // mandatory
   name?: string;                          // human-readable display name
   description?: string;                   // purpose & behavior
@@ -28,8 +27,8 @@ interface FSMState {
   actors?: string[];                      // participating entities
   object?: string;                        // primary entity acted upon
   transitions?: Transition[];             // rules between direct sub-states
-  states?: FSMState[];                    // nested sub-states (recursive)
-}
+  states?: FsmStateConfig[];              // nested sub-states (recursive)
+};
 ```
 
 The `events` field is a key/value record where:
@@ -45,56 +44,54 @@ The `events` field is a key/value record where:
 | **error** | Will break at runtime | Yes |
 | **warning** | Likely bug or bad practice | No |
 | **info** | Advisory hint | No |
-| **semantic** | Requires human semantic review | No |
+| **review** | Requires human semantic review | No |
 
-**Semantic** issues are structural patterns detected by the validator that cannot be verified programmatically — they require human judgment to confirm correctness (e.g., whether event descriptions contradict state goals, or whether convergent transitions are intentional).
+**Review** issues are structural patterns detected by the validator that cannot be verified programmatically — they require human judgment to confirm correctness (e.g., whether event descriptions contradict state goals, or whether convergent transitions are intentional).
 
 ---
 
-## Tier 1 — Lexical Rules (naming & types)
+## Tier 1 — Lexical Rules (L1–L7)
 
 | #  | Rule                          | Severity | Constraint |
 |----|-------------------------------|----------|------------|
 | L1 | `key` is mandatory            | error | Every state object MUST have a non-empty `key` field |
 | L2 | State keys are PascalCase     | warning | `key` matches `/^[A-Z][a-zA-Z0-9]*$/` |
-| L3 | Event names are camelCase     | warning | Event strings in transitions match `/^[a-z][a-zA-Z0-9]*$/` |
-| L4 | Transition is a 3-tuple       | error | Each element of `transitions[]` is `[sourceRef, eventRef, targetRef]` with exactly 3 elements |
-| L5 | State reference values        | warning | A source/target in a transition is one of: `""` (initial/terminal), `"*"` (wildcard), or a valid state key |
-| L6 | Event reference values        | warning | An event in a transition is either `"*"` (wildcard) or a camelCase event name |
-| L7 | `events` keys are camelCase   | warning | Every key in the `events` record matches `/^[a-z][a-zA-Z0-9]*$/` |
-| L8 | No duplicate keys among siblings | error | Within a single `states[]` array, all `key` values are unique |
+| L3 | Transition is a 3-tuple       | error | Each element of `transitions[]` is `[sourceRef, eventRef, targetRef]` with exactly 3 elements |
+| L4 | State reference values        | warning | A source/target in a transition is one of: `""` as source (initial pseudo-state), `""` as target (exit from current scope), `"*"` (wildcard), or a valid state key |
+| L5 | Event reference values        | warning | An event in a transition is either `"*"` (wildcard) or a camelCase name matching `/^[a-z][a-zA-Z0-9]*$/` |
+| L6 | Event keys are camelCase      | warning | Every key in the `events` record matches `/^[a-z][a-zA-Z0-9]*$/` |
+| L7 | No duplicate keys among siblings | error | Within a single `states[]` array, all `key` values are unique |
 
 ---
 
-## Tier 2 — Structural Rules (graph topology)
+## Tier 2 — Structural Rules (S1–S8)
 
 | #  | Rule                                          | Severity | Constraint |
 |----|-----------------------------------------------|----------|------------|
 | S1 | Initial transition required for composite states | error | If a state declares `states[]`, its `transitions[]` MUST contain exactly one entry `["", "*", X]` where `X` is a key of one of its direct sub-states |
-| S2 | Transitions reference only siblings            | error | Every non-special (`""`, `"*"`) state key in `transitions[]` MUST match the `key` of a direct sub-state in the same parent's `states[]` |
-| S3 | Sibling transitions declared at parent level   | info | Transitions between sibling states are declared ONLY in the parent's `transitions[]`, never inside a child state (advisory — not enforced statically) |
-| S4 | Reachability                                   | warning | Every sub-state must be reachable from the initial transition via some chain of transitions in the parent's `transitions[]` |
-| S5 | No dead-ends (unless final)                    | warning | Every non-final sub-state must have at least one outgoing transition. A state is "final" only if it has an exit transition `[Key, event, ""]` or is intentionally terminal |
-| S6 | Exit event propagation                         | info | If a sub-state has an exit transition `[X, event, ""]`, the parent MUST have a transition `[CompositeParent, event, Y]` that consumes that event |
+| S2 | Transitions reference only siblings            | error | Every non-special (`""`, `"*"`) state key in `transitions[]` MUST match the `key` of a direct sub-state in the same parent's `states[]`. Cross-level references are therefore prohibited |
+| S3 | Sibling transitions declared at parent level   | error | Transitions between sibling states MUST be declared ONLY in the parent's `transitions[]`, never inside a child state |
+| S4 | Reachability                                   | error | Every sub-state must be reachable from the initial transition via some chain of transitions in the parent's `transitions[]` |
+| S5 | No dead-ends (unless final)                    | warning | Every non-final sub-state must have at least one outgoing transition. A state is "final" only if it has an exit transition `[Key, event, ""]` |
+| S6 | Exit event propagation                         | error | If a composite state's `transitions[]` contains an exit `[X, event, ""]`, the composite state's own parent MUST have a transition `[CompositeKey, event, Y]` consuming that event. This rule does not apply when the composite state is the root process |
 | S7 | Determinism with wildcards                     | warning | Wildcard transitions must not create ambiguity. Specific transitions take priority over wildcards, but two wildcards covering the same (state, event) pair are invalid |
-| S8 | No cross-level jumps                           | — | Subsumed by S2 |
-| S9 | `events` mandatory for leaf states             | info | States without `states[]` (leaf states) SHOULD declare an `events` field |
+| S8 | Events mandatory for leaf states               | error | States without `states[]` (leaf states) MUST declare an `events` field |
 
 ---
 
-## Tier 3 — Semantic Rules (consistency & completeness)
+## Tier 3 — Semantic Rules (M1–M9)
 
 | #  | Rule                                              | Severity | Constraint |
 |----|---------------------------------------------------|----------|------------|
-| M1 | Forward event coverage (events → transitions)    | warning | Every event `e` in state `S.events` MUST have a corresponding transition `[S.key, e, _]` in the parent's `transitions[]`, or be covered by a wildcard `[S.key, "*", _]` or `["*", e, _]` at the parent or ancestor level |
-| M2 | Reverse event coverage (transitions → events)    | warning | Every non-wildcard event `e` in transition `[S, e, T]` MUST appear in state `S`'s `events` keys (unless `S` is `""` or `"*"`) |
-| M3 | Hierarchical event declaration                    | info | If a child state emits an event handled by an ancestor transition, that event MUST be explicitly listed in the child's `events` |
-| M4 | Semantic compatibility of convergent transitions   | **semantic** | When multiple transitions from the same source target the same state via different events, source outcomes must be semantically compatible. Reports convergent patterns for human review |
-| M5 | Cycle break requirement                           | warning | Every cycle in the transition graph MUST have at least one exit event/transition. Cycles must provide: (a) a success/termination exit, (b) a failure/limit-exceeded exit |
+| M1 | Forward event coverage (events → transitions)    | warning | Every event in state's `events` MUST have a corresponding transition `[S, e, _]` in the parent's `transitions[]`, or be covered by a wildcard `[S, "*", _]` or `["*", e, _]` at the parent or ancestor level |
+| M2 | Reverse event coverage (transitions → events)    | warning | Every non-wildcard event `e` in transition `[S, e, T]` MUST appear in state `S`'s `events` keys (unless `S` is `""` or `"*"`). If not found in the direct state, ancestor event declarations may satisfy this rule |
+| M3 | Hierarchical event declaration                    | warning | If a child state emits an event handled by an ancestor transition, that event MUST be explicitly listed in the child's `events` |
+| M4 | Convergent transition compatibility               | **review** | When multiple transitions from the same source target the same state via different events, source outcomes must be semantically compatible. Reports convergent patterns for review |
+| M5 | Cycle break requirement                           | warning | Every cycle in the transition graph MUST have at least one exit event/transition to prevent infinite loops |
 | M6 | Decision point exhaustiveness                     | warning | Branching states should have mutually exclusive and collectively exhaustive outgoing events (all possible outcomes represented) |
-| M7 | Manageable complexity                             | info | Each hierarchical level should contain 3-7 sub-states. Longer linear sequences should be decomposed into composite phases |
-| M8 | Event-state semantic consistency                  | **semantic** | All event descriptions (when and how they occur) MUST NOT contradict semantically the goals and outcomes of the state declaring them. Reports each event description alongside state goals for human review |
-| M9 | Parent-child goal alignment                       | **semantic** | Goals and outcomes of a child state SHOULD NOT contradict the goals and outcomes of the parent. If they do contradict, they should be aligned with goals of a grandparent/ancestor. Reports parent-child pairs for human review |
+| M7 | Manageable complexity                             | info | Each hierarchical level should contain 3–7 sub-states. Longer linear sequences should be decomposed into composite phases |
+| M8 | Event-state semantic consistency                  | **review** | All event descriptions (when and how they occur) MUST NOT contradict the goals and outcomes of the state declaring them. Reports each event description alongside state goals for review |
+| M9 | Parent-child goal alignment                       | **review** | Child goals SHOULD align with parent goals. If a child's goals necessarily differ from its immediate parent, they MUST align with an ancestor's goals. Reports parent-child pairs for review |
 
 ---
 
@@ -102,12 +99,16 @@ The `events` field is a key/value record where:
 
 | Pattern              | Name            | Meaning |
 |----------------------|-----------------|---------|
-| `["", "*", "X"]`     | Initial         | Entry point: activate first sub-state `X` |
+| `["", "*", "X"]`     | Initial         | Entry point: activate sub-state `X` |
 | `["A", "evt", "B"]`  | Standard        | `A` emits `evt`: transition to sibling `B` |
 | `["*", "evt", "X"]`  | Wildcard source | From any state on `evt`: go to `X` |
 | `["A", "*", "X"]`    | Wildcard event  | From `A` on any event: go to `X` |
 | `["A", "evt", ""]`   | Exit            | `A` emits `evt`: exit parent scope |
 | `["*", "evt", ""]`   | Global exit     | Any state emits `evt`: exit parent scope |
+
+> `["", "*", X]` is a fixed idiom — the `*` is required syntax, not a meaningful wildcard.
+
+> Specific transitions take priority over wildcards (see S7).
 
 ---
 
@@ -116,24 +117,24 @@ The `events` field is a key/value record where:
 ```
 VALIDATE(P):
   1. ASSERT P.key matches /^[A-Z][a-zA-Z0-9]*$/                    [L2]
-  2. ASSERT all keys in P.states[] are unique                        [L8]
+  2. ASSERT all keys in P.states[] are unique                        [L7]
 
   IF P.states[] exists:
     3. ASSERT P.transitions[] contains exactly one ["", "*", X]      [S1]
        WHERE X in {s.key for s in P.states[]}
 
     4. FOR EACH transition [src, evt, tgt] in P.transitions[]:
-       a. ASSERT length == 3                                         [L4]
-       b. ASSERT src in {"", "*"} | {s.key for s in P.states[]}     [S2, L5]
-       c. ASSERT tgt in {""} | {s.key for s in P.states[]}          [S2, L5]
-       d. ASSERT evt in {"*"} | /^[a-z][a-zA-Z0-9]*$/              [L6]
+       a. ASSERT length == 3                                         [L3]
+       b. ASSERT src in {"", "*"} | {s.key for s in P.states[]}     [S2, L4]
+       c. ASSERT tgt in {""} | {s.key for s in P.states[]}          [S2, L4]
+       d. ASSERT evt in {"*"} | /^[a-z][a-zA-Z0-9]*$/              [L5]
 
     5. FOR EACH state S in P.states[]:
        a. ASSERT S is reachable from initial transition              [S4]
        b. ASSERT S has >= 1 outgoing transition OR exits to ""       [S5]
 
     6. FOR EACH leaf state S (S.states[] absent):
-       a. ASSERT S.events is defined and non-empty                   [S9]
+       a. ASSERT S.events is defined and non-empty                   [S8]
        b. FOR EACH e in keys(S.events):
           ASSERT exists transition [S.key, e, _] in P.transitions[]
             OR covered by wildcard [S.key, "*", _]
@@ -155,14 +156,14 @@ VALIDATE(P):
 
    11. FOR EACH convergent transition pattern (same source → target
        via different events):
-       REPORT for semantic review                                    [M4]
+       REPORT for review                                             [M4]
 
    12. FOR EACH state with events and description/outcome:
-       REPORT event descriptions vs state goals for semantic review  [M8]
+       REPORT event descriptions vs state goals for review           [M8]
 
    13. FOR EACH child with description/outcome where parent also
        has description/outcome:
-       REPORT parent-child goal pair for semantic review             [M9]
+       REPORT parent-child goal pair for review                      [M9]
 
    14. RECURSE: FOR EACH S in P.states[]: VALIDATE(S)
 ```
@@ -191,7 +192,7 @@ VALIDATE(P):
 - [ ] Event descriptions are consistent with the state's goals and outcomes
 - [ ] Child state goals align with parent goals (or with ancestor goals if contradicting parent)
 - [ ] Convergent transitions (same source → same target via different events) are intentional
-- [ ] All cycles have termination + failure exits
+- [ ] All cycles have at least one exit transition
 - [ ] Decision points are mutually exclusive and exhaustive
 
 ### Complex Process Checklist
@@ -219,25 +220,34 @@ transitions:
   - ["", "*", "Off"]
   - ["Off", "toggle", "On"]
   - ["On", "toggle", "Off"]
+  - ["*", "burnOut", ""]
 states:
   - key: Off
     description: Light is off
     events:
       toggle: When user presses the light switch
+      burnOut: When the bulb fails due to age or damage
   - key: On
     description: Light is on
     events:
       toggle: When user presses the light switch
+      burnOut: When the bulb fails due to age or damage
 ```
 
-**Rules satisfied:** L1-L8, S1-S5, S9, M1-M2.
+**Rules satisfied:** L1-L7, S1-S5, S8, M1-M2.
 
 ### Valid: Ticket Flow (exit propagation)
 
 ```yaml
 key: TicketFlow
+name: Support Ticket Lifecycle
 description: Support ticket lifecycle
 outcome: Ticket is resolved and closed
+actors:
+  - Customer
+  - L1 Agent
+  - L2 Agent
+object: support ticket
 transitions:
   - ["", "*", "Handle"]
   - ["Handle", "resolved", "Closed"]
@@ -296,26 +306,26 @@ states:
   - key: On
 ```
 
-### Semantic review: Convergent transitions (M4)
+### Review: Convergent transitions (M4)
 
 ```yaml
 transitions:
   - ["ValidateAccount", "ok", "HandleRequest"]
-  - ["ValidateAccount", "error", "HandleRequest"]  # SEMANTIC: contradictory outcomes converging -> M4 flags for review
+  - ["ValidateAccount", "error", "HandleRequest"]  # REVIEW: contradictory outcomes converging -> M4 flags for review
 ```
 
-### Semantic review: Event-state consistency (M8)
+### Review: Event-state consistency (M8)
 
 ```yaml
 key: Validate
 description: Validate user input
 outcome: Input is verified
 events:
-  valid: When all validation checks pass     # SEMANTIC: M8 reports for review
-  invalid: When validation fails             # SEMANTIC: M8 reports for review
+  valid: When all validation checks pass     # REVIEW: M8 reports for review
+  invalid: When validation fails             # REVIEW: M8 reports for review
 ```
 
-### Semantic review: Parent-child alignment (M9)
+### Review: Parent-child alignment (M9)
 
 ```yaml
 key: OrderProcess
@@ -323,6 +333,6 @@ description: Process customer orders
 outcome: Order is fulfilled
 states:
   - key: CancelOrder
-    description: Cancel the order            # SEMANTIC: M9 flags — contradicts parent goal, verify ancestor alignment
+    description: Cancel the order            # REVIEW: M9 flags — contradicts parent goal, verify ancestor alignment
     outcome: Order is cancelled
 ```
