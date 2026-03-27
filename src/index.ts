@@ -27,7 +27,7 @@ export type {
   ReportRuleGroup,
   ValidationReport,
 } from "./report.ts";
-export { buildReport, formatReport } from "./report.ts";
+export { buildReport, formatReport, formatReportCompact } from "./report.ts";
 export { allRules } from "./rules/index.ts";
 export type {
   FsmEventKey,
