@@ -119,7 +119,7 @@ type FsmStateConfig = {
   events?: Record<string, string>;          // event name → description of when/how it occurs
   description?: string;                     // purpose & behavior of this state
   outcome?: string;                         // expected result upon completion
-  actors?: string[];                        // participating entities
+  roles?: string[];                         // roles required for this state
   object?: string;                          // primary entity acted upon
 };
 ```

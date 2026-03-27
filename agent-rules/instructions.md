@@ -26,7 +26,7 @@ type FsmStateConfig = {
   events?: Record<string, string>;       // event name → description of when/how it occurs
   transitions?: [string, string, string][]; // [from, event, to] tuples
   states?: FsmStateConfig[];             // nested sub-states (recursive)
-  actors?: string[];                     // participating entities
+  roles?: string[];                      // roles required for this state
   object?: string;                       // primary entity acted upon
 };
 ```
@@ -40,9 +40,9 @@ key: <ProcessKey>
 name: <Human-readable process name>
 description: <High-level process description>
 outcome: <Expected result of the entire process>
-actors:
-  - <Actor1>
-  - <Actor2>
+roles:
+  - <Role1>
+  - <Role2>
 object: <Primary entity acted upon>
 transitions:
   - ["", "*", <InitialState>]
@@ -181,7 +181,7 @@ Severity levels: **error** — must fix; **warning** — should fix; **info** �
 Break the text into individual steps. For each step extract:
 
 - **Action** — the main activity ("validate", "review", "process")
-- **Actor** — who performs it (if stated)
+- **Role** — who performs it (if stated)
 - **Object** — what is acted upon (if stated)
 - **Conditions** — prerequisites for the step
 - **Outcome** — the result when the step completes
@@ -245,7 +245,7 @@ For each state:
 - **State keys**: PascalCase, action-oriented (ProcessingOrder, ValidatingInput)
 - **Event names**: camelCase (orderValid, paymentFailed, timeout)
 - **Process keys**: PascalCase, business-workflow names (OrderFulfillment, UserRegistration)
-- **Actors**: plain strings describing participating entities (Customer, L1 Agent, System)
+- **Roles**: plain strings describing roles required for the state (Analyst, Validator, Researcher)
 - **Object**: a noun phrase describing the primary entity acted upon (support ticket, purchase order)
 
 ---
@@ -282,7 +282,7 @@ key: TicketFlow
 name: Support Ticket Lifecycle
 description: Support ticket lifecycle
 outcome: Ticket is resolved and closed
-actors:
+roles:
   - Customer
   - L1 Agent
   - L2 Agent

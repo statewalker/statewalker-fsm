@@ -24,7 +24,7 @@ type FsmStateConfig = {
   description?: string;                   // purpose & behavior
   outcome?: string;                       // expected result upon completion
   events?: Record<EventKey, string>;      // events this state can emit, with descriptions
-  actors?: string[];                      // participating entities
+  roles?: string[];                       // roles required for this state
   object?: string;                        // primary entity acted upon
   transitions?: Transition[];             // rules between direct sub-states
   states?: FsmStateConfig[];              // nested sub-states (recursive)
@@ -205,7 +205,7 @@ VALIDATE(P):
 - [ ] Event descriptions explain when and how each event occurs
 - [ ] `description` present (recommended)
 - [ ] `outcome` present (recommended)
-- [ ] `actors` and `object` defined where applicable (optional)
+- [ ] `roles` and `object` defined where applicable (optional)
 
 ---
 
@@ -243,7 +243,7 @@ key: TicketFlow
 name: Support Ticket Lifecycle
 description: Support ticket lifecycle
 outcome: Ticket is resolved and closed
-actors:
+roles:
   - Customer
   - L1 Agent
   - L2 Agent

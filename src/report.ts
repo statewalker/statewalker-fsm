@@ -1,4 +1,4 @@
-import { ruleDefinitions } from "./agent-rules.ts";
+import type { RuleDefinition } from "./agent-rules.ts";
 import type { RuleId, Severity, ValidationResult } from "./types.ts";
 
 export type ReportIssueEntry = {
@@ -9,7 +9,8 @@ export type ReportIssueEntry = {
 export type ReportRuleGroup = {
   rule: RuleId;
   severity: Severity;
-  description: string;
+  name: string;
+  constraint: string;
   entries: ReportIssueEntry[];
 };
 
@@ -20,6 +21,7 @@ export type ReportCategory = {
 
 export type ValidationReport = {
   valid: boolean;
+  result: ValidationResult;
   summary: {
     total: number;
     errors: number;
@@ -38,7 +40,10 @@ const categoryDisplayNames: Record<string, ReportCategory["category"]> = {
 
 const categoryOrder = ["lexical", "structural", "semantic"] as const;
 
-export function buildReport(result: ValidationResult): ValidationReport {
+export function buildReport(
+  result: ValidationResult,
+  rules: RuleDefinition[],
+): ValidationReport {
   const grouped = new Map<
     RuleId,
     { severity: Severity; entries: ReportIssueEntry[] }
@@ -59,7 +64,7 @@ export function buildReport(result: ValidationResult): ValidationReport {
   const categories: ReportCategory[] = [];
 
   for (const cat of categoryOrder) {
-    const catRules = ruleDefinitions.filter((rd) => rd.category === cat);
+    const catRules = rules.filter((rd) => rd.category === cat);
     const ruleGroups: ReportRuleGroup[] = [];
 
     for (const rd of catRules) {
@@ -68,7 +73,8 @@ export function buildReport(result: ValidationResult): ValidationReport {
       ruleGroups.push({
         rule: rd.ruleId,
         severity: group.severity,
-        description: rd.rule,
+        name: rd.rule,
+        constraint: rd.constraint,
         entries: group.entries,
       });
     }
@@ -84,6 +90,7 @@ export function buildReport(result: ValidationResult): ValidationReport {
   const issues = result.issues;
   return {
     valid: result.valid,
+    result,
     summary: {
       total: issues.length,
       errors: issues.filter((i) => i.severity === "error").length,
@@ -118,12 +125,14 @@ export function formatReport(report: ValidationReport): string {
     lines.push("");
     lines.push(`* ${cat.category}`);
     for (const rg of cat.rules) {
-      lines.push(`  * ${rg.rule} [${rg.severity}] ${rg.description}`);
+      lines.push(`  * ${rg.rule} [${rg.severity}] ${rg.name}`);
+      lines.push(`    Rule: ${rg.constraint}`);
+      lines.push("    Issues:");
       for (const entry of rg.entries) {
         lines.push(`    - ${entry.path}: ${entry.message}`);
       }
     }
   }
 
-  return lines.join("\n") + "\n";
+  return `${lines.join("\n")}\n`;
 }

@@ -36,7 +36,7 @@ export const ticketFlow: FsmStateConfig = {
   name: "Support Ticket Flow",
   description: "Support ticket lifecycle",
   outcome: "Ticket is resolved and closed",
-  actors: ["Support Agent", "L2 Team"],
+  roles: ["Support Agent", "L2 Team"],
   object: "Support Ticket",
   transitions: [
     ["", "*", "Handle"],

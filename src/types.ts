@@ -16,7 +16,7 @@ export type FsmStateConfig = {
   name?: string;
   description?: string;
   outcome?: string;
-  actors?: string[];
+  roles?: string[];
   object?: string;
 } & Record<string, unknown>;
 
