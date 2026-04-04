@@ -1,5 +1,5 @@
+import type { StageHandler } from "../../src/orchestrator/handler-registry.js";
 import { launcher } from "../../src/orchestrator/launcher.js";
-import type { StageHandler } from "../../src/orchestrator/types.js";
 import { describe, expect, it } from "../deps.js";
 import { newAsyncGenerator } from "./new-async-generator.js";
 
@@ -67,48 +67,40 @@ describe("launcher", () => {
       });
     }
     const traces = [] as string[];
-    const shutdown = await launcher(() => {
-      return {
-        start: ["TestApp"],
-        // context: rootContext,
-        processes: [
-          {
-            name: "TestApp",
-            config: {
-              key: "Selection",
-              transitions: [
-                ["*", "exit", ""],
-                ["*", "*", "Wait"],
-                ["Wait", "select", "Selected"],
-                ["*", "error", "HandleError"],
-                ["HandleError", "ok", "Wait"],
-              ],
-              states: [
-                {
-                  key: "Selected",
-                  transitions: [
-                    ["", "*", "Wait"],
-                    ["Wait", "select", "UpdateSelection"],
-                    ["UpdateSelection", "error", ""],
-                    ["UpdateSelection", "select", "Wait"],
-                  ],
-                },
-              ],
-            },
-            handlers: [
-              newLogger((...message: unknown[]) => {
-                traces.push(message.join(""));
-              }),
-              // ...getHandlers(testEventsGenerator),
+    const shutdown = await launcher({
+      start: ["TestApp"],
+      processes: [
+        {
+          name: "TestApp",
+          config: {
+            key: "Selection",
+            transitions: [
+              ["*", "exit", ""],
+              ["*", "*", "Wait"],
+              ["Wait", "select", "Selected"],
+              ["*", "error", "HandleError"],
+              ["HandleError", "ok", "Wait"],
+            ],
+            states: [
+              {
+                key: "Selected",
+                transitions: [
+                  ["", "*", "Wait"],
+                  ["Wait", "select", "UpdateSelection"],
+                  ["UpdateSelection", "error", ""],
+                  ["UpdateSelection", "select", "Wait"],
+                ],
+              },
             ],
           },
-          // Additional handlers
-          {
-            name: "TestApp",
-            handlers: getHandlers(testEventsGenerator),
-          },
-        ],
-      };
+          handlers: [
+            newLogger((...message: unknown[]) => {
+              traces.push(message.join(""));
+            }),
+            ...getHandlers(testEventsGenerator),
+          ],
+        },
+      ],
     });
     await promise;
     await shutdown();

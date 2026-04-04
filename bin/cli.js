@@ -1,5 +1,5 @@
 #!/usr/bin/env node
 
-import startNodeProcesses from "../dist/index.js";
+import { startNodeProcesses } from "../dist/bin/node-runner.js";
 
 startNodeProcesses();

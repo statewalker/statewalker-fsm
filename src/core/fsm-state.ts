@@ -38,15 +38,7 @@ export class FsmState extends FsmBaseClass {
     this.key = key;
     this.parent = parent;
     this.descriptor = descriptor;
-    bindMethods(
-      this,
-      "onEnter",
-      "onExit",
-      "dump",
-      "restore",
-      "useData",
-      "onStateError",
-    );
+    bindMethods(this, "onEnter", "onExit", "dump", "restore", "onStateError");
   }
 
   onEnter(handler: FsmStateHandler) {
@@ -63,18 +55,6 @@ export class FsmState extends FsmBaseClass {
   }
   restore(handler: FsmStateDumpHandler) {
     return this._addHandler("restore", handler, true);
-  }
-  getData<T>(key: string, recursive: boolean = true): T | undefined {
-    return (
-      (this.data[key] as T) ??
-      (recursive ? this.parent?.getData<T>(key, recursive) : undefined)
-    );
-  }
-  useData<T>(key: string) {
-    return [
-      (recursive: boolean = true) => this.getData<T>(key, recursive),
-      (value: T) => this.setData(key, value),
-    ];
   }
 
   async _handleError(error: Error | unknown) {

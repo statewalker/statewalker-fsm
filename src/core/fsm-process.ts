@@ -77,7 +77,7 @@ export class FsmProcess extends FsmBaseClass {
           if (this.status & STATUS_EXIT) {
             await this.state?._runHandler("onExit", this.state);
           }
-          if (!this._update()) break;
+          if (!(await this._update())) break;
           if (this.status & STATUS_ENTER) {
             await this.state?._runHandler("onEnter", this.state);
           }
@@ -128,8 +128,8 @@ export class FsmProcess extends FsmBaseClass {
     for (let i = 0; i < dump.stack.length; i++) {
       const stateDump = dump.stack[i];
       this.state = this.state
-        ? this._newSubstate(this.state, stateDump.key)
-        : this._newState(undefined, stateDump.key, this.rootDescriptor);
+        ? await this._newSubstate(this.state, stateDump.key)
+        : await this._newState(undefined, stateDump.key, this.rootDescriptor);
       await this.state._runHandler(
         "restore",
         this.state,
@@ -155,17 +155,20 @@ export class FsmProcess extends FsmBaseClass {
     this._handleError(error);
   }
 
-  _newState(
+  async _newState(
     parent: FsmState | undefined,
     key: string,
     descriptor: FsmStateDescriptor | undefined,
   ) {
     const state = new FsmState(this, parent, key, descriptor);
-    this._runHandlerParallel("onStateCreate", state);
+    await this._runHandler("onStateCreate", state);
     return state;
   }
 
-  _getSubstate(parent: FsmState | undefined, prevStateKey: string | undefined) {
+  async _getSubstate(
+    parent: FsmState | undefined,
+    prevStateKey: string | undefined,
+  ) {
     if (!parent) return;
     const toState =
       parent.descriptor?.getTargetStateKey(
@@ -176,7 +179,7 @@ export class FsmProcess extends FsmBaseClass {
     return this._newSubstate(parent, toState);
   }
 
-  _newSubstate(parent: FsmState | undefined, toState: string) {
+  async _newSubstate(parent: FsmState | undefined, toState: string) {
     let descriptor: FsmStateDescriptor | undefined;
     for (
       let state: FsmState | undefined = parent;
@@ -188,14 +191,14 @@ export class FsmProcess extends FsmBaseClass {
     return this._newState(parent, toState, descriptor);
   }
 
-  _update() {
+  async _update() {
     if (this.status & STATUS_FINISHED) return false;
     const nextState =
       this.status !== STATUS_NONE
         ? this.status & STATUS_ENTER
-          ? this._getSubstate(this.state, STATE_INITIAL)
-          : this._getSubstate(this.state?.parent, this.state?.key)
-        : this._newState(undefined, this.config.key, this.rootDescriptor);
+          ? await this._getSubstate(this.state, STATE_INITIAL)
+          : await this._getSubstate(this.state?.parent, this.state?.key)
+        : await this._newState(undefined, this.config.key, this.rootDescriptor);
     if (nextState !== undefined) {
       this.state = nextState;
       this.status = this.status & STATUS_EXIT ? STATUS_NEXT : STATUS_FIRST;

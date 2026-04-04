@@ -34,13 +34,12 @@ describe("dump/restore: process is dumped and restored at each step", () => {
     const lines: unknown[][] = [];
     return [
       (...args: unknown[]) => {
-        // console.log(args.join(""));
         lines.push(args);
       },
-      (...control: unknown[][]) => {
+      (...control: string[]) => {
         expect(lines.map((items) => items.join(""))).toEqual(control);
       },
-    ];
+    ] as const;
   }
 
   let dump: FsmProcessDump | undefined;

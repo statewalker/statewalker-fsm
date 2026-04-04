@@ -3,7 +3,7 @@ import type { FsmState } from "../core/fsm-state.ts";
 import { getPrinter, type Printer } from "./printer.ts";
 
 export function setProcessTracer(process: FsmProcess, print?: Printer) {
-  return process.onStateCreate((state) => {
+  return process.onStateCreate((state: FsmState) => {
     setStateTracer(state, print);
   });
 }

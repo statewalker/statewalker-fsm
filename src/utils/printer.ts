@@ -1,5 +1,4 @@
 import type { FsmProcess } from "../core/fsm-process.ts";
-import type { FsmState } from "../core/fsm-state.ts";
 export type Printer = (...args: unknown[]) => void;
 export type PrinterConfig = {
   prefix?: string;
@@ -7,7 +6,7 @@ export type PrinterConfig = {
   lineNumbers?: boolean;
 };
 
-export const KEY_PRINTER = "printer";
+const printerStore = new WeakMap<object, Printer>();
 
 export function preparePrinter(
   process: FsmProcess,
@@ -26,23 +25,18 @@ export function preparePrinter(
   return printer;
 }
 
-export function setPrinter(state: FsmState, config: PrinterConfig = {}) {
-  const printer = preparePrinter(state.process, config);
-  state.setData(KEY_PRINTER, printer);
-}
-
 export function setProcessPrinter(
   process: FsmProcess,
   config: PrinterConfig = {},
 ) {
   const printer = preparePrinter(process, config);
-  process.setData(KEY_PRINTER, printer);
+  printerStore.set(process, printer);
 }
 
 export function getProcessPrinter(process: FsmProcess): Printer {
-  return process.getData(KEY_PRINTER) || console.log;
+  return printerStore.get(process) || console.log;
 }
 
-export function getPrinter(state: FsmState): Printer {
-  return state.getData(KEY_PRINTER, true) || getProcessPrinter(state.process);
+export function getPrinter(state: { process: FsmProcess }): Printer {
+  return printerStore.get(state) || getProcessPrinter(state.process);
 }

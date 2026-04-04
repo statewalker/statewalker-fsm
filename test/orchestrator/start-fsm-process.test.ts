@@ -39,7 +39,7 @@ describe("startFsmProcess", () => {
     const traces: string[] = [];
     const context = {};
 
-    const shutdown = await startFsmProcess(
+    const handle = await startFsmProcess(
       context,
       config,
       (state, event) => {
@@ -155,7 +155,7 @@ describe("startFsmProcess", () => {
       '  <Wait event="ok">',
     ]);
 
-    await shutdown();
+    await handle.shutdown();
     expect(stack).toEqual([]);
     expect(traces).toEqual([
       '<Selection event="start">',

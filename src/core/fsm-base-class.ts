@@ -1,19 +1,7 @@
-type Handler<P extends unknown[] = unknown[], R = unknown> = (...args: P) => R; // Function;
-// type Handler = Function;
+type Handler<P extends unknown[] = unknown[], R = unknown> = (...args: P) => R;
 
 export class FsmBaseClass {
   handlers: Record<string, Handler[]> = {};
-  data: Record<string, unknown> = {};
-  constructor() {
-    bindMethods(this, "setData", "getData");
-  }
-  setData<T>(key: string, value: T) {
-    this.data[key] = value;
-    return this;
-  }
-  getData<T>(key: string): T | undefined {
-    return this.data[key] as T;
-  }
 
   // ----------------------------------------------
   // internal methods
@@ -36,19 +24,6 @@ export class FsmBaseClass {
     } else {
       delete this.handlers[type];
     }
-  }
-
-  async _runHandlerParallel(type: string, ...args: unknown[]) {
-    const list = this.handlers[type] || [];
-    await Promise.all(
-      list.map(async (handler) => {
-        try {
-          await handler(...args);
-        } catch (error) {
-          this._handleError(error);
-        }
-      }),
-    );
   }
 
   async _runHandler(type: string, ...args: unknown[]) {

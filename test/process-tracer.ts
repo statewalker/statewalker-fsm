@@ -6,12 +6,12 @@ import config from "./process.ProductCatalog.ts";
 
 describe("newProcessLogger", () => {
   function newPrintChecker() {
-    const lines: string[][] = [];
+    const lines: unknown[][] = [];
     return [
-      (...args: string[]) => lines.push(args),
+      (...args: unknown[]) => lines.push(args),
       (...control: string[]) =>
         expect(lines.map((items) => items.join(""))).toEqual(control),
-    ];
+    ] as const;
   }
 
   it("should track transitions between states", async () => {
