@@ -1,5 +1,16 @@
 # @statewalker/fsm
 
+## 0.37.0
+
+### Minor Changes
+
+- Simplified core: removed obsolete modules (process-config-manager, constants, types, etc.)
+- Added `ProcessHandle` return type for `startProcess` with `shutdown()`, `dump()`, and `restore()` methods
+- Added handler registry with pattern-based handler discovery (`createHandlerRegistry`, `toStageHandlers`)
+- Added comprehensive test suite: FsmBaseClass, FsmState, FsmStateDescriptor, FsmProcess, async process lifecycle, orchestrator dump/restore (89 tests)
+- Migrated build tooling from tsup to tsdown, yarn to pnpm
+- Zero runtime dependencies
+
 ## 0.16.0
 
 ### Minor Changes
