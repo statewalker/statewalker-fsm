@@ -2,7 +2,16 @@ import { FsmProcess, type FsmProcessDump } from "../core/fsm-process.ts";
 import type { FsmState } from "../core/fsm-state.ts";
 import type { FsmStateConfig } from "../core/fsm-state-config.ts";
 import type { FsmStateDescriptor } from "../core/fsm-state-descriptor.ts";
-import type { StageHandler } from "./handler-registry.ts";
+
+/** A handler invoked when a state is entered. */
+export type StageHandler<C = Record<string, unknown>> = (
+  context: C,
+) =>
+  | void
+  | (() => void | Promise<void>)
+  | Promise<void | (() => void | Promise<void>)>
+  | AsyncGenerator<string, void, unknown>
+  | Generator<string, void, unknown>;
 
 export interface ProcessHandle {
   shutdown(): Promise<void>;
@@ -184,5 +193,4 @@ export async function startProcess<C = unknown>(
   };
 }
 
-/** @deprecated Use `startProcess` instead */
 export const startFsmProcess = startProcess;

@@ -67,40 +67,17 @@ Context keys bound:
 - `Function` — registered as onExit cleanup
 - `AsyncGenerator` — yielded events are dispatched to FSM
 
-### HandlerRegistry
-
-Convention-based handler discovery via `createHandlerRegistry()`:
-
-```typescript
-const registry = createHandlerRegistry();
-registry.addConfig("MyProcess", config);
-registry.addHandlers("MyProcess", { "Active": activeHandler, "Step1": step1Handler });
-const load = registry.getLoader("MyProcess");
-```
-
-### launcher(config)
-
-Multi-process launcher with strict types:
-
-```typescript
-interface LauncherConfig {
-  processes: ProcessDef[];
-  start?: string[];
-  context?: (parent: Record<string, unknown>) => Record<string, unknown>;
-}
-
-interface ProcessDef {
-  name: string;
-  config: FsmStateConfig;
-  handlers?: (StageHandler | Record<string, StageHandler | StageHandler[]>)[];
-  start?: boolean;
-}
-```
+`startFsmProcess` is an equal alias of `startProcess`; both names are exported.
 
 ## Utilities
 
-- `printer(process)` — log state transitions to console
-- `tracer(process)` — collect transition trace for testing
+Debug/observability helpers for attaching a printer or tracer to a process:
+
+- `setProcessPrinter(process, config?)` — attach a printer that logs state transitions; `PrinterConfig` tunes the output
+- `getProcessPrinter(process)` / `getPrinter(state)` — retrieve the process/state printer (a `Printer` function)
+- `preparePrinter(config?)` — build a standalone `Printer`
+- `setProcessTracer(process, print?)` — trace every transition of a process
+- `setStateTracer(state, print?)` — trace a single state's lifecycle
 
 ## Migration from pre-0.35
 
@@ -109,5 +86,5 @@ Removed in 0.35:
 - `FsmState.getData(key, recursive)`, `.useData(key)` — use closures
 - `FsmBaseClass._runHandlerParallel()` — handlers run sequentially now
 - `newFsmProcess()` — use `startProcess()` from orchestrator
-- `utils/handlers.ts` (`addSubstateHandlers`, `callStateHandlers`) — use HandlerRegistry
+- `utils/handlers.ts` (`addSubstateHandlers`, `callStateHandlers`) — pass a `load` callback to `startProcess()`
 - `utils/process.ts` — use `startProcess()` directly
