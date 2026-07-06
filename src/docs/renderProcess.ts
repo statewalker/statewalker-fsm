@@ -1,14 +1,16 @@
+import {
+  FsmProcess,
+  type FsmStateConfig,
+  setProcessPrinter,
+} from "@statewalker/fsm";
 import { prepareStateDescriptions, renderStateCharts } from "../index.js";
-import { type FsmProcessConfig, newProcess } from "@statewalker/fsm";
-
-export * from "@statewalker/fsm-viewer";
 
 export * from "@statewalker/fsm";
 
-import _ from "lodash";
+import * as _ from "lodash-es";
 
 export function renderProcess(
-  processConfig: FsmProcessConfig,
+  processConfig: FsmStateConfig,
   {
     element,
     invalidation,
@@ -19,14 +21,15 @@ export function renderProcess(
     direction?: "lr" | "rl" | "tb" | "bt";
   } = {},
 ) {
-  const renderer: (stateStack: string[]) => undefined | HTMLElement = element
+  const renderer: (stateStack: string[]) => undefined | Node = element
     ? prepareStateDescriptions({
         element,
         rootStateKey: processConfig.key,
       })
     : () => undefined;
 
-  const process = newProcess(processConfig, {
+  const process = new FsmProcess(processConfig);
+  setProcessPrinter(process, {
     print: console.warn,
     prefix: `[${processConfig.key}:${Date.now()}]`,
   });
