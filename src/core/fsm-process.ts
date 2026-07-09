@@ -12,22 +12,36 @@ import {
 } from "./fsm-state-config.ts";
 import { FsmStateDescriptor } from "./fsm-state-descriptor.ts";
 
+// Status bitmask: where the process is in the enter/exit cycle of `dispatch`.
+// Why a bitmask (rather than an enum): the loop tests *phases* with cheap bitwise
+// masks — `status & STATUS_ENTER`, `status & this.mask` — and composite masks
+// (ENTER / EXIT) are just OR-combinations of the primitive bits.
+/** Not started / no current transition. */
 export const STATUS_NONE = 0;
+/** Entering: descended into a parent's first (initial) child. */
 export const STATUS_FIRST = 1;
+/** Entering: advanced to a resolved target (sibling) state. */
 export const STATUS_NEXT = 2;
+/** Rested on a leaf — dispatch returns control here (the default `mask`). */
 export const STATUS_LEAF = 4;
+/** Exiting: popped back up to the parent state. */
 export const STATUS_LAST = 8;
+/** Terminated: the machine has exited its root and cannot advance further. */
 export const STATUS_FINISHED = 16;
 
 //
+/** Composite: any "entering" phase. */
 export const STATUS_ENTER = STATUS_FIRST | STATUS_NEXT;
+/** Composite: any "exiting" phase. */
 export const STATUS_EXIT = STATUS_LEAF | STATUS_LAST;
 
+/** A process-level handler (`onStateCreate` / `onStateError`). */
 export type FsmProcessHandler = (
   process: FsmProcess,
   ...args: unknown[]
 ) => void | Promise<void>;
 
+/** Serialized form of the whole machine: status, last event, and the root→leaf state stack. */
 export type FsmProcessDump = Record<string, unknown> & {
   status: number;
   event?: string;
@@ -39,6 +53,19 @@ export type FsmProcessDumpHandler = (
   dump: FsmProcessDump,
 ) => void | Promise<void>;
 
+/**
+ * The running state machine — owner of the active-state stack and the traversal.
+ *
+ * This is the engine: given a compiled config it drives the enter/exit walk in
+ * response to events, so callers reason in terms of states and events, not manual
+ * stack bookkeeping. `dispatch(event)` advances the machine to the next resting leaf;
+ * `shutdown(event?)` unwinds every active state; `state` is the current leaf;
+ * `onStateCreate(handler)` is the primary extension point (fires once per created
+ * state — attach that state's hooks there); and `dump()` / `restore(dump)` snapshot
+ * and rehydrate the whole stack. Typical use: `new FsmProcess(config)`, register
+ * `onStateCreate`, then `dispatch("")` to enter the initial state and
+ * `dispatch(event)` for each subsequent event.
+ */
 export class FsmProcess extends FsmBaseClass {
   state?: FsmState;
   event?: string;
@@ -56,6 +83,7 @@ export class FsmProcess extends FsmBaseClass {
     bindMethods(this, "dispatch", "dump", "restore");
   }
 
+  /** Force-exit the whole stack (root last), running each state's `onExit`; ends the machine. */
   async shutdown(event?: string) {
     while (this.state) {
       this.event = event;
@@ -65,6 +93,15 @@ export class FsmProcess extends FsmBaseClass {
     }
   }
 
+  /**
+   * Feed an event to the machine and run the enter/exit cycle until it rests on a
+   * leaf (`status & mask`) or finishes.
+   *
+   * If a dispatch is already running (e.g. an `onEnter` handler dispatches
+   * synchronously), the event is queued in `nextEvent` and applied when the current
+   * run settles — runs never nest. Returns `false` once the machine has finished,
+   * `true` otherwise.
+   */
   async dispatch(event: string): Promise<boolean> {
     this.nextEvent = event;
     if (!this.running && !(this.status & STATUS_FINISHED)) {
@@ -95,6 +132,10 @@ export class FsmProcess extends FsmBaseClass {
     return !(this.status & STATUS_FINISHED);
   }
 
+  /**
+   * Snapshot the machine to a plain object: `{ status, event, stack }` where the
+   * stack is root→leaf, each entry carrying whatever its `dump` hooks recorded.
+   */
   async dump(...args: unknown[]): Promise<FsmProcessDump> {
     const dumpState = async (state: FsmState) => {
       const stateDump: FsmStateDump = {
@@ -121,6 +162,11 @@ export class FsmProcess extends FsmBaseClass {
     return dump;
   }
 
+  /**
+   * Rebuild the machine from a `dump`: recreate each state in the stack (firing
+   * `onStateCreate`) and replay its `restore` hooks, leaving the process resumable
+   * from where it was snapshotted.
+   */
   async restore(dump: FsmProcessDump, ...args: unknown[]) {
     this.status = dump.status || 0;
     this.event = dump.event;
@@ -140,6 +186,7 @@ export class FsmProcess extends FsmBaseClass {
     return this;
   }
 
+  /** Primary extension point: fires once for every state the machine creates. */
   onStateCreate(handler: FsmStateHandler) {
     return this._addHandler("onStateCreate", handler, true);
   }
@@ -191,6 +238,14 @@ export class FsmProcess extends FsmBaseClass {
     return this._newState(parent, toState, descriptor);
   }
 
+  /**
+   * One step of the traversal: compute the next state and update `status`.
+   *
+   * Either descends to a child / advances to a resolved target (setting an ENTER
+   * status), or — when no target resolves — settles on the current leaf
+   * (`STATUS_LEAF`) or pops to the parent (`STATUS_LAST`), reaching `STATUS_FINISHED`
+   * once the root is exited. Returns `false` when finished.
+   */
   async _update() {
     if (this.status & STATUS_FINISHED) return false;
     const nextState =

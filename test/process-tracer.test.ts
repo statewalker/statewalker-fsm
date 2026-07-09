@@ -1,6 +1,6 @@
 import { FsmProcess } from "../src/core/fsm-process.ts";
-import { setProcessPrinter } from "../src/debug/printer.ts";
-import { setProcessTracer } from "../src/debug/tracer.ts";
+import { setProcessPrinter } from "../src/trace/printer.ts";
+import { setProcessTracer } from "../src/trace/tracer.ts";
 import { describe, expect, it } from "./deps.ts";
 import config from "./process.ProductCatalog.ts";
 

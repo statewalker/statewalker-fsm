@@ -1,11 +1,13 @@
-import { getPrinter, setProcessPrinter } from "../src/debug/printer.ts";
-import { setProcessTracer } from "../src/debug/tracer.ts";
 import {
   FsmProcess,
   type FsmProcessDump,
   type FsmState,
   type FsmStateConfig,
+  STATUS_FINISHED,
+  STATUS_LEAF,
 } from "../src/index.ts";
+import { getPrinter, setProcessPrinter } from "../src/trace/printer.ts";
+import { setProcessTracer } from "../src/trace/tracer.ts";
 import { describe, expect, it } from "./deps.ts";
 
 describe("dump/restore: process is dumped and restored at each step", () => {
@@ -89,7 +91,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
     control.push('<Selection event="">', '  <Wait event="">', "  step 1");
     checkTraces(...control);
     expect(dump).toEqual({
-      status: 4,
+      status: STATUS_LEAF,
       event: "",
       stack: [
         {
@@ -183,7 +185,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
       "  step 7",
     );
     checkTraces(...control);
-    expect(dump?.status).toEqual(4);
+    expect(dump?.status).toEqual(STATUS_LEAF);
     expect(restored).toEqual(["Selection:6", "HandleError:6"]);
     expect(dumped).toEqual(["Selection:7", "Wait:7"]);
     dumped = [];
@@ -198,7 +200,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
       "  step 8",
     );
     checkTraces(...control);
-    expect(dump?.status).toEqual(4);
+    expect(dump?.status).toEqual(STATUS_LEAF);
     expect(restored).toEqual(["Selection:7", "Wait:7"]);
     expect(dumped).toEqual(["Selection:8", "Wait:8"]);
     dumped = [];
@@ -213,11 +215,11 @@ describe("dump/restore: process is dumped and restored at each step", () => {
       // "step 9"
     );
     checkTraces(...control);
-    expect(dump?.status).toEqual(16); // FINISHED
+    expect(dump?.status).toEqual(STATUS_FINISHED);
     expect(dump).toEqual({
       event: "exit",
       stack: [],
-      status: 16,
+      status: STATUS_FINISHED,
     });
     expect(restored).toEqual(["Selection:8", "Wait:8"]);
     expect(dumped).toEqual([]);

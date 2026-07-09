@@ -6,6 +6,13 @@ import type { FsmStateDescriptor } from "./fsm-state-descriptor.ts";
 // Transition introspection — read-only queries over the state/transition graph
 // ---------------------------------------------------------------------------
 
+/**
+ * List the transitions currently reachable from `state` — for a UI or viewer that
+ * needs to know which events can fire right now (e.g. to render only the enabled
+ * buttons). Collects `[from, event, to]` tuples by walking up the parent chain; the
+ * nearest state's rule for an event wins, so an outer fallback is masked by an inner
+ * override. The returned tuples are ordered outer→inner (root first).
+ */
 export function getStateTransitions(
   state?: FsmState,
 ): [from: string, event: string, to: string][] {
@@ -36,7 +43,10 @@ function getTransitionsFromDescriptor(
     if (targets) {
       for (const [event, target] of Object.entries(targets)) {
         if (index[event]) continue;
-        if (target) index[event] = true;
+        // Mark the event seen regardless of target — an inner exit-to-final
+        // (`to === ""`, a falsy target) must still mask an outer rule for the
+        // same event, matching what `dispatch` actually resolves.
+        index[event] = true;
         result.push([prevStateKey, event, target]);
       }
     }
@@ -44,6 +54,12 @@ function getTransitionsFromDescriptor(
   return result;
 }
 
+/**
+ * Guard: would `event` trigger any transition in the process's current state? Used
+ * to avoid dispatching dead events — the runner calls it before `dispatch`, and
+ * consumers use it to enable/disable controls. Returns `true` iff `event` appears
+ * among `getStateTransitions(process.state)`.
+ */
 export function isStateTransitionEnabled(
   process: FsmProcess,
   event: string,
