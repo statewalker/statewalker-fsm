@@ -1,7 +1,7 @@
-import type { FsmStateConfig } from "../../src/core/fsm-state-config.js";
-import { startFsmProcess } from "../../src/orchestrator/start-process.js";
-import { describe, expect, it } from "../deps.js";
-import { newAsyncGenerator } from "./new-async-generator.js";
+import type { FsmStateConfig } from "../../src/core/fsm-state-config.ts";
+import { startFsmProcess } from "../../src/start-process.ts";
+import { describe, expect, it } from "../deps.ts";
+import { newAsyncGenerator } from "./new-async-generator.ts";
 
 describe("startFsmProcess", () => {
   it("should dispatch events with AsyncGenerators", async () => {

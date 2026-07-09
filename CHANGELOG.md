@@ -1,5 +1,14 @@
 # @statewalker/fsm
 
+## 0.38.0
+
+### Minor Changes
+
+- **BREAKING** Removed the unused orchestration layer: `launcher` (`LauncherConfig`, `ProcessDef`, `KEY_LAUNCH_PROCESS`), the handler registry (`createHandlerRegistry`, `HandlerRegistry`, `toStageHandlers`), the `node-runner` bootstrap (`startProcesses`, `startNodeProcesses`), and the `fsm` CLI bin. These had no importers; the surviving `startProcess`/`startFsmProcess` runner + `StageHandler` type are unchanged.
+- Dropped the `@deprecated` tag on `startFsmProcess` — it is a permanent equal alias of `startProcess`.
+- Reorganized `src/`: the runner is now `src/start-process.ts` (was `src/orchestrator/`), and the debug utilities moved to `src/debug/` (was `src/utils/`). The `core/` engine is unchanged. Public `@statewalker/fsm` exports are identical.
+- Removed the unresolvable `./*` subpath export (the package ships a single bundled entry).
+
 ## 0.37.0
 
 ### Minor Changes

@@ -1,11 +1,11 @@
+import { getPrinter, setProcessPrinter } from "../src/debug/printer.ts";
+import { setProcessTracer } from "../src/debug/tracer.ts";
 import {
   FsmProcess,
   type FsmProcessDump,
   type FsmState,
   type FsmStateConfig,
 } from "../src/index.ts";
-import { getPrinter, setProcessPrinter } from "../src/utils/printer.ts";
-import { setProcessTracer } from "../src/utils/tracer.ts";
 import { describe, expect, it } from "./deps.ts";
 
 describe("dump/restore: process is dumped and restored at each step", () => {

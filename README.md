@@ -50,7 +50,7 @@ Individual node in the state hierarchy.
 - `onStateError(handler)` — error handling
 - `dump()` / `restore(data)` — per-state serialization
 
-## Orchestrator
+## Runner
 
 ### startProcess(context, config, load, startEvent?)
 

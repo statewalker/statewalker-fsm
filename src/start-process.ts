@@ -1,7 +1,7 @@
-import { FsmProcess, type FsmProcessDump } from "../core/fsm-process.ts";
-import type { FsmState } from "../core/fsm-state.ts";
-import type { FsmStateConfig } from "../core/fsm-state-config.ts";
-import type { FsmStateDescriptor } from "../core/fsm-state-descriptor.ts";
+import { FsmProcess, type FsmProcessDump } from "./core/fsm-process.ts";
+import type { FsmState } from "./core/fsm-state.ts";
+import type { FsmStateConfig } from "./core/fsm-state-config.ts";
+import type { FsmStateDescriptor } from "./core/fsm-state-descriptor.ts";
 
 /** A handler invoked when a state is entered. */
 export type StageHandler<C = Record<string, unknown>> = (

@@ -3,7 +3,7 @@ import {
   KEY_EVENT,
   KEY_STATES,
   startProcess,
-} from "../../src/orchestrator/start-process.ts";
+} from "../../src/start-process.ts";
 import { describe, expect, it } from "../deps.ts";
 
 const config: FsmStateConfig = {
@@ -17,7 +17,7 @@ const config: FsmStateConfig = {
   ],
 };
 
-describe("orchestrator dump/restore", () => {
+describe("runner dump/restore", () => {
   it("dump returns current process state", async () => {
     const ctx: Record<string, unknown> = {};
     const handle = await startProcess(ctx, config, () => [], "");
