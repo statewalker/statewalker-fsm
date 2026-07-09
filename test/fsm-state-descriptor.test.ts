@@ -48,12 +48,7 @@ const config: FsmStateConfig = {
 };
 
 describe("FsmStateDescriptor", () => {
-  it("should build descriptors from configuration", () => {
-    const d = FsmStateDescriptor.build(config);
-    expect(typeof d).toBe("object");
-  });
-
-  it("buildDescriptor: should provide transtitions index", () => {
+  it("buildDescriptor: should provide transitions index", () => {
     const d = FsmStateDescriptor.build(config);
     expect(d.transitions).toEqual({
       "*": { "*": "LOGIN", byebye: "END_SCREEN" },
