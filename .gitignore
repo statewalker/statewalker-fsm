@@ -1,5 +1,6 @@
 node_modules
 tmp*
 *.lock
+pnpm-lock.yaml
 *.log
 dist
