@@ -1,6 +1,6 @@
 {
   "name": "@statewalker/fsm-viewer",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "FSM Viewer",
   "keywords": [],
   "homepage": "https://github.com/statewalker/statewalker-fsm-viewer",
@@ -28,12 +28,10 @@
       "default": "./dist/index.js"
     }
   },
-  "dependencies": {
-    "@statewalker/fsm": "workspace:*",
-    "@statewalker/fsm-charts": "workspace:*"
-  },
   "devDependencies": {
     "@observablehq/framework": "catalog:",
+    "@statewalker/fsm": "workspace:*",
+    "@statewalker/fsm-charts": "workspace:*",
     "@types/jsdom": "catalog:",
     "@types/lodash-es": "catalog:",
     "@typescript-eslint/eslint-plugin": "catalog:",

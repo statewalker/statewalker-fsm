@@ -1,5 +1,16 @@
 # @statewalker/fsm-viewer
 
+## 0.4.1
+
+### Patch Changes
+
+- Fix a broken publish: 0.4.0 was published (via `npm publish`, which does not rewrite
+  pnpm's `workspace:` protocol) with `@statewalker/fsm` and `@statewalker/fsm-charts`
+  declared as `dependencies: "workspace:*"`, making `npm install @statewalker/fsm-viewer`
+  fail with `EUNSUPPORTEDPROTOCOL`. Those two are **bundled** into `dist` (tsup
+  `noExternal`), so they are moved to `devDependencies` — the published package now
+  declares no runtime dependencies and installs cleanly.
+
 ## 0.4.0
 
 ### Minor Changes
