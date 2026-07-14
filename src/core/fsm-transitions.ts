@@ -1,5 +1,6 @@
 import type { FsmProcess } from "./fsm-process.ts";
 import type { FsmState } from "./fsm-state.ts";
+import { EVENT_ANY } from "./fsm-state-config.ts";
 import type { FsmStateDescriptor } from "./fsm-state-descriptor.ts";
 
 // ---------------------------------------------------------------------------
@@ -66,7 +67,9 @@ export function isStateTransitionEnabled(
 ): boolean {
   const transitions = getStateTransitions(process.state);
   for (const [, ev] of transitions) {
-    if (ev === event) return true;
+    // A wildcard-event rule (`ev === EVENT_ANY`) matches any concrete event, just
+    // as the engine's `getTargetStateKey` falls back to `(state, *)` / `(*, *)`.
+    if (ev === event || ev === EVENT_ANY) return true;
   }
   return false;
 }

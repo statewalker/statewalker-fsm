@@ -1,5 +1,22 @@
 # @statewalker/fsm
 
+## 0.38.1
+
+### Patch Changes
+
+Bug fixes found by an adversarial review:
+
+- **`isStateTransitionEnabled` / `startProcess` dropped wildcard-event transitions.** The
+  runner's dispatch guard compared events by exact string, so a concrete event that only
+  matched a wildcard rule (e.g. `["A","*","B"]`) was classified as "dead" and silently
+  swallowed — even though the raw engine takes it. The guard now also accepts `EVENT_ANY`.
+- **A throwing `onStateError` handler caused infinite recursion (stack overflow).**
+  `FsmState._handleError` ran the error handlers through `_runHandler`, whose catch
+  re-entered `_handleError` → `onStateError` forever. Error handlers now run with a
+  terminal `catch`, no re-entry.
+- **Re-entrant dispatches during one settle cycle dropped all but the last event.** The
+  single `nextEvent` slot is replaced by a `nextEvents` FIFO queue, drained in order.
+
 ## 0.38.0
 
 ### Minor Changes

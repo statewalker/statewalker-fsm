@@ -79,7 +79,16 @@ export class FsmState extends FsmBaseClass {
   }
 
   async _handleError(error: Error | unknown) {
-    await this._runHandler("onStateError", this, error);
+    // Run the state's own error handlers directly — NOT via `_runHandler`, whose
+    // catch re-routes to `_handleError`, which would re-enter `onStateError`
+    // forever. A throw from an error handler terminates at `console.error`.
+    for (const handler of this.handlers.onStateError ?? []) {
+      try {
+        await handler(this, error);
+      } catch (e) {
+        console.error(e);
+      }
+    }
     await this.process._handleStateError(this, error);
   }
 }

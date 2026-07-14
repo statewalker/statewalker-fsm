@@ -69,7 +69,7 @@ export type FsmProcessDumpHandler = (
 export class FsmProcess extends FsmBaseClass {
   state?: FsmState;
   event?: string;
-  nextEvent?: string;
+  nextEvents: string[] = [];
   running: boolean = false;
   mask: number = STATUS_LEAF;
   status: number = 0;
@@ -98,35 +98,35 @@ export class FsmProcess extends FsmBaseClass {
    * leaf (`status & mask`) or finishes.
    *
    * If a dispatch is already running (e.g. an `onEnter` handler dispatches
-   * synchronously), the event is queued in `nextEvent` and applied when the current
-   * run settles — runs never nest. Returns `false` once the machine has finished,
-   * `true` otherwise.
+   * synchronously), the event is appended to the `nextEvents` FIFO queue and applied
+   * — in order, none dropped — when the current run settles; runs never nest. Returns
+   * `false` once the machine has finished, `true` otherwise.
    */
   async dispatch(event: string): Promise<boolean> {
-    this.nextEvent = event;
+    // Queue the event. Re-entrant dispatches (from handlers running mid-settle)
+    // append here and are drained in order — so no earlier event is overwritten.
+    this.nextEvents.push(event);
     if (!this.running && !(this.status & STATUS_FINISHED)) {
       this.running = true;
       try {
-        this.event = this.nextEvent;
-        this.nextEvent = undefined;
-        while (true) {
-          // ---
-          if (this.status & STATUS_EXIT) {
-            await this.state?._runHandler("onExit", this.state);
+        while (this.nextEvents.length > 0) {
+          this.event = this.nextEvents.shift();
+          while (true) {
+            // ---
+            if (this.status & STATUS_EXIT) {
+              await this.state?._runHandler("onExit", this.state);
+            }
+            if (!(await this._update())) break;
+            if (this.status & STATUS_ENTER) {
+              await this.state?._runHandler("onEnter", this.state);
+            }
+            if (this.status & this.mask) break;
+            // ---
           }
-          if (!(await this._update())) break;
-          if (this.status & STATUS_ENTER) {
-            await this.state?._runHandler("onEnter", this.state);
-          }
-          if (this.status & this.mask) break;
-          // ---
+          if (this.status & STATUS_FINISHED) break;
         }
       } finally {
         this.running = false;
-      }
-      const nextEvent = this.nextEvent;
-      if (nextEvent !== undefined) {
-        return Promise.resolve().then(() => this.dispatch(nextEvent));
       }
     }
     return !(this.status & STATUS_FINISHED);
