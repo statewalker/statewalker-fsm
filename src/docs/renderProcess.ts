@@ -42,9 +42,10 @@ export function renderProcess(
     },
     direction,
     lodash: _,
+    invalidation,
   });
-  invalidation?.then(() => {
-    process.shutdown("exit");
+  invalidation?.then(async () => {
+    await process.shutdown("exit");
     // description.remove();
     charts.remove();
   });

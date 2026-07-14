@@ -1,5 +1,22 @@
 # @statewalker/fsm-viewer
 
+## 0.4.2
+
+### Patch Changes
+
+Bug fixes found by an adversarial review:
+
+- **State descriptions were never removed on exit and accumulated.**
+  `renderStateDescription` appended the renderer's `DocumentFragment` with `appendChild`,
+  which empties the fragment — so its `parentElement` was always `null` and the exit
+  cleanup was a no-op. It now snapshots the appended nodes and removes those.
+- **Teardown wiring.** `renderStateCharts` discarded the `_addStateRenderer` disposer and
+  never passed `invalidation` to `newProcessCharts`, so the per-state subscription and the
+  chart click-listeners leaked. Both are now threaded through `invalidation`, and
+  `renderProcess` awaits `process.shutdown("exit")` before removing the chart.
+
+Rebuilt against `@statewalker/fsm@0.38.1` and `@statewalker/fsm-charts@0.2.5`.
+
 ## 0.4.1
 
 ### Patch Changes
