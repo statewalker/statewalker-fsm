@@ -1,6 +1,7 @@
 {
   "name": "@statewalker/fsm-process",
   "version": "0.1.0",
+  "private": true,
   "description": "AI-driven HFSM definition, execution, and observation",
   "keywords": [
     "fsm",
