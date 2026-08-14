@@ -1,0 +1,8 @@
+node_modules
+tmp*
+*.lock
+*.log
+dist
+**/chart.svg
+index.html
+*/.observablehq
