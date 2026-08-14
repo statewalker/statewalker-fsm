@@ -1,0 +1,23 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+
+catalog:
+  "@biomejs/biome": ^2.3.10
+  "@observablehq/framework": ^1.13.0
+  "@types/jsdom": ^21.1.7
+  "@types/lodash-es": ^4.17.12
+  "@typescript-eslint/eslint-plugin": ^6.4.0
+  eslint: ^8.57.0
+  eslint-config-standard-with-typescript: ^43.0.1
+  eslint-plugin-import: ^2.29.1
+  eslint-plugin-promise: ^6.1.1
+  jsdom: ^25.0.1
+  lodash: ^4.17.21
+  lodash-es: ^4.17.21
+  tsdown: ^0.21.9
+  tsup: ^8.3.5
+  typescript: ^5.9.3
+  turbo: ^2.10.9
+  vitest: ^4.1.4
+  yaml: ^2.9.0

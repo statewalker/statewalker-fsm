@@ -30,8 +30,6 @@
   },
   "devDependencies": {
     "@observablehq/framework": "catalog:",
-    "@statewalker/fsm": "workspace:*",
-    "@statewalker/fsm-charts": "workspace:*",
     "@types/jsdom": "catalog:",
     "@types/lodash-es": "catalog:",
     "@typescript-eslint/eslint-plugin": "catalog:",
@@ -64,5 +62,9 @@
   "sideEffects": false,
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "@statewalker/fsm": "workspace:*",
+    "@statewalker/fsm-charts": "workspace:*"
   }
 }
