@@ -60,8 +60,6 @@ repository on its own — use `pnpm -r build` for a standalone build.
 **This repository depends on no other repository.** It is a foundation of the
 StateWalker dependency graph — everything below it may be built without it.
 
-**Depended on by:** [`sandclaw`](https://github.com/statewalker/sandclaw) (`@statewalker/fsm`); [`statewalker-workbench`](https://github.com/statewalker/statewalker-workbench) (`@statewalker/fsm`).
-
 Cross-repo dependencies are declared `workspace:*` rather than `catalog:`. This is
 deliberate: turbo derives its task graph from `workspace:` specifiers and does **not**
 resolve `catalog:`, so a `catalog:` cross-repo dependency is invisible to the scheduler
