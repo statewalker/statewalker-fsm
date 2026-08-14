@@ -1,0 +1,452 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+<div class="main" style="max-width: 500px;">
+<style>
+.main {
+  --transition-background-color: rgba(255,255,255,0.7);
+  --transition-border-color: none;
+  --transition-border-width: 1px;
+  --transition-line-color: silver;
+  --transition-line-width: 1px;
+  --transition-label-color: gray;
+  --transition-label-font-size: 12px;
+  --transition-label-font-family: sans-serif;
+  --state-background-color: white;
+  --state-border-color: silver;
+  --state-border-width: 1px;
+  --state-label-color: gray;
+  --state-label-font-size: 14px;
+  --state-label-font-family: sans-serif;
+}
+.main .transition__marker {
+  fill: var(--transition-line-color, currentColor);
+  stroke: none;
+}
+.main .transition__line {
+  stroke: var(--transition-line-color, currentColor);
+  stroke-width: var(--transition-line-width, 1px);
+}
+.main .transition__box {
+  fill: var(--transition-background-color, rgba(255,255,255,0.7));
+  stroke: var(--transition-border-color, none);
+  stroke-width: var(--transition-border-width, 1px);
+  border-radius: 0.5em;
+  cursor: pointer;
+}
+.main .transition__label {
+  fill: var(--transition-label-color, currentColor);
+  font-size: var(--transition-label-font-size, 12px);
+  font-family: var(--transition-label-font-family, sans-serif);
+  cursor: pointer;
+}
+.main .state__box {
+  fill: var(--state-background-color, white);
+  stroke: var(--state-border-color, currentColor);
+  stroke-width: var(--state-border-width, 1px);
+  border-radius: 0.5em;
+  cursor: pointer;
+}
+.main .state__label {
+  color: var(--state-label-color, currentColor);
+  fill: var(--state-label-color, currentColor);
+  font-size: var(--state-label-font-size, 14px);
+  font-family: var(--state-label-font-family, sans-serif);
+  cursor: pointer;
+}
+.main .state__initial {
+  fill: var(--state-border-color, currentColor);
+  stroke: var(--state-border-color, currentColor);
+  stroke-width: var(--state-border-width, 2px);
+}
+.main .state__final {
+  fill: white;
+  stroke: var(--state-border-color, currentColor);
+  stroke-width: var(--state-border-width, 2px);
+}
+.main .state__final.state__final--inner {
+  fill: var(--state-border-color, currentColor);
+  stroke: none;
+  stroke-width: 0;
+}
+.main {
+  --transition-selected-background-color: #eee;
+  --transition-selected-border-color: none;
+  --transition-selected-border-width: 0;
+  --transition-selected-line-color: navy;
+  --transition-selected-line-width: 1px;
+  --transition-selected-label-color: navy;
+  --state-selected-background-color: white;
+  --state-selected-border-color: navy;
+  --state-selected-border-width: 2px;
+  --state-selected-label-color: navy;
+}
+.main .state.state--selected {
+  --state-background-color: var(--state-selected-background-color);
+  --state-border-color: var(--state-selected-border-color);
+  --state-border-width: var(--state-selected-border-width);
+  --state-label-color: var(--state-selected-label-color);
+}
+.main .transition.transition--selected {
+  --transition-background-color: var(--transition-selected-background-color);
+  --transition-border-color: var(--transition-selected-border-color);
+  --transition-border-width: var(--transition-selected-border-width);
+  --transition-line-color: var(--transition-selected-line-color);
+  --transition-line-width: var(--transition-selected-line-width);
+  --transition-label-color: var(--transition-selected-label-color);
+}
+.main {
+  --transition-active-background-color: #eee;
+  --transition-active-border-color: none;
+  --transition-active-border-width: 0;
+  --transition-active-line-color: red;
+  --transition-active-line-width: 1px;
+  --transition-active-label-color: red;
+  --state-active-background-color: white;
+  --state-active-border-color: red;
+  --state-active-border-width: 2px;
+  --state-active-label-color: red;
+}
+.main .state.state--active {
+  --state-background-color: var(--state-active-background-color);
+  --state-border-color: var(--state-active-border-color);
+  --state-border-width: var(--state-active-border-width);
+  --state-label-color: var(--state-active-label-color);
+}
+.main .transition.transition--active {
+  --transition-background-color: var(--transition-active-background-color);
+  --transition-border-color: var(--transition-active-border-color);
+  --transition-border-width: var(--transition-active-border-width);
+  --transition-line-color: var(--transition-active-line-color);
+  --transition-line-width: var(--transition-active-line-width);
+  --transition-label-color: var(--transition-active-label-color);
+}
+.main .state-details {
+  background-color: var(--state-background-color, white);
+  border: var(--state-border-width, 1px) solid var(--state-border-color, currentColor);
+  border-radius: 0.5em;
+  padding: 0.5em;
+}
+.main .state-details__label {
+  cursor: pointer;
+  color: var(--transition-label-color, currentColor);
+  font-family: var(--state-label-font-family, sans-serif);
+  font-size: var(--state-label-font-size, 14px);
+}
+.main .state-details__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+.main .state-details__chart {
+  max-width: 100%;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.main .state-details.state-details--selected {
+  background-color: var(--state-selected-background-color, white);
+  border: var(--state-selected-border-width, 1px) solid var(--state-selected-border-color, currentColor);
+}
+.main .state-details__label.state-details__label--selected {
+  color: var(--state-selected-label-color);
+}
+.main .state-details.state-details--active {
+  background-color: var(--state-active-background-color, white);
+  border: var(--state-active-border-width, 1px) solid var(--state-active-border-color, currentColor);
+}
+.main .state-details__label.state-details__label--active {
+  color: var(--state-active-label-color);
+}
+</style>
+  <details class="state-details" data-state-id="s_0">
+    <summary class="state-details__label">App</summary>
+    <div class="state-details__content">
+      <div class="state-details__chart">
+    <svg class="statechart" height="193" viewbox="0 0 494 193" width="494" xmlns="http://www.w3.org/2000/svg">
+    <g class="statechart__transitions">
+      <g class="transition" data-transition-id="t_3">
+        <defs>
+          <marker id="marker_33" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+            <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+          </marker>
+        </defs>
+        <path class="transition__line" d="M47,62L53,62C59,62,70,62,82,62C93,62,105,62,110,62L116,62" fill="none" marker-end="url(#marker_33)" stroke="currentColor" strokeWidth="1px" />
+        <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="19" x="72" y="60" />
+        <text class="transition__label" fill="currentColor" text-anchor="middle" x="82" y="78">*</text>
+      </g>
+      <g class="transition" data-transition-id="t_5">
+        <defs>
+          <marker id="marker_34" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+            <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+          </marker>
+        </defs>
+        <path class="transition__line" d="M253,41L264,37C275,33,298,25,317,23C336,20,353,23,361,25L369,26" fill="none" marker-end="url(#marker_34)" stroke="currentColor" strokeWidth="1px" />
+        <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="49" x="295" y="15" />
+        <text class="transition__label" fill="currentColor" text-anchor="middle" x="320" y="33">error</text>
+      </g>
+      <g class="transition" data-transition-id="t_6">
+        <defs>
+          <marker id="marker_35" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+            <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+          </marker>
+        </defs>
+        <path class="transition__line" d="M164,83L156,89C148,94,132,106,124,113C116,120,116,123,129,126C142,129,167,132,193,132C219,132,244,129,257,126C270,123,270,120,262,113C254,106,238,94,230,89L222,83" fill="none" marker-end="url(#marker_35)" stroke="currentColor" strokeWidth="1px" />
+        <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="27" x="180" y="129" />
+        <text class="transition__label" fill="currentColor" text-anchor="middle" x="194" y="147">ok</text>
+      </g>
+      <g class="transition" data-transition-id="t_8">
+        <defs>
+          <marker id="marker_36" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+            <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+          </marker>
+        </defs>
+        <path class="transition__line" d="M225,83L241,93C257,103,288,124,319,134C349,144,379,144,393,144L408,144" fill="none" marker-end="url(#marker_36)" stroke="currentColor" strokeWidth="1px" />
+        <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="42" x="299" y="142" />
+        <text class="transition__label" fill="currentColor" text-anchor="middle" x="320" y="160">exit</text>
+      </g>
+      <g class="transition" data-transition-id="t_9">
+        <defs>
+          <marker id="marker_37" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+            <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+          </marker>
+        </defs>
+        <path class="transition__line" d="M369,54L361,57C353,60,336,65,320,68C303,70,287,68,278,68L270,67" fill="none" marker-end="url(#marker_37)" stroke="currentColor" strokeWidth="1px" />
+        <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="27" x="306" y="69" />
+        <text class="transition__label" fill="currentColor" text-anchor="middle" x="320" y="87">ok</text>
+      </g>
+    </g>
+    <g class="statechart__states">
+      <g class="state" data-state-id="s_1">
+        <circle class="state__initial" cx="31" cy="62" fill="none" r="6" stroke="currentColor" strokeWidth="2" />
+      </g>
+      <g class="state" data-state-id="s_2">
+        <rect class="state__box" fill="none" height="35" rx="7" ry="7" stroke="currentColor" strokeWidth="2" width="147" x="119.5" y="44.5" />
+        <text class="state__label" fill="currentColor" text-anchor="middle" x="193" y="66">Open File System</text>
+      </g>
+      <g class="state" data-state-id="s_4">
+        <rect class="state__box" fill="none" height="35" rx="7" ry="7" stroke="currentColor" strokeWidth="2" width="103" x="372.5" y="18.5" />
+        <text class="state__label" fill="currentColor" text-anchor="middle" x="424" y="40">Show Error</text>
+      </g>
+      <g class="state" data-state-id="s_7">
+        <circle class="state__final" cx="424" cy="144" fill="none" r="6" stroke="currentColor" strokeWidth="2" />
+        <circle class="state__final state__final--inner" cx="424" cy="144" fill="currentColor" r="3" stroke="none" strokeWidth="0" />
+      </g>
+    </g>
+    </svg>
+    </div>
+    <div class="state-details__description">
+    </div>
+      <details class="state-details" data-state-id="s_2">
+        <summary class="state-details__label">Open File System</summary>
+        <div class="state-details__content">
+          <div class="state-details__chart">
+        <svg class="statechart" height="112" viewbox="0 0 655 112" width="655" xmlns="http://www.w3.org/2000/svg">
+        <g class="statechart__transitions">
+          <g class="transition" data-transition-id="t_12">
+            <defs>
+              <marker id="marker_38" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+                <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+              </marker>
+            </defs>
+            <path class="transition__line" d="M47,36L53,36C59,36,70,36,82,36C93,36,105,36,110,36L116,36" fill="none" marker-end="url(#marker_38)" stroke="currentColor" strokeWidth="1px" />
+            <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="19" x="72" y="34" />
+            <text class="transition__label" fill="currentColor" text-anchor="middle" x="82" y="52">*</text>
+          </g>
+          <g class="transition" data-transition-id="t_14">
+            <defs>
+              <marker id="marker_39" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+                <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+              </marker>
+            </defs>
+            <path class="transition__line" d="M252,36L259,36C265,36,278,36,291,36C304,36,316,36,323,36L329,36" fill="none" marker-end="url(#marker_39)" stroke="currentColor" strokeWidth="1px" />
+            <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="27" x="277" y="34" />
+            <text class="transition__label" fill="currentColor" text-anchor="middle" x="291" y="52">ok</text>
+          </g>
+          <g class="transition" data-transition-id="t_16">
+            <defs>
+              <marker id="marker_40" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+                <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+              </marker>
+            </defs>
+            <path class="transition__line" d="M509,19L517,17C526,16,542,12,559,14C575,16,592,22,600,26L608,29" fill="none" marker-end="url(#marker_40)" stroke="currentColor" strokeWidth="1px" />
+            <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="27" x="545" y="7" />
+            <text class="transition__label" fill="currentColor" text-anchor="middle" x="559" y="25">ok</text>
+          </g>
+          <g class="transition" data-transition-id="t_17">
+            <defs>
+              <marker id="marker_41" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+                <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+              </marker>
+            </defs>
+            <path class="transition__line" d="M509,53L517,55C526,56,542,60,559,58C575,56,592,50,600,46L608,43" fill="none" marker-end="url(#marker_41)" stroke="currentColor" strokeWidth="1px" />
+            <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="49" x="534" y="61" />
+            <text class="transition__label" fill="currentColor" text-anchor="middle" x="559" y="79">error</text>
+          </g>
+        </g>
+        <g class="statechart__states">
+          <g class="state" data-state-id="s_10">
+            <circle class="state__initial" cx="31" cy="36" fill="none" r="6" stroke="currentColor" strokeWidth="2" />
+          </g>
+          <g class="state" data-state-id="s_11">
+            <rect class="state__box" fill="none" height="35" rx="7" ry="7" stroke="currentColor" strokeWidth="2" width="129" x="119.5" y="18.5" />
+            <text class="state__label" fill="currentColor" text-anchor="middle" x="184" y="40">Choose Folder</text>
+          </g>
+          <g class="state" data-state-id="s_13">
+            <rect class="state__box" fill="none" height="35" rx="7" ry="7" stroke="currentColor" strokeWidth="2" width="173" x="332.5" y="18.5" />
+            <text class="state__label" fill="currentColor" text-anchor="middle" x="419" y="40">Check Folder Access</text>
+          </g>
+          <g class="state" data-state-id="s_15">
+            <circle class="state__final" cx="624" cy="36" fill="none" r="6" stroke="currentColor" strokeWidth="2" />
+            <circle class="state__final state__final--inner" cx="624" cy="36" fill="currentColor" r="3" stroke="none" strokeWidth="0" />
+          </g>
+        </g>
+        </svg>
+        </div>
+        <div class="state-details__description">
+        </div>
+          <details class="state-details" data-state-id="s_11">
+            <summary class="state-details__label">Choose Folder</summary>
+            <div class="state-details__content">
+              <div class="state-details__chart">
+            <svg class="statechart" height="200" viewbox="0 0 446 200" width="446" xmlns="http://www.w3.org/2000/svg">
+            <g class="statechart__transitions">
+              <g class="transition" data-transition-id="t_20">
+                <defs>
+                  <marker id="marker_42" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+                    <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+                  </marker>
+                </defs>
+                <path class="transition__line" d="M47,95L53,95C59,95,70,95,82,95C93,95,105,95,110,95L116,95" fill="none" marker-end="url(#marker_42)" stroke="currentColor" strokeWidth="1px" />
+                <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="19" x="72" y="93" />
+                <text class="transition__label" fill="currentColor" text-anchor="middle" x="82" y="111">*</text>
+              </g>
+              <g class="transition" data-transition-id="t_22">
+                <defs>
+                  <marker id="marker_43" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+                    <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+                  </marker>
+                </defs>
+                <path class="transition__line" d="M153,74L162,63C171,51,189,28,211,17C233,5,259,5,283,5C307,5,330,5,348,17C367,28,382,51,390,63L397,74" fill="none" marker-end="url(#marker_43)" stroke="currentColor" strokeWidth="1px" />
+                <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="27" x="271" y="3" />
+                <text class="transition__label" fill="currentColor" text-anchor="middle" x="285" y="21">ok</text>
+              </g>
+              <g class="transition" data-transition-id="t_24">
+                <defs>
+                  <marker id="marker_44" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+                    <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+                  </marker>
+                </defs>
+                <path class="transition__line" d="M157,95L165,95C174,95,190,95,208,95C226,95,245,95,255,95L264,95" fill="none" marker-end="url(#marker_44)" stroke="currentColor" strokeWidth="1px" />
+                <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="49" x="182" y="93" />
+                <text class="transition__label" fill="currentColor" text-anchor="middle" x="207" y="111">check</text>
+              </g>
+              <g class="transition" data-transition-id="t_25">
+                <defs>
+                  <marker id="marker_45" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+                    <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+                  </marker>
+                </defs>
+                <path class="transition__line" d="M305,95L313,95C321,95,336,95,351,95C365,95,377,95,384,95L390,95" fill="none" marker-end="url(#marker_45)" stroke="currentColor" strokeWidth="1px" />
+                <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="27" x="338" y="93" />
+                <text class="transition__label" fill="currentColor" text-anchor="middle" x="352" y="111">ok</text>
+              </g>
+              <g class="transition" data-transition-id="t_26">
+                <defs>
+                  <marker id="marker_46" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+                    <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+                  </marker>
+                </defs>
+                <path class="transition__line" d="M390,114L384,120C377,126,365,139,347,145C330,151,307,151,283,151C259,151,233,151,212,144C190,138,174,124,165,118L157,111" fill="none" marker-end="url(#marker_46)" stroke="currentColor" strokeWidth="1px" />
+                <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="57" x="256" y="149" />
+                <text class="transition__label" fill="currentColor" text-anchor="middle" x="285" y="167">cancel</text>
+              </g>
+            </g>
+            <g class="statechart__states">
+              <g class="state" data-state-id="s_18">
+                <circle class="state__initial" cx="31" cy="95" fill="none" r="6" stroke="currentColor" strokeWidth="2" />
+              </g>
+              <g class="state" data-state-id="s_19">
+                <rect class="state__box" fill="none" height="35" rx="7" ry="7" stroke="currentColor" strokeWidth="2" width="34" x="119.5" y="77.5" />
+                <text class="state__label" fill="currentColor" text-anchor="middle" x="137" y="99">A</text>
+              </g>
+              <g class="state" data-state-id="s_21">
+                <rect class="state__box" fill="none" height="35" rx="7" ry="7" stroke="currentColor" strokeWidth="2" width="34" x="393.5" y="77.5" />
+                <text class="state__label" fill="currentColor" text-anchor="middle" x="411" y="99">B</text>
+              </g>
+              <g class="state" data-state-id="s_23">
+                <rect class="state__box" fill="none" height="35" rx="7" ry="7" stroke="currentColor" strokeWidth="2" width="34" x="267.5" y="77.5" />
+                <text class="state__label" fill="currentColor" text-anchor="middle" x="285" y="99">C</text>
+              </g>
+            </g>
+            </svg>
+            </div>
+            <div class="state-details__description">
+            </div>
+            </div>
+          </details>
+        </div>
+      </details>
+      <details class="state-details" data-state-id="s_4">
+        <summary class="state-details__label">Show Error</summary>
+        <div class="state-details__content">
+          <div class="state-details__chart">
+        <svg class="statechart" height="112" viewbox="0 0 570 112" width="570" xmlns="http://www.w3.org/2000/svg">
+        <g class="statechart__transitions">
+          <g class="transition" data-transition-id="t_29">
+            <defs>
+              <marker id="marker_47" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+                <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+              </marker>
+            </defs>
+            <path class="transition__line" d="M47,36L53,36C59,36,70,36,82,36C93,36,105,36,110,36L116,36" fill="none" marker-end="url(#marker_47)" stroke="currentColor" strokeWidth="1px" />
+            <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="19" x="72" y="34" />
+            <text class="transition__label" fill="currentColor" text-anchor="middle" x="82" y="52">*</text>
+          </g>
+          <g class="transition" data-transition-id="t_31">
+            <defs>
+              <marker id="marker_48" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+                <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+              </marker>
+            </defs>
+            <path class="transition__line" d="M244,22L254,20C263,18,282,13,301,13C320,12,339,16,349,17L358,19" fill="none" marker-end="url(#marker_48)" stroke="currentColor" strokeWidth="1px" />
+            <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="64" x="269" y="7" />
+            <text class="transition__label" fill="currentColor" text-anchor="middle" x="301" y="25">details</text>
+          </g>
+          <g class="transition" data-transition-id="t_32">
+            <defs>
+              <marker id="marker_49" class="transition__marker" fill="currentColor" markerHeight="14" markerWidth="20" orient="auto" refX="19" refY="7" stroke="none">
+                <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>
+              </marker>
+            </defs>
+            <path class="transition__line" d="M358,53L349,55C339,56,320,60,301,59C282,59,263,54,254,52L244,50" fill="none" marker-end="url(#marker_49)" stroke="currentColor" strokeWidth="1px" />
+            <rect class="transition__box" fill="rgba(255,255,255,0.7)" height="24" rx="6" ry="6" stroke="none" strokeWidth="1" width="42" x="280" y="61" />
+            <text class="transition__label" fill="currentColor" text-anchor="middle" x="301" y="79">back</text>
+          </g>
+        </g>
+        <g class="statechart__states">
+          <g class="state" data-state-id="s_27">
+            <circle class="state__initial" cx="31" cy="36" fill="none" r="6" stroke="currentColor" strokeWidth="2" />
+          </g>
+          <g class="state" data-state-id="s_28">
+            <rect class="state__box" fill="none" height="35" rx="7" ry="7" stroke="currentColor" strokeWidth="2" width="121" x="119.5" y="18.5" />
+            <text class="state__label" fill="currentColor" text-anchor="middle" x="180" y="40">Show Message</text>
+          </g>
+          <g class="state" data-state-id="s_30">
+            <rect class="state__box" fill="none" height="35" rx="7" ry="7" stroke="currentColor" strokeWidth="2" width="190" x="361.5" y="18.5" />
+            <text class="state__label" fill="currentColor" text-anchor="middle" x="457" y="40">Show Detailed Message</text>
+          </g>
+        </g>
+        </svg>
+        </div>
+        <div class="state-details__description">
+        </div>
+        </div>
+      </details>
+    </div>
+  </details>
+</div>
+</body>
+</html>
