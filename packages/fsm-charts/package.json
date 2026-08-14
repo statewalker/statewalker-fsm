@@ -41,7 +41,7 @@
     "lodash": "catalog:",
     "lodash-es": "catalog:",
     "tsup": "catalog:",
-    "typescript": "catalog:",
+    "typescript": "^5.9.3",
     "vitest": "catalog:"
   },
   "repository": {
