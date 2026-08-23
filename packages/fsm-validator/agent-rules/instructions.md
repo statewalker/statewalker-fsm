@@ -11,7 +11,7 @@ Given a natural-language description of a process (a business workflow, a user j
 
 ## Expected outcome
 
-A valid `FsmStateConfig` object (serialised as YAML) that passes all error/warning rules defined below and reports [review] rules for human verification (Lexical L1–L7, Structural S1–S8, Semantic M1–M9).
+A valid `FsmStateConfig` object (serialised as YAML) that passes all error/warning rules defined below and reports [review] rules for human verification (Lexical L1–L7, Structural S1–S9, Semantic M1–M9).
 
 ---
 
@@ -117,19 +117,21 @@ Severity levels: **error** — must fix; **warning** — should fix; **info** �
 * **L7** — No duplicate keys among siblings [error]
   Within a single `states[]` array, all `key` values are unique.
 
-### Structural rules (S1–S8)
+### Structural rules (S1–S9)
 
 * **S1** — Initial transition required [error]
   If a state declares `states[]`, its `transitions[]` MUST contain exactly one entry `["", "*", X]` where X is a key of one of its direct sub-states.
 
-* **S2** — Transitions reference only siblings [error]
-  Every non-special (`""`, `"*"`) state key in `transitions[]` MUST match the `key` of a direct sub-state in the same parent's `states[]`. Cross-level references are therefore prohibited.
+* **S2** — Transition keys resolve [error]
+  Every non-special (`""`, `"*"`) state key in `transitions[]` MUST **resolve**: the engine looks it up in the declaring state's `states[]`, then in each ancestor's in turn, and the first definition found wins. A key no ancestor defines is an error — the engine reports nothing there, creates an empty state and silently stalls in it.
+
+  This constrains where a key may be *defined*, not which states a transition may *connect*. Topology stays local (S3); resolution is lexical, which is what lets one sub-machine definition be shared by several scopes.
 
 * **S3** — Sibling transitions at parent level [error]
   Transitions between sibling states are declared ONLY in the parent's `transitions[]`, never inside a child state.
 
 * **S4** — Reachability [error]
-  Every sub-state must be reachable from the initial transition via some chain of transitions in the parent's `transitions[]`.
+  Every sub-state must be reachable from the initial transition via some chain of transitions in the parent's `transitions[]`. Checked at the **instantiation site**: a definition that no local transition targets is not an error when another scope resolves the key up to it — that is a shared definition. A definition referenced from nowhere is dead and is reported.
 
 * **S5** — No dead-ends (unless final) [warning]
   Every non-final sub-state must have at least one outgoing transition. A state is "final" if the parent's `transitions[]` contains an exit transition `[Key, event, ""]` for it.
@@ -143,10 +145,15 @@ Severity levels: **error** — must fix; **warning** — should fix; **info** �
 * **S8** — Events mandatory for leaf states [error]
   States without `states[]` (leaf states) MUST declare an `events` field.
 
+* **S9** — Deliberate shadowing [warning]
+  Where the same key is defined at more than one depth the nearest definition wins, shadowing the outer one for that subtree only — exactly as with lexically scoped variables. Prefer distinct keys unless the shadowing is intentional and documented, since a reader must otherwise walk the ancestor chain to know which definition applies.
+
 ### Semantic rules (M1–M9)
 
 * **M1** — Forward event coverage [warning]
   Every event in a state's `events` MUST have a corresponding transition `[S, e, _]` in the parent's `transitions[]`, or be covered by a wildcard `[S, "*", _]` or `["*", e, _]` at the parent or ancestor level.
+
+  Satisfied **per referencing scope**. A shared definition's `events` is the union across all its callers and no single scope handles all of them, so: each event must be handled by at least one scope that references the state, and every referencing scope must handle at least one — a scope that enters a state and handles nothing it emits can never leave it.
 
 * **M2** — Reverse event coverage [warning]
   Every non-wildcard event in transition `[S, e, T]` MUST appear in state S's or one of its ancestor's `events` keys (unless S is `""` or `"*"`). The ancestor fallback applies when an event is declared at a shared ancestor level for reuse across multiple descendants, and no M3 override applies.
@@ -330,7 +337,7 @@ states:
 - Decision points with missing outcomes — not all branches covered [M6]
 - Events declared in `events` with no matching transition in parent [M1]
 - Transition events not declared in source state's `events` [M2]
-- Cross-level references — transitions pointing to non-sibling states [S2]
+- Unresolvable references — transition keys defined in no ancestor's `states[]` [S2]
 - Duplicate keys among sibling states [L7]
 - Convergent transitions with incompatible outcomes (e.g., ok and error both leading to the same state) [M4]
 - Leaf states without `events` declarations [S8]

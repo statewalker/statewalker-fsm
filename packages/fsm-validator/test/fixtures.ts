@@ -203,3 +203,54 @@ export const documentReview: FsmStateConfig = {
     },
   ],
 };
+
+/**
+ * Valid: a sub-machine DEFINED once at the root and REFERENCED from two
+ * deeper scopes. `Interview` is not defined in `PhaseA` or `PhaseB`; both
+ * resolve it up the ancestor chain, and each supplies its own routing.
+ * No root-level transition targets `Interview` — it is a shared definition,
+ * not an unreachable state.
+ */
+export const sharedSubMachine: FsmStateConfig = {
+  key: "Root",
+  description: "Two phases sharing one interview sub-machine",
+  transitions: [
+    ["", "*", "PhaseA"],
+    ["PhaseA", "saved", "PhaseB"],
+    ["PhaseB", "cancelled", ""],
+  ],
+  states: [
+    {
+      key: "PhaseA",
+      description: "Interview, then store the notes",
+      transitions: [
+        ["", "*", "Interview"],
+        ["Interview", "done", "SaveNotes"],
+        ["SaveNotes", "saved", ""],
+      ],
+      states: [
+        {
+          key: "SaveNotes",
+          description: "Persist the interview notes",
+          events: { saved: "When the notes are written" },
+        },
+      ],
+    },
+    {
+      key: "PhaseB",
+      description: "Interview again, then leave",
+      transitions: [
+        ["", "*", "Interview"],
+        ["Interview", "cancelled", ""],
+      ],
+    },
+    {
+      key: "Interview",
+      description: "The shared interview sub-machine",
+      events: {
+        done: "When the interview completes",
+        cancelled: "When the subject withdraws",
+      },
+    },
+  ],
+};

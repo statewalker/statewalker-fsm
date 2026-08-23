@@ -142,20 +142,21 @@ Format and naming validation applied to each state node individually.
 | L6 | warning | Event keys in `events` should be camelCase |
 | L7 | error | No duplicate keys among sibling states |
 
-### Tier 2 — Structural (S1–S8)
+### Tier 2 — Structural (S1–S9)
 
 Graph topology validation — checks the transition graph is well-formed.
 
 | Rule | Severity | Check |
 |------|----------|-------|
 | S1 | error | Composite states must have an initial transition `["", "*", X]` |
-| S2 | error | Transitions reference only sibling states (no cross-level jumps) |
+| S2 | error | Every transition key resolves — in the declaring state's `states[]` or an ancestor's |
 | S3 | error | Sibling transitions must be at parent level, not inside children |
-| S4 | error | All sub-states must be reachable from initial transition |
+| S4 | error | All sub-states reachable from the initial transition, or referenced by a descendant scope (a shared definition) |
 | S5 | warning | Non-final sub-states must have at least one outgoing transition |
 | S6 | error | Exit events from sub-states must be handled at parent level |
 | S7 | warning | Wildcard transitions must not create ambiguity |
 | S8 | error | Leaf states must declare `events` |
+| S9 | warning | A key defined at several depths shadows the outer definition — keep it deliberate |
 
 ### Tier 3 — Semantic (M1–M9)
 
@@ -163,7 +164,7 @@ Consistency, completeness, and semantic review rules.
 
 | Rule | Severity | Check |
 |------|----------|-------|
-| M1 | warning | Every event in `events` must have a matching parent transition |
+| M1 | warning | Every event in `events` handled by some referencing scope, and every referencing scope handling some event |
 | M2 | warning | Every transition event must exist in the source state's `events` |
 | M3 | warning | Hierarchical event declaration — child exit events must be in child's `events` |
 | M4 | **review** | Reports convergent transitions (same source, different events, same target) for human review |

@@ -84,9 +84,9 @@ describe("Structural rules", () => {
     });
   });
 
-  // ── S2: transitions reference only siblings ───────────────────────────
+  // ── S2: transition keys must resolve up the ancestor chain ────────────
 
-  describe("S2: transitions reference only siblings", () => {
+  describe("S2: transition keys resolve", () => {
     it("should pass when all refs are valid siblings", () => {
       const result = validate(lightBulb, { rules: ["S2"] });
       expect(result.valid).toBe(true);
@@ -134,13 +134,16 @@ describe("Structural rules", () => {
       expect(result.valid).toBe(true);
     });
 
-    it("should skip check for states without children", () => {
+    it("should report keys that resolve nowhere, even with no states declared", () => {
+      // The engine does not complain here — it creates empty states and
+      // stalls in them — so the validator must. See test/resolution.test.ts.
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [["A", "go", "B"]],
       };
       const result = validate(config, { rules: ["S2"] });
-      expect(result.valid).toBe(true);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toHaveLength(2);
     });
 
     it("should validate nested state transitions", () => {

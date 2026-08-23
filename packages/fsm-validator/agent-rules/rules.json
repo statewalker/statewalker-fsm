@@ -58,9 +58,9 @@
   {
     "category": "structural",
     "ruleId": "S2",
-    "rule": "Transitions reference only siblings",
+    "rule": "Transition keys resolve",
     "severity": "error",
-    "constraint": "Every non-special (\"\", \"*\") state key in `transitions[]` MUST match the `key` of a direct sub-state in the same parent's `states[]`. Cross-level references are therefore prohibited"
+    "constraint": "Every non-special (\"\", \"*\") state key in `transitions[]` MUST resolve: it is looked up in the declaring state's `states[]`, then in each ancestor's in turn, and the first definition found wins. A key no ancestor defines is an error — the engine reports nothing, creates an empty state and silently stalls in it. This constrains where a key may be DEFINED, not which states a transition may CONNECT: topology stays local (see S3)"
   },
   {
     "category": "structural",
@@ -74,7 +74,7 @@
     "ruleId": "S4",
     "rule": "Reachability",
     "severity": "error",
-    "constraint": "Every sub-state must be reachable from the initial transition via some chain of transitions in the parent's `transitions[]`"
+    "constraint": "Every sub-state must be reachable from the initial transition via some chain of transitions in the parent's `transitions[]`. Checked at the INSTANTIATION site: a definition no local transition targets is not an error when another scope resolves the key up to it — that is a shared definition. A definition referenced from nowhere is dead and is reported"
   },
   {
     "category": "structural",
@@ -105,11 +105,18 @@
     "constraint": "States without `states[]` (leaf states) MUST declare an `events` field"
   },
   {
+    "category": "structural",
+    "ruleId": "S9",
+    "rule": "Deliberate shadowing",
+    "severity": "warning",
+    "constraint": "Where the same key is defined at more than one depth, the nearest definition wins and shadows the outer one for that subtree. Prefer distinct keys unless the shadowing is intentional and documented, since a reader must otherwise walk the ancestor chain to know which definition applies"
+  },
+  {
     "category": "semantic",
     "ruleId": "M1",
     "rule": "Forward event coverage (events to transitions)",
     "severity": "warning",
-    "constraint": "Every event in state's `events` MUST have a corresponding transition [S, e, _] in the parent's `transitions[]`, or be covered by a wildcard [S, \"*\", _] or [\"*\", e, _] at the parent or ancestor level"
+    "constraint": "Every event in state's `events` MUST have a corresponding transition [S, e, _] in the parent's `transitions[]`, or be covered by a wildcard [S, \"*\", _] or [\"*\", e, _] at the parent or ancestor level. Satisfied per REFERENCING scope: a shared definition's `events` is the union across all its callers, so each event must be handled by at least one scope that references the state, and every referencing scope must handle at least one"
   },
   {
     "category": "semantic",

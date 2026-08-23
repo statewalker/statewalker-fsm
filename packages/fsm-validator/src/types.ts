@@ -38,6 +38,7 @@ export type RuleId =
   | "S6"
   | "S7"
   | "S8"
+  | "S9"
   | "M1"
   | "M2"
   | "M3"
@@ -73,6 +74,12 @@ export type RuleContext = {
   path: string[];
   root: FsmStateConfig;
   parent?: FsmStateConfig;
+  /**
+   * Ancestors nearest first, excluding `config` itself — the chain the engine
+   * walks when it resolves a transition's state key. `ancestors[0]` is
+   * `parent`; the last entry is the root.
+   */
+  ancestors: FsmStateConfig[];
 };
 
 export type RuleFunction = (ctx: RuleContext) => ValidationIssue[];

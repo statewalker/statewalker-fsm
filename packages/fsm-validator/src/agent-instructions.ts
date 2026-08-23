@@ -71,15 +71,16 @@ export const structureRules = `\
 3. Every transition MUST be a 3-element array [from, event, to] [L3]
 4. Sibling transitions at parent level — all transitions between siblings go in the parent's transitions, never inside a child [S3]
 5. Initial transition required — every composite state (has states) must have ["", "*", X] [S1]
-6. References are siblings only — transitions reference only states defined in the same parent's states[]. Cross-level references are therefore prohibited [S2]
-7. Reachability — every state must be reachable from the initial transition [S4]
+6. References must resolve — a transition's state key is looked up in the declaring state's states[], then in each ancestor's in turn, first definition wins. A key no ancestor defines is an error: the engine reports nothing, creates an empty state and silently stalls in it. This is about where a key may be DEFINED, not which states a transition may CONNECT — topology stays local (see 4) [S2]
+7. Reachability — every state must be reachable from the initial transition, unless another scope resolves its key up to it, which makes it a shared definition rather than an unreachable state [S4]
 8. No dead-ends — every non-final state needs at least one outgoing transition [S5]
 9. Exit propagation — when a sub-state exits with [X, evt, ""], the parent must have a transition [CompositeParent, evt, Y] consuming that event [S6]
 10. Wildcard determinism — wildcard transitions must not create ambiguity; two wildcards covering the same (state, event) pair are invalid [S7]
-11. Leaf states must declare events — states without states[] MUST have an events field [S8]`;
+11. Leaf states must declare events — states without states[] MUST have an events field [S8]
+12. Shadowing is deliberate — a key defined at several depths shadows the outer definition for that subtree; prefer distinct keys unless the shadowing is intended [S9]`;
 
 export const eventConsistencyRules = `\
-- Every event in events MUST have a matching transition [StateKey, event, _] in the parent, or be covered by a wildcard [M1]
+- Every event in events MUST have a matching transition [StateKey, event, _] in the parent, or be covered by a wildcard. For a state several scopes reference, this holds per referencing scope: each event handled by at least one of them, and each of them handling at least one [M1]
 - Every non-wildcard transition event MUST be declared in the source state's events [M2]
 - If a child state emits an event handled by an ancestor, that event MUST be listed in the child's events [M3]`;
 
@@ -216,7 +217,7 @@ export const commonMistakes = `\
 - Decision points with missing outcomes — not all branches covered [M6]
 - Events declared in events with no matching transition in parent [M1]
 - Transition events not declared in source state's events [M2]
-- Cross-level references — transitions pointing to non-sibling states [S2]
+- Unresolvable references — transition keys defined in no ancestor's states[] [S2]
 - Duplicate keys among sibling states [L7]
 - Convergent transitions with incompatible outcomes (e.g., ok and error both leading to the same state) [M4]
 - Leaf states without events declarations [S8]

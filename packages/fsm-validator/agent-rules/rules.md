@@ -64,18 +64,19 @@ The `events` field is a key/value record where:
 
 ---
 
-## Tier 2 — Structural Rules (S1–S8)
+## Tier 2 — Structural Rules (S1–S9)
 
 | #  | Rule                                          | Severity | Constraint |
 |----|-----------------------------------------------|----------|------------|
 | S1 | Initial transition required for composite states | error | If a state declares `states[]`, its `transitions[]` MUST contain exactly one entry `["", "*", X]` where `X` is a key of one of its direct sub-states |
-| S2 | Transitions reference only siblings            | error | Every non-special (`""`, `"*"`) state key in `transitions[]` MUST match the `key` of a direct sub-state in the same parent's `states[]`. Cross-level references are therefore prohibited |
+| S2 | Transition keys resolve                        | error | Every non-special (`""`, `"*"`) state key in `transitions[]` MUST **resolve**: looked up in the declaring state's `states[]`, then in each ancestor's in turn, first definition wins. A key no ancestor defines is an error — the engine reports nothing, creates an empty state and silently stalls in it. This constrains where a key may be *defined*, not which states a transition may *connect* (see S3) |
 | S3 | Sibling transitions declared at parent level   | error | Transitions between sibling states MUST be declared ONLY in the parent's `transitions[]`, never inside a child state |
-| S4 | Reachability                                   | error | Every sub-state must be reachable from the initial transition via some chain of transitions in the parent's `transitions[]` |
+| S4 | Reachability                                   | error | Every sub-state must be reachable from the initial transition via some chain of transitions in the parent's `transitions[]`. Checked at the **instantiation site**: a definition no local transition targets is not an error when another scope resolves the key up to it — that is a shared definition. A definition referenced from nowhere is dead and is reported |
 | S5 | No dead-ends (unless final)                    | warning | Every non-final sub-state must have at least one outgoing transition. A state is "final" only if it has an exit transition `[Key, event, ""]` |
 | S6 | Exit event propagation                         | error | If a composite state's `transitions[]` contains an exit `[X, event, ""]`, the composite state's own parent MUST have a transition `[CompositeKey, event, Y]` consuming that event. This rule does not apply when the composite state is the root process |
 | S7 | Determinism with wildcards                     | warning | Wildcard transitions must not create ambiguity. Specific transitions take priority over wildcards, but two wildcards covering the same (state, event) pair are invalid |
 | S8 | Events mandatory for leaf states               | error | States without `states[]` (leaf states) MUST declare an `events` field |
+| S9 | Deliberate shadowing                          | warning | Where the same key is defined at more than one depth the nearest definition wins, shadowing the outer one for that subtree. Prefer distinct keys unless the shadowing is intentional and documented |
 
 ---
 
@@ -83,7 +84,7 @@ The `events` field is a key/value record where:
 
 | #  | Rule                                              | Severity | Constraint |
 |----|---------------------------------------------------|----------|------------|
-| M1 | Forward event coverage (events → transitions)    | warning | Every event in state's `events` MUST have a corresponding transition `[S, e, _]` in the parent's `transitions[]`, or be covered by a wildcard `[S, "*", _]` or `["*", e, _]` at the parent or ancestor level |
+| M1 | Forward event coverage (events → transitions)    | warning | Every event in state's `events` MUST have a corresponding transition `[S, e, _]` in the parent's `transitions[]`, or be covered by a wildcard `[S, "*", _]` or `["*", e, _]` at the parent or ancestor level. Satisfied **per referencing scope**: a shared definition's `events` is the union across its callers, so each event must be handled by at least one referencing scope, and every referencing scope must handle at least one |
 | M2 | Reverse event coverage (transitions → events)    | warning | Every non-wildcard event `e` in transition `[S, e, T]` MUST appear in state `S`'s `events` keys (unless `S` is `""` or `"*"`). If not found in the direct state, ancestor event declarations may satisfy this rule |
 | M3 | Hierarchical event declaration                    | warning | If a child state emits an event handled by an ancestor transition, that event MUST be explicitly listed in the child's `events` |
 | M4 | Convergent transition compatibility               | **review** | When multiple transitions from the same source target the same state via different events, source outcomes must be semantically compatible. Reports convergent patterns for review |
@@ -125,12 +126,16 @@ VALIDATE(P):
 
     4. FOR EACH transition [src, evt, tgt] in P.transitions[]:
        a. ASSERT length == 3                                         [L3]
-       b. ASSERT src in {"", "*"} | {s.key for s in P.states[]}     [S2, L4]
-       c. ASSERT tgt in {""} | {s.key for s in P.states[]}          [S2, L4]
+       b. ASSERT src in {"", "*"} | RESOLVABLE(src, P)              [S2, L4]
+       c. ASSERT tgt in {""} | RESOLVABLE(tgt, P)                   [S2, L4]
+          WHERE RESOLVABLE(k, P) = k in {s.key for s in P.states[]}
+                                   OR RESOLVABLE(k, parent-of P)
        d. ASSERT evt in {"*"} | /^[a-z][a-zA-Z0-9]*$/              [L5]
 
     5. FOR EACH state S in P.states[]:
-       a. ASSERT S is reachable from initial transition              [S4]
+       a. ASSERT S is reachable from initial transition,             [S4]
+          OR some descendant scope resolves S.key up to this
+          definition (a shared definition)
        b. ASSERT S has >= 1 outgoing transition OR exits to ""       [S5]
 
     6. FOR EACH leaf state S (S.states[] absent):
@@ -175,9 +180,9 @@ VALIDATE(P):
 ### Structural Checklist
 - [ ] Every composite state has `["", "*", <InitialSubState>]`
 - [ ] All sibling transitions are in the immediate parent's `transitions[]`
-- [ ] Every state referenced in transitions exists in the same parent's `states[]`
+- [ ] Every state key in a transition resolves — in this state's `states[]` or an ancestor's
 - [ ] Each non-final state has at least one outgoing transition
-- [ ] All states are reachable from the initial transition
+- [ ] All states are reachable from the initial transition, or referenced by a descendant scope as a shared definition
 - [ ] Exit events from sub-states are captured at the parent level
 - [ ] Wildcard use is intentional and non-ambiguous
 

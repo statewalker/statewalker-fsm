@@ -16,7 +16,7 @@ export function validate(
   const activeRules = resolveActiveRules(options);
   const issues: ValidationIssue[] = [];
 
-  walkConfig(config, [], config, undefined, activeRules, issues);
+  walkConfig(config, [], config, [], activeRules, issues);
 
   const errors = issues.filter((i) => i.severity === "error");
   const warnings = issues.filter((i) => i.severity === "warning");
@@ -50,17 +50,30 @@ function walkConfig(
   config: FsmStateConfig,
   path: string[],
   root: FsmStateConfig,
-  parent: FsmStateConfig | undefined,
+  ancestors: FsmStateConfig[],
   rules: Map<RuleId, RuleFunction>,
   issues: ValidationIssue[],
 ): void {
-  const ctx: RuleContext = { config, path, root, parent };
+  const ctx: RuleContext = {
+    config,
+    path,
+    root,
+    parent: ancestors[0],
+    ancestors,
+  };
   for (const rule of rules.values()) {
     issues.push(...rule(ctx));
   }
   if (config.states) {
     for (const child of config.states) {
-      walkConfig(child, [...path, config.key], root, config, rules, issues);
+      walkConfig(
+        child,
+        [...path, config.key],
+        root,
+        [config, ...ancestors],
+        rules,
+        issues,
+      );
     }
   }
 }

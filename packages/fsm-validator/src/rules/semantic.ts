@@ -5,32 +5,73 @@ import type {
   RuleId,
   ValidationIssue,
 } from "../types.ts";
+import { referencingScopes } from "./resolution.ts";
 
+/**
+ * M1 — every event a state declares must be handled by a transition.
+ *
+ * Scoped per REFERENCING site, not per definition site. A shared definition —
+ * one instantiated by several scopes that resolve its key up the ancestor
+ * chain — has an `events:` that is the union across all its callers, and no
+ * single scope handles all of them. Requiring every scope to handle every
+ * event would make sharing impossible.
+ *
+ * So: every event must be handled by at least one scope that references the
+ * state, and every referencing scope must handle at least one event — a scope
+ * that enters a state and handles nothing it emits can never leave it.
+ */
 export function forwardEventCoverage(ctx: RuleContext): ValidationIssue[] {
-  const { config, path, parent } = ctx;
+  const { config, path, parent, root } = ctx;
   const events = config.events;
   if (!events || Object.keys(events).length === 0) return [];
   if (!parent) return [];
 
-  const parentTransitions = parent.transitions;
-  if (!parentTransitions) return [];
+  // The scopes that actually instantiate THIS definition. For an ordinary
+  // state that is just its parent; for a shared one it is every caller.
+  const scopes = referencingScopes(root, config.key, config).filter(
+    (s) => s.config.transitions && s.config.transitions.length > 0,
+  );
+  if (scopes.length === 0) return [];
+
+  const handles = (scope: FsmStateConfig, event: string) =>
+    (scope.transitions ?? []).some(
+      ([from, evt]) =>
+        (from === config.key || from === "*") && (evt === event || evt === "*"),
+    );
 
   const issues: ValidationIssue[] = [];
 
   for (const event of Object.keys(events)) {
-    const handled = parentTransitions.some(
-      ([from, evt]) =>
-        (from === config.key || from === "*") && (evt === event || evt === "*"),
-    );
-    if (!handled) {
-      issues.push({
-        rule: "M1",
-        severity: "warning",
-        message: `Event "${event}" declared in "${config.key}" has no matching transition in parent "${parent.key}"`,
-        path: [...path, config.key],
-      });
+    if (scopes.some((s) => handles(s.config, event))) continue;
+    issues.push({
+      rule: "M1",
+      severity: "warning",
+      message:
+        scopes.length === 1
+          ? `Event "${event}" declared in "${config.key}" has no matching transition in parent "${scopes[0].config.key}"`
+          : `Event "${event}" declared in "${config.key}" has no matching transition in any scope referencing it (${scopes.map((s) => `"${s.config.key}"`).join(", ")})`,
+      path: [...path, config.key],
+    });
+  }
+
+  // Only meaningful once a state is shared: a single referencing scope that
+  // handles nothing is already fully reported by the loop above.
+  if (scopes.length > 1) {
+    for (const scope of scopes) {
+      const handlesAny = Object.keys(events).some((e) =>
+        handles(scope.config, e),
+      );
+      if (!handlesAny) {
+        issues.push({
+          rule: "M1",
+          severity: "warning",
+          message: `Scope "${scope.config.key}" references "${config.key}" but handles none of its events — the process cannot leave that state`,
+          path: [...scope.path, scope.config.key],
+        });
+      }
     }
   }
+
   return issues;
 }
 
