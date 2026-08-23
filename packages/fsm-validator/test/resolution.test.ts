@@ -180,6 +180,74 @@ describe("State definition resolution", () => {
     });
   });
 
+  // ── S1 / S8: a scope that drives shared definitions is composite ──────
+
+  describe("S1: initial transition into a shared definition", () => {
+    it("should accept an initial target defined by an ancestor", () => {
+      const result = validate(sharedSubMachine, { rules: ["S1"] });
+      expect(result.issues).toHaveLength(0);
+    });
+
+    it("should still report an initial target that resolves nowhere", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [["", "*", "NonExistent"]],
+        states: [{ key: "A", events: { go: "Go" } }],
+      };
+      const result = validate(config, { rules: ["S1"] });
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].rule).toBe("S1");
+    });
+  });
+
+  describe("S8: a state driving shared definitions is not a leaf", () => {
+    it("should not demand events from a scope that declares transitions but no states", () => {
+      const result = validate(sharedSubMachine, { rules: ["S8"] });
+      expect(result.issues).toHaveLength(0);
+    });
+
+    it("should still demand events from a state that drives nothing", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [["", "*", "A"]],
+        states: [{ key: "A" } as FsmStateConfig],
+      };
+      const result = validate(config, { rules: ["S8"] });
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].rule).toBe("S8");
+    });
+  });
+
+  // ── S3: sibling routing vs. shared instantiation ──────────────────────
+
+  describe("S3: sibling transitions vs shared instantiation", () => {
+    it("should not flag a scope that enters a shared definition as its initial state", () => {
+      const result = validate(sharedSubMachine, { rules: ["S3"] });
+      expect(result.issues).toHaveLength(0);
+    });
+
+    it("should still flag a genuine sibling transition inside a child", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [["", "*", "A"]],
+        states: [
+          {
+            key: "A",
+            transitions: [
+              ["", "*", "Sub"],
+              ["Sub", "go", "B"],
+            ],
+            states: [{ key: "Sub", events: { go: "Go" } }],
+          },
+          { key: "B", events: {} },
+        ],
+      };
+      const result = validate(config, { rules: ["S3"] });
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].rule).toBe("S3");
+    });
+  });
+
   // ── M1: forward event coverage, per REFERENCING scope ─────────────────
 
   describe("M1: forward event coverage with shared definitions", () => {

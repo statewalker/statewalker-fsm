@@ -53,7 +53,7 @@
     "ruleId": "S1",
     "rule": "Initial transition required for composite states",
     "severity": "error",
-    "constraint": "If a state declares `states[]`, its `transitions[]` MUST contain exactly one entry [\"\", \"*\", X] where X is a key of one of its direct sub-states"
+    "constraint": "If a state declares `states[]`, its `transitions[]` MUST contain exactly one entry [\"\", \"*\", X]. Like any transition key, X resolves up the ancestor chain, so a composite state may enter a shared definition as its initial sub-state"
   },
   {
     "category": "structural",
@@ -67,7 +67,7 @@
     "ruleId": "S3",
     "rule": "Sibling transitions declared at parent level",
     "severity": "error",
-    "constraint": "Transitions between sibling states MUST be declared ONLY in the parent's `transitions[]`, never inside a child state"
+    "constraint": "Transitions between sibling states MUST be declared ONLY in the parent's `transitions[]`, never inside a child state. Not applied to a state that enters, as its own initial sub-state, a key it does not define: that state is instantiating a shared definition, and its transitions describe that borrowed sub-machine rather than sibling routing"
   },
   {
     "category": "structural",
@@ -102,7 +102,7 @@
     "ruleId": "S8",
     "rule": "Events mandatory for leaf states",
     "severity": "error",
-    "constraint": "States without `states[]` (leaf states) MUST declare an `events` field"
+    "constraint": "Leaf states MUST declare an `events` field. A state is a leaf only when it drives nothing — no `states[]` AND no `transitions[]`. A state declaring transitions is composite even with no `states[]` of its own, since the sub-states it drives resolve to definitions further up the chain"
   },
   {
     "category": "structural",

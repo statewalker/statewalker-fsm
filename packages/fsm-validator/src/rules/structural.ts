@@ -26,9 +26,16 @@ export function initialTransitionRequired(ctx: RuleContext): ValidationIssue[] {
     ];
   }
 
-  const childKeys = new Set(config.states.map((s) => s.key));
+  // The initial target need not be declared here: like any other transition
+  // key it resolves up the ancestor chain, so a composite state may enter a
+  // shared definition as its initial sub-state. S2 reports it if it resolves
+  // nowhere.
   const hasInitial = transitions.some(
-    ([from, , to]) => from === "" && to !== "" && childKeys.has(to),
+    ([from, , to]) =>
+      from === "" &&
+      to !== "" &&
+      to !== "*" &&
+      !!resolveDefinition(to, config, ctx.ancestors),
   );
 
   if (!hasInitial) {
@@ -114,12 +121,34 @@ export function deliberateShadowing(ctx: RuleContext): ValidationIssue[] {
   return issues;
 }
 
+/**
+ * S3 — a transition between two siblings belongs in their parent, never inside
+ * one of them.
+ *
+ * The catch: "child A names its sibling B" and "child A instantiates the shared
+ * definition B that happens to sit beside it" are the SAME structure. The engine
+ * always does the second — a transition declared by A resolves B up the ancestor
+ * chain and makes it a child of A, never a jump to A's sibling.
+ *
+ * The discriminator is A's own initial transition. A state that enters, as its
+ * own initial sub-state, a key it does not define is unambiguously instantiating
+ * a definition from an ancestor; its remaining transitions describe that borrowed
+ * sub-machine, not sibling routing. Left alone, this rule would forbid the only
+ * way the engine offers to share a sub-machine.
+ */
 export function siblingTransitionsAtParent(
   ctx: RuleContext,
 ): ValidationIssue[] {
   const { config, path, parent } = ctx;
   if (!parent || !parent.states) return [];
   if (!config.transitions || config.transitions.length === 0) return [];
+
+  const ownKeys = new Set((config.states ?? []).map((s) => s.key));
+  const instantiatesSharedDefinition = config.transitions.some(
+    ([from, , to]) =>
+      from === "" && to !== "" && to !== "*" && !ownKeys.has(to),
+  );
+  if (instantiatesSharedDefinition) return [];
 
   // Collect sibling keys from parent's states (excluding this state itself)
   const siblingKeys = new Set(
@@ -342,7 +371,12 @@ export function deterministicWildcards(ctx: RuleContext): ValidationIssue[] {
 
 export function leafStatesDeclareEvents(ctx: RuleContext): ValidationIssue[] {
   const { config, path } = ctx;
-  const isLeaf = !config.states || config.states.length === 0;
+  // A state that declares transitions is composite even when it declares no
+  // `states:` of its own — the sub-states it drives resolve to definitions
+  // further up the chain. Only a state that drives nothing is a leaf.
+  const isLeaf =
+    (!config.states || config.states.length === 0) &&
+    (!config.transitions || config.transitions.length === 0);
   if (!isLeaf) return [];
   if (config.events) return [];
 

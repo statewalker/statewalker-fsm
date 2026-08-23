@@ -120,7 +120,7 @@ Severity levels: **error** — must fix; **warning** — should fix; **info** �
 ### Structural rules (S1–S9)
 
 * **S1** — Initial transition required [error]
-  If a state declares `states[]`, its `transitions[]` MUST contain exactly one entry `["", "*", X]` where X is a key of one of its direct sub-states.
+  If a state declares `states[]`, its `transitions[]` MUST contain exactly one entry `["", "*", X]`. Like any transition key, X resolves up the ancestor chain, so a composite state may enter a shared definition as its initial sub-state.
 
 * **S2** — Transition keys resolve [error]
   Every non-special (`""`, `"*"`) state key in `transitions[]` MUST **resolve**: the engine looks it up in the declaring state's `states[]`, then in each ancestor's in turn, and the first definition found wins. A key no ancestor defines is an error — the engine reports nothing there, creates an empty state and silently stalls in it.
@@ -129,6 +129,8 @@ Severity levels: **error** — must fix; **warning** — should fix; **info** �
 
 * **S3** — Sibling transitions at parent level [error]
   Transitions between sibling states are declared ONLY in the parent's `transitions[]`, never inside a child state.
+
+  Not applied to a state that enters, as its own initial sub-state, a key it does not define. "Child A names its sibling B" and "child A instantiates the shared definition B that happens to sit beside it" are the same structure, and the engine always does the second — so a state that has begun borrowing a definition is describing that sub-machine, not routing between siblings.
 
 * **S4** — Reachability [error]
   Every sub-state must be reachable from the initial transition via some chain of transitions in the parent's `transitions[]`. Checked at the **instantiation site**: a definition that no local transition targets is not an error when another scope resolves the key up to it — that is a shared definition. A definition referenced from nowhere is dead and is reported.
@@ -143,7 +145,7 @@ Severity levels: **error** — must fix; **warning** — should fix; **info** �
   Wildcard transitions must not create ambiguity. Specific transitions take priority over wildcards, but two wildcards covering the same (state, event) pair are invalid.
 
 * **S8** — Events mandatory for leaf states [error]
-  States without `states[]` (leaf states) MUST declare an `events` field.
+  Leaf states MUST declare an `events` field. A state is a leaf only when it drives nothing — no `states[]` **and** no `transitions[]`. A state that declares transitions is composite even with no `states[]` of its own, because the sub-states it drives resolve to definitions further up the chain.
 
 * **S9** — Deliberate shadowing [warning]
   Where the same key is defined at more than one depth the nearest definition wins, shadowing the outer one for that subtree only — exactly as with lexically scoped variables. Prefer distinct keys unless the shadowing is intentional and documented, since a reader must otherwise walk the ancestor chain to know which definition applies.

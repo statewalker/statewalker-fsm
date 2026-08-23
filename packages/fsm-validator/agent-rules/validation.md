@@ -8,9 +8,9 @@ Post-generation checklist for verifying HFSM definitions. Each item references a
 - [ ] State keys are PascalCase [L2]
 - [ ] No duplicate keys among sibling states [L7]
 - [ ] Every transition is a 3-element array `[from, event, to]` [L3]
-- [ ] Every composite state has initial transition `["", "*", X]` [S1]
+- [ ] Every composite state has initial transition `["", "*", X]`, X resolving here or in an ancestor [S1]
 - [ ] Every state key in a transition resolves — in this state's `states[]` or an ancestor's [S2]
-- [ ] Sibling transitions declared at parent level, not inside children [S3]
+- [ ] Sibling transitions declared at parent level, not inside children — unless the child is instantiating a shared definition [S3]
 - [ ] All sub-states reachable from initial transition, or referenced by a descendant scope as a shared definition [S4]
 - [ ] Non-final states have at least one outgoing transition [S5]
 - [ ] Wildcard transitions do not create ambiguity [S7]
@@ -29,7 +29,7 @@ Post-generation checklist for verifying HFSM definitions. Each item references a
 - [ ] Every transition event exists in the source state's `events` [M2]
 - [ ] Exit events `[X, evt, ""]` from sub-states are handled at parent level [S6]
 - [ ] Child exit events are declared in the child's `events` [M3]
-- [ ] Leaf states (no `states[]`) declare `events` [S8]
+- [ ] Leaf states (no `states[]` and no `transitions[]`) declare `events` [S8]
 
 ## Cycle and Branch Checks
 

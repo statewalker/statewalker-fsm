@@ -148,14 +148,14 @@ Graph topology validation — checks the transition graph is well-formed.
 
 | Rule | Severity | Check |
 |------|----------|-------|
-| S1 | error | Composite states must have an initial transition `["", "*", X]` |
+| S1 | error | Composite states must have an initial transition `["", "*", X]`, X resolving here or in an ancestor |
 | S2 | error | Every transition key resolves — in the declaring state's `states[]` or an ancestor's |
-| S3 | error | Sibling transitions must be at parent level, not inside children |
+| S3 | error | Sibling transitions must be at parent level — unless the child is instantiating a shared definition |
 | S4 | error | All sub-states reachable from the initial transition, or referenced by a descendant scope (a shared definition) |
 | S5 | warning | Non-final sub-states must have at least one outgoing transition |
 | S6 | error | Exit events from sub-states must be handled at parent level |
 | S7 | warning | Wildcard transitions must not create ambiguity |
-| S8 | error | Leaf states must declare `events` |
+| S8 | error | Leaf states — driving no `states[]` and no `transitions[]` — must declare `events` |
 | S9 | warning | A key defined at several depths shadows the outer definition — keep it deliberate |
 
 ### Tier 3 — Semantic (M1–M9)
