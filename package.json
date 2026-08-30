@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.16.1",
-  "description": "StateWalker FSM \u2014 hierarchical state machines, validation, charts and viewer",
+  "description": "StateWalker FSM — hierarchical state machines, validation, charts and viewer",
   "homepage": "https://github.com/statewalker/statewalker-fsm",
   "author": {
     "name": "Mikhail Kotelnikov",
@@ -15,9 +15,9 @@
     "url": "git+ssh://git@github.com/statewalker/statewalker-fsm.git"
   },
   "scripts": {
-    "build": "turbo run build",
-    "test": "turbo run test",
-    "typecheck": "turbo run typecheck",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "typecheck": "pnpm -r run typecheck",
     "lint": "biome check --write .",
     "lint:check": "biome check .",
     "format": "biome format --write .",
