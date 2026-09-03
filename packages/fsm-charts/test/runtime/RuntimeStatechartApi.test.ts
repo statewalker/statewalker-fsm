@@ -8,6 +8,11 @@ import { process } from "../data/process.checkout.js";
 import { describe, expect, it } from "../deps.js";
 import { toStatechartsPanels } from "../html/toStatechartsPanels.js";
 
+// These two tests build a real JSDOM document and lay out a statechart graph. The timeout
+// is set per test rather than in vitest.config.ts because fsm-viewer's own test run also
+// collects this file, under its own config, where a config-level timeout here would not
+// apply -- and both packages run their tests from inside `build`, so a timeout fails the
+// build and everything downstream of it, not just a test.
 describe("RuntimeStatechartApi", () => {
   it("should generate transitions graph", async () => {
     const { html, statechart } = toStatechartsPanels(process);
@@ -27,7 +32,7 @@ ${css}
     const stateId = stateIds[stateIds.length - 1];
     api.selectState(stateId);
     expect(api.isStateSelected(stateId)).toBe(true);
-  });
+  }, 30_000);
 
   it("should generate transitions graph", async () => {
     const { html } = toStatechartsPanels(process);
@@ -60,5 +65,5 @@ ${css}
       "Show Message",
       "Show Detailed Message",
     ]);
-  });
+  }, 30_000);
 });
