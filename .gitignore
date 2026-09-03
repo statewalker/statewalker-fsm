@@ -4,3 +4,6 @@ tmp*
 pnpm-lock.yaml
 *.log
 dist
+
+# turbo task cache — generated, never committed.
+.turbo/
