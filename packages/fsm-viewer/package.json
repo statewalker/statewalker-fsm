@@ -44,7 +44,7 @@
     "url": "git@github.com:statewalker/statewalker-fsm-viewer.git"
   },
   "scripts": {
-    "build": "rm -fr ./dist && pnpm test && tsup",
+    "build": "rm -fr ./dist && tsup",
     "dev": "observable preview",
     "watch": "tsup --watch",
     "clean": "rm -rf dist",
