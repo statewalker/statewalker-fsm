@@ -16,7 +16,7 @@ catalog:
   # tsup builds .d.ts through the TypeScript JS API, which TypeScript 7 (native) does not provide: stay on 6.
   typescript: ^6.0.3
   turbo: ^2.11.7
-  vitest: ^4.1.11
+  vitest: ^5.0.3
   yaml: ^2.9.1
 
 catalogs:
