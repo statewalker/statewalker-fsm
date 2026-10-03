@@ -59,7 +59,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@statewalker/fsm": "workspace:*",
-    "@statewalker/fsm-charts": "workspace:*"
+    "@statewalker/fsm": "workspace:^",
+    "@statewalker/fsm-charts": "workspace:^"
   }
 }
