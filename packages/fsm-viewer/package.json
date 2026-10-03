@@ -36,7 +36,7 @@
     "jsdom": "catalog:",
     "lodash-es": "catalog:",
     "tsup": "catalog:",
-    "typescript": "^6.0.3",
+    "typescript": "catalog:",
     "vitest": "catalog:"
   },
   "repository": {
