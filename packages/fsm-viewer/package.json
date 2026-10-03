@@ -35,7 +35,7 @@
     "eslint": "catalog:",
     "jsdom": "catalog:",
     "lodash-es": "catalog:",
-    "tsup": "catalog:",
+    "tsdown": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
@@ -44,9 +44,9 @@
     "url": "git@github.com:statewalker/statewalker-fsm-viewer.git"
   },
   "scripts": {
-    "build": "rm -fr ./dist && tsup",
+    "build": "rm -fr ./dist && tsdown",
     "dev": "observable preview",
-    "watch": "tsup --watch",
+    "watch": "tsdown --watch",
     "clean": "rm -rf dist",
     "lint": "eslint",
     "lint:fix": "pnpm lint --fix",
