@@ -9,13 +9,13 @@ export function concatTransitionsToString(transitions: Transition[]) {
       if (str) list.push(str);
       str = from;
     }
-    str += ` -${escape(event)}-> ${escape(to)}`;
+    str += ` -${escapeLabel(event)}-> ${escapeLabel(to)}`;
     prev = to;
   }
   if (str) list.push(str);
   return list;
 
-  function escape(str: string): string {
+  function escapeLabel(str: string): string {
     return str;
   }
 }

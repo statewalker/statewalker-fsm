@@ -1,8 +1,4 @@
-import type {
-  StateChart,
-  StateGraphEdge,
-  StateGraphNode,
-} from "../types/index.js";
+import type { StateChart, StateGraphEdge, StateGraphNode } from "../types/index.js";
 
 export class StateChartIndex {
   statechart: StateChart;
@@ -62,12 +58,7 @@ export class StateChartIndex {
    * @return a list of all nodes
    */
   getAllNodes(): StateGraphNode[] {
-    return [
-      ...new Set([
-        ...Object.values(this._chartsIndex),
-        ...Object.values(this._nodesIndex),
-      ]),
-    ];
+    return [...new Set([...Object.values(this._chartsIndex), ...Object.values(this._nodesIndex)])];
   }
 
   /**
@@ -77,8 +68,7 @@ export class StateChartIndex {
    */
   getStateNodes(): StateGraphNode[] {
     return this.getAllNodes().filter(
-      (node) =>
-        node.key !== this.initialStateKey && node.key !== this.finalStateKey,
+      (node) => node.key !== this.initialStateKey && node.key !== this.finalStateKey,
     );
   }
 
@@ -133,9 +123,7 @@ export class StateChartIndex {
     const state = stack.pop();
     if (!state || !stack.length) return;
     const parent = stack[stack.length - 1];
-    const t = parent.edges.find(
-      (t: StateGraphEdge) => t.from === state.key && t.event === event,
-    );
+    const t = parent.edges.find((t: StateGraphEdge) => t.from === state.key && t.event === event);
     return t;
   }
 
@@ -177,13 +165,8 @@ export class StateChartIndex {
    * @param transition a graph edge instance defining transition
    * @returns an array with two identifiers - [sourceStateId, targetStateId] - the source state id and target state id
    */
-  getTransitionStateIds(
-    transition?: StateGraphEdge,
-  ): [string | undefined, string | undefined] {
-    const result: [string | undefined, string | undefined] = [
-      undefined,
-      undefined,
-    ];
+  getTransitionStateIds(transition?: StateGraphEdge): [string | undefined, string | undefined] {
+    const result: [string | undefined, string | undefined] = [undefined, undefined];
     if (!transition) return result;
     const parentId = this._edgesParentsIndex[transition.id];
     if (!parentId) return result;

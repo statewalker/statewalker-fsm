@@ -1,10 +1,6 @@
 export type FsmStateKey = string;
 export type FsmEventKey = string;
-export type FsmTransition = [
-  from: FsmStateKey,
-  event: FsmEventKey,
-  to: FsmStateKey,
-];
+export type FsmTransition = [from: FsmStateKey, event: FsmEventKey, to: FsmStateKey];
 
 export type FsmEvents = Record<FsmEventKey, string>;
 

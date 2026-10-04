@@ -1,14 +1,13 @@
 export function getInvalidation(node: Node): Promise<void> {
   const n = node as unknown as { invalidation: Promise<void> | undefined };
-  return (n.invalidation =
-    n.invalidation ||
-    new Promise((resolve) => {
-      trackDomNode(node, {
-        onRemove: (node) => {
-          resolve();
-        },
-      });
-    }));
+  n.invalidation ||= new Promise((resolve) => {
+    trackDomNode(node, {
+      onRemove: (node) => {
+        resolve();
+      },
+    });
+  });
+  return n.invalidation;
 }
 
 export function trackDomNode(
@@ -19,7 +18,7 @@ export function trackDomNode(
     isContainer = (n: Node) => n.nodeName === "MAIN" || n.nodeName === "BODY",
     getContainer = (node: Node) => {
       let container = node.ownerDocument?.body;
-      for (let n = node.parentNode; !!n; n = n?.parentNode || null) {
+      for (let n = node.parentNode; n; n = n?.parentNode || null) {
         if (!isContainer(n)) continue;
         container = n as HTMLElement;
         break;

@@ -1,12 +1,7 @@
 import type { FsmStateConfig } from "../src/types.ts";
 import { validate } from "../src/validate.ts";
 import { describe, expect, it } from "./deps.ts";
-import {
-  coffeeMachine,
-  documentReview,
-  lightBulb,
-  ticketFlow,
-} from "./fixtures.ts";
+import { coffeeMachine, documentReview, lightBulb, ticketFlow } from "./fixtures.ts";
 
 describe("validate() integration", () => {
   // ── Full validation on valid configs ───────────────────────────────────
@@ -143,14 +138,9 @@ describe("validate() integration", () => {
 
     it("should have issues = errors + warnings + info + review", () => {
       const result = validate(lightBulb);
-      const infoCount = result.issues.filter(
-        (i) => i.severity === "info",
-      ).length;
+      const infoCount = result.issues.filter((i) => i.severity === "info").length;
       expect(result.issues.length).toBe(
-        result.errors.length +
-          result.warnings.length +
-          result.review.length +
-          infoCount,
+        result.errors.length + result.warnings.length + result.review.length + infoCount,
       );
     });
 
@@ -167,9 +157,7 @@ describe("validate() integration", () => {
         ],
       };
       const result = validate(config, { rules: ["S8"] });
-      const nestedIssues = result.issues.filter((i) =>
-        i.path.includes("Child"),
-      );
+      const nestedIssues = result.issues.filter((i) => i.path.includes("Child"));
       expect(nestedIssues.length).toBeGreaterThan(0);
     });
 

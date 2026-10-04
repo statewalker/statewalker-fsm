@@ -54,9 +54,7 @@ describe("splitTransitionString", () => {
     ]);
 
     expect(
-      splitTransitionString(
-        `-next->A -next-> B -next-> C -prev-> B -prev-> A -*-> C -exit-> `,
-      ),
+      splitTransitionString(`-next->A -next-> B -next-> C -prev-> B -prev-> A -*-> C -exit-> `),
     ).toEqual([
       ["", "next", "A"],
       ["A", "next", "B"],

@@ -50,9 +50,7 @@ export const KEY_EVENT = "fsm:event";
 
 function isGenerator(
   value: unknown,
-): value is
-  | Generator<string, void, unknown>
-  | AsyncGenerator<string, void, unknown> {
+): value is Generator<string, void, unknown> | AsyncGenerator<string, void, unknown> {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -153,18 +151,11 @@ export async function startProcess<C = unknown>(
     return process.dump(...args);
   }
 
-  async function restoreProcess(
-    dumpData: FsmProcessDump,
-    ...args: unknown[]
-  ): Promise<void> {
+  async function restoreProcess(dumpData: FsmProcessDump, ...args: unknown[]): Promise<void> {
     statesStack.length = 0;
     terminated = false;
     await process.restore(dumpData, ...args);
-    for (
-      let state: FsmState | undefined = process.state;
-      state;
-      state = state.parent
-    ) {
+    for (let state: FsmState | undefined = process.state; state; state = state.parent) {
       statesStack.unshift(state.key);
     }
     ctx[KEY_STATES] = [...statesStack];

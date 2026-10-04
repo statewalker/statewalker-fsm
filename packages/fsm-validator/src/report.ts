@@ -40,14 +40,8 @@ const categoryDisplayNames: Record<string, ReportCategory["category"]> = {
 
 const categoryOrder = ["lexical", "structural", "semantic"] as const;
 
-export function buildReport(
-  result: ValidationResult,
-  rules: RuleDefinition[],
-): ValidationReport {
-  const grouped = new Map<
-    RuleId,
-    { severity: Severity; entries: ReportIssueEntry[] }
-  >();
+export function buildReport(result: ValidationResult, rules: RuleDefinition[]): ValidationReport {
+  const grouped = new Map<RuleId, { severity: Severity; entries: ReportIssueEntry[] }>();
 
   for (const issue of result.issues) {
     let group = grouped.get(issue.rule);
@@ -151,16 +145,11 @@ export function formatReportCompact(report: ValidationReport): string {
   if (summary.review > 0) parts.push(`${summary.review}R`);
   if (summary.info > 0) parts.push(`${summary.info}I`);
 
-  const lines: string[] = [
-    `**${status}** ${parts.length > 0 ? parts.join("/") : "clean"}`,
-    "",
-  ];
+  const lines: string[] = [`**${status}** ${parts.length > 0 ? parts.join("/") : "clean"}`, ""];
 
   // Errors and warnings: show full messages (they're actionable)
   const actionable = report.categories.flatMap((cat) =>
-    cat.rules.filter(
-      (rg) => rg.severity === "error" || rg.severity === "warning",
-    ),
+    cat.rules.filter((rg) => rg.severity === "error" || rg.severity === "warning"),
   );
   if (actionable.length > 0) {
     lines.push("| Rule | Path | Issue |");

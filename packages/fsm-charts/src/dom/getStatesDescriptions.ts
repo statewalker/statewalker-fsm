@@ -14,9 +14,7 @@ export function* visitStateDescriptions({
   element,
   rootStateKey,
   removeFromDom = true,
-  splitHeader = (
-    header?: HTMLElement,
-  ): [stateKey: undefined | string, label: string] => {
+  splitHeader = (header?: HTMLElement): [stateKey: undefined | string, label: string] => {
     if (!header) return [undefined, ""];
     const text = header.innerText.trim();
     let key: string | undefined;
@@ -32,9 +30,7 @@ export function* visitStateDescriptions({
   element: HTMLElement;
   rootStateKey: string;
   removeFromDom?: boolean; // If true - removes state description nodes from the DOM
-  splitHeader?: (
-    header?: HTMLElement,
-  ) => [stateKey: undefined | string, label: string];
+  splitHeader?: (header?: HTMLElement) => [stateKey: undefined | string, label: string];
 }): Generator<StateDescriptionSection> {
   const docSections = buildSections(element);
   const rootDescription = findSection(docSections, (section: DomSection) => {
@@ -68,9 +64,7 @@ export function getStatesDescriptions(options: {
   element: HTMLElement;
   rootStateKey: string;
   removeFromDom?: boolean; // If true - removes state description nodes from the DOM
-  splitHeader?: (
-    header?: HTMLElement,
-  ) => [stateKey: undefined | string, label: string];
+  splitHeader?: (header?: HTMLElement) => [stateKey: undefined | string, label: string];
 }): { [state: string]: StateDescriptionSection } {
   const index: { [state: string]: StateDescriptionSection } = {};
   for (const description of visitStateDescriptions(options)) {

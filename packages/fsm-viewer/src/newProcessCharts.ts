@@ -1,11 +1,11 @@
 import {
   buildCharts,
-  getGraphParamsProvider,
   buildStatechartsPanel,
+  getGraphParamsProvider,
   RuntimeStatechartApi,
   StateChartIndex,
-  type StateGraphNode,
   type StateGraphEdge,
+  type StateGraphNode,
 } from "@statewalker/fsm-charts";
 import { newId } from "./idGenerator.js";
 import { renderCss } from "./renderCss.js";
@@ -50,10 +50,7 @@ export function newProcessCharts({
       stateFontSize: fontSize,
       stateTextPadding: fontSize,
       transitionsFontSize,
-      transitionsTextPadding: [
-        transitionsFontSize * 1.6,
-        transitionsFontSize * 2,
-      ],
+      transitionsTextPadding: [transitionsFontSize * 1.6, transitionsFontSize * 2],
     }),
   });
 
@@ -156,15 +153,11 @@ export function newProcessCharts({
   // invalidation.then(unregisterTransitionsListeners);
 
   if (onEventClick) {
-    const unregisterClickListener = api.onTransitionClick(
-      (transitionId: string) => {
-        const edge = chartsIndex.getEdgeById(transitionId);
-        edge && onEventClick(edge);
-      },
-    );
-    invalidation &&
-      unregisterClickListener &&
-      invalidation.then(unregisterClickListener);
+    const unregisterClickListener = api.onTransitionClick((transitionId: string) => {
+      const edge = chartsIndex.getEdgeById(transitionId);
+      edge && onEventClick(edge);
+    });
+    invalidation && unregisterClickListener && invalidation.then(unregisterClickListener);
   }
   // initRuntimeApi({ statechart, element: element });
   return Object.assign(element, { selectState });

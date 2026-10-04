@@ -1,12 +1,7 @@
 import type { FsmStateConfig } from "../src/types.ts";
 import { validate } from "../src/validate.ts";
 import { describe, expect, it } from "./deps.ts";
-import {
-  coffeeMachine,
-  documentReview,
-  lightBulb,
-  ticketFlow,
-} from "./fixtures.ts";
+import { coffeeMachine, documentReview, lightBulb, ticketFlow } from "./fixtures.ts";
 
 describe("Structural rules", () => {
   // ── S1: initial transition required for composite states ──────────────
@@ -32,10 +27,7 @@ describe("Structural rules", () => {
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [["A", "go", "B"]],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "B" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "B" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["S1"] });
       expect(result.valid).toBe(false);
@@ -290,10 +282,7 @@ describe("Structural rules", () => {
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [["", "*", "A"]],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "B" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "B" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["S4"] });
       expect(result.errors).toHaveLength(1);
@@ -308,10 +297,7 @@ describe("Structural rules", () => {
           ["", "*", "A"],
           ["*", "reset", "B"],
         ],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "B" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "B" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["S4"] });
       expect(result.errors).toHaveLength(0);
@@ -354,9 +340,7 @@ describe("Structural rules", () => {
       };
       const result = validate(config, { rules: ["S4"] });
       expect(result.errors.length).toBeGreaterThanOrEqual(1);
-      const unreachableKeys = result.errors.map(
-        (e) => e.message.match(/"([^"]+)"/)?.[1],
-      );
+      const unreachableKeys = result.errors.map((e) => e.message.match(/"([^"]+)"/)?.[1]);
       expect(unreachableKeys).toContain("C");
     });
 
@@ -387,10 +371,7 @@ describe("Structural rules", () => {
           ["", "*", "A"],
           ["*", "reset", "A"],
         ],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "B" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "B" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["S5"] });
       expect(result.warnings).toHaveLength(0);
@@ -424,10 +405,7 @@ describe("Structural rules", () => {
           ["", "*", "A"],
           ["A", "go", "B"],
         ],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "B" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "B" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["S5"] });
       expect(result.warnings).toHaveLength(0);
@@ -562,10 +540,7 @@ describe("Structural rules", () => {
           ["A", "go", "B"],
           ["A", "go", "B"],
         ],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "B" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "B" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["S7"] });
       expect(result.warnings).toHaveLength(0);
@@ -645,10 +620,7 @@ describe("Structural rules", () => {
           ["", "*", "A"],
           ["A", "go", "B"],
         ],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "B" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "B" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["S8"] });
       const s8Issues = result.issues.filter((i) => i.rule === "S8");

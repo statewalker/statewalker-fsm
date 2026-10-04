@@ -1,9 +1,4 @@
-import type {
-  RuleContext,
-  RuleFunction,
-  RuleId,
-  ValidationIssue,
-} from "../types.ts";
+import type { RuleContext, RuleFunction, RuleId, ValidationIssue } from "../types.ts";
 
 export const STATE_KEY_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
 export const EVENT_KEY_PATTERN = /^[a-z][a-zA-Z0-9]*$/;

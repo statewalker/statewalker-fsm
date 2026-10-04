@@ -4,17 +4,12 @@ export type Registry = [
   unregister: (action: () => unknown) => void,
 ];
 
-export function newRegistry(
-  onError: (error: any) => unknown = console.error,
-): Registry {
+export function newRegistry(onError: (error: any) => unknown = console.error): Registry {
   let counter = 0;
-  const registrations: Record<
-    number,
-    ((skip?: boolean) => void) & { action: () => void }
-  > = {};
+  const registrations: Record<number, ((skip?: boolean) => void) & { action: () => void }> = {};
   const register = (action: () => unknown) => {
     const id = counter++;
-    return (registrations[id] = Object.assign(
+    const registration = Object.assign(
       (skip?: boolean) => {
         try {
           delete registrations[id];
@@ -24,10 +19,15 @@ export function newRegistry(
         }
       },
       { action },
-    ));
+    );
+    registrations[id] = registration;
+    return registration;
   };
-  const unregister = (action: () => void) =>
-    Object.values(registrations).forEach((r) => r.action === action && r(true));
-  const clear = () => Object.values(registrations).forEach((r) => r());
+  const unregister = (action: () => void) => {
+    for (const r of Object.values(registrations)) if (r.action === action) r(true);
+  };
+  const clear = () => {
+    for (const r of Object.values(registrations)) r();
+  };
   return [register, clear, unregister];
 }

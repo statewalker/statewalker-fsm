@@ -1,8 +1,4 @@
-import {
-  FsmProcess,
-  type FsmState,
-  type FsmStateConfig,
-} from "../src/index.ts";
+import { FsmProcess, type FsmState, type FsmStateConfig } from "../src/index.ts";
 import { describe, expect, it } from "./deps.ts";
 
 const simpleConfig: FsmStateConfig = {

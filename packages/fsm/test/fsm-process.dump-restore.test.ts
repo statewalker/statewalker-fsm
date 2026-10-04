@@ -179,11 +179,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
 
   it("go to the internal wait state", async () => {
     await run("");
-    control.push(
-      '  </HandleError> <!-- event="" -->',
-      '  <Wait event="">',
-      "  step 7",
-    );
+    control.push('  </HandleError> <!-- event="" -->', '  <Wait event="">', "  step 7");
     checkTraces(...control);
     expect(dump?.status).toEqual(STATUS_LEAF);
     expect(restored).toEqual(["Selection:6", "HandleError:6"]);
@@ -194,11 +190,7 @@ describe("dump/restore: process is dumped and restored at each step", () => {
 
   it("check events handling not available in the transition descriptions", async () => {
     await run("toto");
-    control.push(
-      '  </Wait> <!-- event="toto" -->',
-      '  <Wait event="toto">',
-      "  step 8",
-    );
+    control.push('  </Wait> <!-- event="toto" -->', '  <Wait event="toto">', "  step 8");
     checkTraces(...control);
     expect(dump?.status).toEqual(STATUS_LEAF);
     expect(restored).toEqual(["Selection:7", "Wait:7"]);

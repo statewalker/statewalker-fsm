@@ -1,9 +1,6 @@
 import { JSDOM } from "jsdom";
 import { buildStatechartCss } from "../../src/index-html.js";
-import {
-  RuntimeStatechartApi,
-  StateChartIndex,
-} from "../../src/index-runtime.js";
+import { RuntimeStatechartApi, StateChartIndex } from "../../src/index-runtime.js";
 import { process } from "../data/process.checkout.js";
 import { describe, expect, it } from "../deps.js";
 import { toStatechartsPanels } from "../html/toStatechartsPanels.js";
@@ -41,19 +38,14 @@ ${css}
 ${html}
 ${css}
 </body>`).window.document;
-    const stateDetailsLabels = [
-      ...document.querySelectorAll("details > summary"),
-    ].map((elm) => elm.textContent);
-    expect(stateDetailsLabels).toEqual([
-      "App",
-      "Open File System",
-      "Choose Folder",
-      "Show Error",
-    ]);
+    const stateDetailsLabels = [...document.querySelectorAll("details > summary")].map(
+      (elm) => elm.textContent,
+    );
+    expect(stateDetailsLabels).toEqual(["App", "Open File System", "Choose Folder", "Show Error"]);
 
-    const stateChartLabels = [
-      ...document.querySelectorAll("g.state > .state__label"),
-    ].map((elm) => elm.textContent);
+    const stateChartLabels = [...document.querySelectorAll("g.state > .state__label")].map(
+      (elm) => elm.textContent,
+    );
     expect(stateChartLabels).toEqual([
       "Open File System",
       "Show Error",

@@ -1,11 +1,7 @@
 import { parse } from "yaml";
 import { ruleDefinitions } from "../src/agent-rules.ts";
 import { buildReport, formatReport } from "../src/report.ts";
-import type {
-  FsmStateConfig,
-  ValidationIssue,
-  ValidationResult,
-} from "../src/types.ts";
+import type { FsmStateConfig, ValidationIssue, ValidationResult } from "../src/types.ts";
 import { validate } from "../src/validate.ts";
 import { describe, expect, it } from "./deps.ts";
 import { coffeeMachine, documentReview, lightBulb } from "./fixtures.ts";
@@ -54,10 +50,7 @@ const ticketFlow: FsmStateConfig = parse(ticketFlowYaml);
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
-function makeResult(
-  issues: ValidationIssue[],
-  valid?: boolean,
-): ValidationResult {
+function makeResult(issues: ValidationIssue[], valid?: boolean): ValidationResult {
   const errors = issues.filter((i) => i.severity === "error");
   const warnings = issues.filter((i) => i.severity === "warning");
   const review = issues.filter((i) => i.severity === "review");
@@ -89,9 +82,7 @@ describe("buildReport()", () => {
   });
 
   it("should expose the raw ValidationResult", () => {
-    const result = makeResult([
-      { rule: "L1", severity: "error", message: "err", path: [] },
-    ]);
+    const result = makeResult([{ rule: "L1", severity: "error", message: "err", path: [] }]);
     const report = buildReport(result, ruleDefinitions);
     expect(report.result).toBe(result);
     expect(report.result.issues).toHaveLength(1);
@@ -116,15 +107,11 @@ describe("buildReport()", () => {
   });
 
   it("should include name and constraint from rule definitions", () => {
-    const result = makeResult([
-      { rule: "L1", severity: "error", message: "err", path: [] },
-    ]);
+    const result = makeResult([{ rule: "L1", severity: "error", message: "err", path: [] }]);
     const report = buildReport(result, ruleDefinitions);
     const rg = report.categories[0].rules[0];
     expect(rg.name).toBe("key is mandatory");
-    expect(rg.constraint).toBe(
-      "Every state object MUST have a non-empty `key` field",
-    );
+    expect(rg.constraint).toBe("Every state object MUST have a non-empty `key` field");
   });
 
   it("should group multiple issues under the same rule", () => {
@@ -208,15 +195,11 @@ describe("buildReport()", () => {
       },
     ]);
     const report = buildReport(result, ruleDefinitions);
-    expect(report.categories[0].rules[0].entries[0].path).toBe(
-      "Root > Handle > Diagnose",
-    );
+    expect(report.categories[0].rules[0].entries[0].path).toBe("Root > Handle > Diagnose");
   });
 
   it("should format empty path as '(root)'", () => {
-    const result = makeResult([
-      { rule: "L1", severity: "error", message: "no key", path: [] },
-    ]);
+    const result = makeResult([{ rule: "L1", severity: "error", message: "no key", path: [] }]);
     const report = buildReport(result, ruleDefinitions);
     expect(report.categories[0].rules[0].entries[0].path).toBe("(root)");
   });
@@ -259,11 +242,7 @@ describe("buildReport()", () => {
     ]);
     const report = buildReport(result, ruleDefinitions);
     const names = report.categories.map((c) => c.category);
-    expect(names).toEqual([
-      "Lexical Issues",
-      "Structural Issues",
-      "Semantic Issues",
-    ]);
+    expect(names).toEqual(["Lexical Issues", "Structural Issues", "Semantic Issues"]);
   });
 
   it("should order rules within a category by rule ID", () => {
@@ -306,12 +285,8 @@ describe("buildReport()", () => {
       { rule: "L3", severity: "error", message: "bad tuple", path: [] },
     ]);
     const report = buildReport(result, ruleDefinitions);
-    const s1 = report.categories
-      .flatMap((c) => c.rules)
-      .find((r) => r.rule === "S1");
-    const l3 = report.categories
-      .flatMap((c) => c.rules)
-      .find((r) => r.rule === "L3");
+    const s1 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "S1");
+    const l3 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "L3");
     expect(s1?.constraint).toContain('["", "*", X]');
     expect(l3?.constraint).toContain("[sourceRef, eventRef, targetRef]");
   });
@@ -326,10 +301,7 @@ describe("buildReport()", () => {
           ["A", "go", "NonExistent"],
           ["also wrong"] as unknown as [string, string, string],
         ],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "A" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "A" } as FsmStateConfig],
       };
       const result = validate(config);
       const report = buildReport(result, ruleDefinitions);
@@ -338,9 +310,7 @@ describe("buildReport()", () => {
       expect(report.summary.errors).toBeGreaterThan(0);
       expect(report.categories.length).toBeGreaterThan(0);
 
-      const allRuleIds = report.categories.flatMap((c) =>
-        c.rules.map((r) => r.rule),
-      );
+      const allRuleIds = report.categories.flatMap((c) => c.rules.map((r) => r.rule));
       expect(allRuleIds).toContain("L3");
       expect(allRuleIds).toContain("L7");
     });
@@ -397,27 +367,21 @@ describe("formatReport()", () => {
   });
 
   it("should show FAIL when errors present", () => {
-    const result = makeResult([
-      { rule: "L1", severity: "error", message: "err", path: [] },
-    ]);
+    const result = makeResult([{ rule: "L1", severity: "error", message: "err", path: [] }]);
     const report = buildReport(result, ruleDefinitions);
     const text = formatReport(report);
     expect(text).toContain("Validation: FAIL");
   });
 
   it("should show PASS when only warnings present", () => {
-    const result = makeResult([
-      { rule: "L2", severity: "warning", message: "warn", path: [] },
-    ]);
+    const result = makeResult([{ rule: "L2", severity: "warning", message: "warn", path: [] }]);
     const report = buildReport(result, ruleDefinitions);
     const text = formatReport(report);
     expect(text).toContain("Validation: PASS");
   });
 
   it("should include category header", () => {
-    const result = makeResult([
-      { rule: "L1", severity: "error", message: "err", path: [] },
-    ]);
+    const result = makeResult([{ rule: "L1", severity: "error", message: "err", path: [] }]);
     const report = buildReport(result, ruleDefinitions);
     const text = formatReport(report);
     expect(text).toContain("* Lexical Issues");
@@ -433,20 +397,14 @@ describe("formatReport()", () => {
   });
 
   it("should include constraint line after rule header", () => {
-    const result = makeResult([
-      { rule: "L1", severity: "error", message: "err", path: [] },
-    ]);
+    const result = makeResult([{ rule: "L1", severity: "error", message: "err", path: [] }]);
     const report = buildReport(result, ruleDefinitions);
     const text = formatReport(report);
-    expect(text).toContain(
-      "    Rule: Every state object MUST have a non-empty `key` field",
-    );
+    expect(text).toContain("    Rule: Every state object MUST have a non-empty `key` field");
   });
 
   it("should include Issues: label before entries", () => {
-    const result = makeResult([
-      { rule: "L1", severity: "error", message: "err", path: [] },
-    ]);
+    const result = makeResult([{ rule: "L1", severity: "error", message: "err", path: [] }]);
     const report = buildReport(result, ruleDefinitions);
     const text = formatReport(report);
     expect(text).toContain("    Issues:");
@@ -485,9 +443,7 @@ describe("formatReport()", () => {
   });
 
   it("should format root path entries with (root)", () => {
-    const result = makeResult([
-      { rule: "L1", severity: "error", message: "no key", path: [] },
-    ]);
+    const result = makeResult([{ rule: "L1", severity: "error", message: "no key", path: [] }]);
     const report = buildReport(result, ruleDefinitions);
     const text = formatReport(report);
     expect(text).toContain("    - (root): no key");
@@ -524,9 +480,7 @@ describe("formatReport()", () => {
   });
 
   it("should omit zero-count severities from summary", () => {
-    const result = makeResult([
-      { rule: "L1", severity: "error", message: "e", path: [] },
-    ]);
+    const result = makeResult([{ rule: "L1", severity: "error", message: "e", path: [] }]);
     const report = buildReport(result, ruleDefinitions);
     const text = formatReport(report);
     expect(text).toContain("1 issues: 1 errors");
@@ -536,9 +490,7 @@ describe("formatReport()", () => {
   });
 
   it("should end with a newline", () => {
-    const result = makeResult([
-      { rule: "L1", severity: "error", message: "e", path: [] },
-    ]);
+    const result = makeResult([{ rule: "L1", severity: "error", message: "e", path: [] }]);
     const report = buildReport(result, ruleDefinitions);
     const text = formatReport(report);
     expect(text.endsWith("\n")).toBe(true);
@@ -580,14 +532,8 @@ describe("formatReport()", () => {
     it("should produce meaningful output for a broken config", () => {
       const config: FsmStateConfig = {
         key: "Broken",
-        transitions: [
-          ["", "*", "A"],
-          ["also wrong"] as unknown as [string, string, string],
-        ],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "A" } as FsmStateConfig,
-        ],
+        transitions: [["", "*", "A"], ["also wrong"] as unknown as [string, string, string]],
+        states: [{ key: "A" } as FsmStateConfig, { key: "A" } as FsmStateConfig],
       };
       const result = validate(config);
       const report = buildReport(result, ruleDefinitions);
@@ -614,19 +560,14 @@ describe("formatReport()", () => {
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [["", "*", "A"]],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "A" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "A" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["L7"] });
       const report = buildReport(result, ruleDefinitions);
       const text = formatReport(report);
 
       expect(text).toContain("No duplicate keys among siblings");
-      expect(text).toContain(
-        "Rule: Within a single `states[]` array, all `key` values are unique",
-      );
+      expect(text).toContain("Rule: Within a single `states[]` array, all `key` values are unique");
     });
   });
 });
@@ -689,14 +630,9 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
         );
         expect(reviewRules.length).toBeGreaterThan(0);
         // messages should reference actual state names
-        const allMessages = reviewRules.flatMap((r) =>
-          r.entries.map((e) => e.message),
-        );
+        const allMessages = reviewRules.flatMap((r) => r.entries.map((e) => e.message));
         const mentionsState = allMessages.some(
-          (m) =>
-            m.includes("Idle") ||
-            m.includes("WelcomeScreen") ||
-            m.includes("PreparingDrink"),
+          (m) => m.includes("Idle") || m.includes("WelcomeScreen") || m.includes("PreparingDrink"),
         );
         expect(mentionsState).toBe(true);
         expect(text).toContain("* Semantic Issues");
@@ -728,9 +664,7 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       const text = formatReport(report);
 
       expect(report.valid).toBe(false);
-      const l1 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "L1");
+      const l1 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "L1");
       expect(l1).toBeDefined();
       expect(l1?.severity).toBe("error");
       expect(l1?.entries.length).toBeGreaterThan(0);
@@ -747,13 +681,9 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       const report = buildReport(result, ruleDefinitions);
       const text = formatReport(report);
 
-      const l2 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "L2");
+      const l2 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "L2");
       expect(l2).toBeDefined();
-      expect(l2?.entries.some((e) => e.message.includes("UPPER_CASE"))).toBe(
-        true,
-      );
+      expect(l2?.entries.some((e) => e.message.includes("UPPER_CASE"))).toBe(true);
       expect(text).toContain("UPPER_CASE");
       expect(text).toContain("[warning]");
     });
@@ -776,9 +706,7 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       const report = buildReport(result, ruleDefinitions);
       const text = formatReport(report);
 
-      const l3 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "L3");
+      const l3 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "L3");
       expect(l3).toBeDefined();
       expect(l3?.entries.length).toBe(2);
       // messages include transition index
@@ -803,9 +731,7 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       const report = buildReport(result, ruleDefinitions);
       const text = formatReport(report);
 
-      const l7 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "L7");
+      const l7 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "L7");
       expect(l7).toBeDefined();
       expect(l7?.entries.length).toBe(2);
       expect(l7?.entries.some((e) => e.message.includes('"A"'))).toBe(true);
@@ -830,9 +756,7 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       const report = buildReport(result, ruleDefinitions);
       const text = formatReport(report);
 
-      const s1 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "S1");
+      const s1 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "S1");
       expect(s1).toBeDefined();
       expect(s1?.severity).toBe("error");
       expect(s1?.entries.some((e) => e.message.includes("Root"))).toBe(true);
@@ -853,13 +777,9 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       const report = buildReport(result, ruleDefinitions);
       const text = formatReport(report);
 
-      const s2 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "S2");
+      const s2 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "S2");
       expect(s2).toBeDefined();
-      expect(s2?.entries.some((e) => e.message.includes("NonExistent"))).toBe(
-        true,
-      );
+      expect(s2?.entries.some((e) => e.message.includes("NonExistent"))).toBe(true);
       expect(text).toContain("NonExistent");
     });
 
@@ -875,9 +795,7 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       const result = validate(config);
       const report = buildReport(result, ruleDefinitions);
 
-      const s4 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "S4");
+      const s4 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "S4");
       expect(s4).toBeDefined();
       expect(s4?.entries.some((e) => e.message.includes("Orphan"))).toBe(true);
     });
@@ -898,9 +816,7 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       const report = buildReport(result, ruleDefinitions);
       const text = formatReport(report);
 
-      const s8 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "S8");
+      const s8 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "S8");
       expect(s8).toBeDefined();
       // both A and B should be flagged
       expect(s8?.entries.length).toBe(2);
@@ -933,13 +849,9 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       const report = buildReport(result, ruleDefinitions);
       const text = formatReport(report);
 
-      const m1 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "M1");
+      const m1 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "M1");
       expect(m1).toBeDefined();
-      expect(m1?.entries.some((e) => e.message.includes("orphanEvent"))).toBe(
-        true,
-      );
+      expect(m1?.entries.some((e) => e.message.includes("orphanEvent"))).toBe(true);
       expect(text).toContain("orphanEvent");
       expect(text).toContain("Forward event coverage");
     });
@@ -964,16 +876,12 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       console.log(JSON.stringify(report, null, 2));
       const text = formatReport(report);
 
-      const m9 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "M9");
+      const m9 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "M9");
       expect(m9).toBeDefined();
       expect(m9?.severity).toBe("review");
       // M9 messages should contain both parent and child descriptions
       expect(
-        m9?.entries.some(
-          (e) => e.message.includes("Step") && e.message.includes("Root"),
-        ),
+        m9?.entries.some((e) => e.message.includes("Step") && e.message.includes("Root")),
       ).toBe(true);
       expect(text).toContain("[review]");
       expect(text).toContain("Parent-child goal alignment");
@@ -999,14 +907,10 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       const report = buildReport(result, ruleDefinitions);
       const text = formatReport(report);
 
-      const m8 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "M8");
+      const m8 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "M8");
       expect(m8).toBeDefined();
       // Should mention event names and descriptions
-      expect(m8?.entries.some((e) => e.message.includes("complete"))).toBe(
-        true,
-      );
+      expect(m8?.entries.some((e) => e.message.includes("complete"))).toBe(true);
       expect(m8?.entries.some((e) => e.message.includes("fail"))).toBe(true);
       expect(text).toContain("Event-state semantic consistency");
     });
@@ -1113,9 +1017,7 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
         c.rules.flatMap((r) => r.entries.map((e) => e.path)),
       );
       if (allPaths.length > 0) {
-        const deepPath = allPaths.find(
-          (p) => p.includes("Level1") && p.includes("Level2"),
-        );
+        const deepPath = allPaths.find((p) => p.includes("Level1") && p.includes("Level2"));
         expect(deepPath).toBeDefined();
         // formatted output should contain the nested path
         expect(text).toContain("Level1");
@@ -1139,9 +1041,7 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       const result = validate(ticketFlow);
       const report = buildReport(result, ruleDefinitions);
 
-      const m9 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "M9");
+      const m9 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "M9");
       expect(m9).toBeDefined();
       expect(m9?.severity).toBe("review");
       // Should mention the nested states by name
@@ -1156,9 +1056,7 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       const result = validate(ticketFlow);
       const report = buildReport(result, ruleDefinitions);
 
-      const m8 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "M8");
+      const m8 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "M8");
       expect(m8).toBeDefined();
       // M8 reports each event alongside state descriptions
       const messages = m8?.entries.map((e) => e.message);
@@ -1176,13 +1074,9 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
         c.rules.flatMap((r) => r.entries.map((e) => e.path)),
       );
       // Diagnose is at TicketFlow > Handle > Diagnose
-      expect(
-        allPaths.some((p) => p.includes("Handle") && p.includes("Diagnose")),
-      ).toBe(true);
+      expect(allPaths.some((p) => p.includes("Handle") && p.includes("Diagnose"))).toBe(true);
       // Escalate is at TicketFlow > Handle > Escalate
-      expect(
-        allPaths.some((p) => p.includes("Handle") && p.includes("Escalate")),
-      ).toBe(true);
+      expect(allPaths.some((p) => p.includes("Handle") && p.includes("Escalate"))).toBe(true);
     });
 
     it("should produce well-structured formatted output", () => {
@@ -1214,41 +1108,25 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       const _text = formatReport(report);
 
       // M8 entries should include the event description text
-      const m8 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "M8");
+      const m8 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "M8");
       expect(m8).toBeDefined();
       const messages = m8?.entries.map((e) => e.message);
       // Event descriptions from the config
-      expect(
-        messages.some((m) =>
-          m.includes("When the issue has been fully resolved"),
-        ),
-      ).toBe(true);
-      expect(
-        messages.some((m) =>
-          m.includes("When closing procedures are complete"),
-        ),
-      ).toBe(true);
+      expect(messages.some((m) => m.includes("When the issue has been fully resolved"))).toBe(true);
+      expect(messages.some((m) => m.includes("When closing procedures are complete"))).toBe(true);
     });
 
     it("should include parent descriptions in M9 review messages", () => {
       const result = validate(ticketFlow);
       const report = buildReport(result, ruleDefinitions);
 
-      const m9 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "M9");
+      const m9 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "M9");
       expect(m9).toBeDefined();
       const messages = m9?.entries.map((e) => e.message);
       // M9 should reference parent descriptions/outcomes
-      expect(messages.some((m) => m.includes("Support ticket lifecycle"))).toBe(
-        true,
-      );
+      expect(messages.some((m) => m.includes("Support ticket lifecycle"))).toBe(true);
       // Handle state description
-      expect(
-        messages.some((m) => m.includes("Handle the support ticket")),
-      ).toBe(true);
+      expect(messages.some((m) => m.includes("Handle the support ticket"))).toBe(true);
     });
 
     it("should correctly count review issues in summary", () => {
@@ -1277,13 +1155,9 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       expect(report.valid).toBe(false);
       expect(text).toContain("Validation: FAIL");
       // S2: dangling reference
-      const s2 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "S2");
+      const s2 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "S2");
       expect(s2).toBeDefined();
-      expect(s2?.entries.some((e) => e.message.includes("NonExistent"))).toBe(
-        true,
-      );
+      expect(s2?.entries.some((e) => e.message.includes("NonExistent"))).toBe(true);
       expect(text).toContain("NonExistent");
     });
 
@@ -1341,25 +1215,17 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       console.log(text);
 
       // S4: Escalate unreachable (no transition leads to it)
-      const s4 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "S4");
+      const s4 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "S4");
       expect(s4).toBeDefined();
-      expect(s4?.entries.some((e) => e.message.includes("Escalate"))).toBe(
-        true,
-      );
+      expect(s4?.entries.some((e) => e.message.includes("Escalate"))).toBe(true);
 
       // Path should include Handle
       expect(s4?.entries.some((e) => e.path.includes("Handle"))).toBe(true);
 
       // M1: notResolved event declared but no transition handles it
-      const m1 = report.categories
-        .flatMap((c) => c.rules)
-        .find((r) => r.rule === "M1");
+      const m1 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "M1");
       expect(m1).toBeDefined();
-      expect(m1?.entries.some((e) => e.message.includes("notResolved"))).toBe(
-        true,
-      );
+      expect(m1?.entries.some((e) => e.message.includes("notResolved"))).toBe(true);
 
       // Formatted output should contain all this
       expect(text).toContain("Escalate");

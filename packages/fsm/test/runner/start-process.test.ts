@@ -60,26 +60,21 @@ describe("startProcess — StageHandler return values", () => {
     };
     try {
       const ctx: Record<string, unknown> = {};
-      await startProcess(
-        ctx,
-        { key: "App", transitions: [["", "", "Run"]] },
-        (key) =>
-          key === "Run"
-            ? [
-                async function* () {
-                  yield "noop"; // harmless (no matching transition), then fail mid-iteration
-                  throw new Error("BOOM");
-                },
-              ]
-            : [],
+      await startProcess(ctx, { key: "App", transitions: [["", "", "Run"]] }, (key) =>
+        key === "Run"
+          ? [
+              async function* () {
+                yield "noop"; // harmless (no matching transition), then fail mid-iteration
+                throw new Error("BOOM");
+              },
+            ]
+          : [],
       );
       await new Promise((resolve) => setTimeout(resolve, 20));
     } finally {
       console.error = origError;
     }
-    expect(errors.some((e) => e instanceof Error && e.message === "BOOM")).toBe(
-      true,
-    );
+    expect(errors.some((e) => e instanceof Error && e.message === "BOOM")).toBe(true);
   });
 });
 

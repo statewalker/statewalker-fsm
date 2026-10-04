@@ -35,8 +35,7 @@ export function forwardEventCoverage(ctx: RuleContext): ValidationIssue[] {
 
   const handles = (scope: FsmStateConfig, event: string) =>
     (scope.transitions ?? []).some(
-      ([from, evt]) =>
-        (from === config.key || from === "*") && (evt === event || evt === "*"),
+      ([from, evt]) => (from === config.key || from === "*") && (evt === event || evt === "*"),
     );
 
   const issues: ValidationIssue[] = [];
@@ -58,9 +57,7 @@ export function forwardEventCoverage(ctx: RuleContext): ValidationIssue[] {
   // handles nothing is already fully reported by the loop above.
   if (scopes.length > 1) {
     for (const scope of scopes) {
-      const handlesAny = Object.keys(events).some((e) =>
-        handles(scope.config, e),
-      );
+      const handlesAny = Object.keys(events).some((e) => handles(scope.config, e));
       if (!handlesAny) {
         issues.push({
           rule: "M1",
@@ -113,9 +110,7 @@ export function reverseEventCoverage(ctx: RuleContext): ValidationIssue[] {
   return issues;
 }
 
-export function hierarchicalEventDeclaration(
-  ctx: RuleContext,
-): ValidationIssue[] {
+export function hierarchicalEventDeclaration(ctx: RuleContext): ValidationIssue[] {
   const { config, path, parent } = ctx;
   if (!parent || !config.events) return [];
 
@@ -132,9 +127,7 @@ export function hierarchicalEventDeclaration(
       if (to === "" && event !== "*") {
         // This event exits to parent scope — check if parent handles it
         const handled = parentTransitions.some(
-          ([from, evt]) =>
-            (from === config.key || from === "*") &&
-            (evt === event || evt === "*"),
+          ([from, evt]) => (from === config.key || from === "*") && (evt === event || evt === "*"),
         );
         if (!handled) {
           issues.push({
@@ -273,12 +266,7 @@ export function cycleBreakRequirement(ctx: RuleContext): ValidationIssue[] {
   // Also check if there is a transition from a cycle node to a non-cycle node
   if (!hasExit) {
     for (const [from, , to] of transitions) {
-      if (
-        cycleNodes.has(from) &&
-        to !== "" &&
-        to !== "*" &&
-        !cycleNodes.has(to)
-      ) {
+      if (cycleNodes.has(from) && to !== "" && to !== "*" && !cycleNodes.has(to)) {
         hasExit = true;
         break;
       }
@@ -297,9 +285,7 @@ export function cycleBreakRequirement(ctx: RuleContext): ValidationIssue[] {
   return issues;
 }
 
-export function decisionPointExhaustiveness(
-  ctx: RuleContext,
-): ValidationIssue[] {
+export function decisionPointExhaustiveness(ctx: RuleContext): ValidationIssue[] {
   const { config, path } = ctx;
   const transitions = config.transitions;
   if (!transitions || transitions.length === 0) return [];
@@ -396,9 +382,7 @@ export function manageableComplexity(ctx: RuleContext): ValidationIssue[] {
 // review. The validator cannot judge semantic consistency, but flags the
 // relationships that need checking.
 
-export function eventStateSemanticConsistency(
-  ctx: RuleContext,
-): ValidationIssue[] {
+export function eventStateSemanticConsistency(ctx: RuleContext): ValidationIssue[] {
   const { config, path } = ctx;
   const events = config.events;
   if (!events) return [];

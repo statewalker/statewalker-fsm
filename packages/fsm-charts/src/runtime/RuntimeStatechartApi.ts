@@ -22,7 +22,7 @@ export class RuntimeStatechartApi {
   }
 
   close() {
-    Object.values(this._registry).forEach((r) => r?.());
+    for (const r of Object.values(this._registry)) r?.();
     this._registry = {};
     this._transitionsClickListeners = {};
     this._statesClickListeners = {};
@@ -73,9 +73,7 @@ export class RuntimeStatechartApi {
     for (let i = 0; i < stateIds.length; i++) {
       const stateId = stateIds[i];
       for (const tagName of ["details", "g"]) {
-        const elm = this.element.querySelector(
-          `${tagName}[data-state-id="${stateId}"]`,
-        );
+        const elm = this.element.querySelector(`${tagName}[data-state-id="${stateId}"]`);
         elm?.scrollIntoView();
       }
     }
@@ -153,10 +151,7 @@ export class RuntimeStatechartApi {
       dataField: string,
       eventType: string,
     ) => {
-      function newEventListener(
-        index: Record<string, RuntimeListener>,
-        elm: Element,
-      ) {
+      function newEventListener(index: Record<string, RuntimeListener>, elm: Element) {
         return (ev: Event) => {
           ev.preventDefault();
           ev.stopPropagation();
@@ -174,17 +169,11 @@ export class RuntimeStatechartApi {
       [...this.element.querySelectorAll(`[${dataField}]`)].forEach((elm) => {
         const eventListener = newEventListener(index, elm);
         elm.addEventListener(eventType, eventListener);
-        this._addListener(this._registry, () =>
-          elm.removeEventListener(eventType, eventListener),
-        );
+        this._addListener(this._registry, () => elm.removeEventListener(eventType, eventListener));
       });
     };
     bindListeners(this._statesClickListeners, "data-state-id", "click");
-    bindListeners(
-      this._transitionsClickListeners,
-      "data-transition-id",
-      "click",
-    );
+    bindListeners(this._transitionsClickListeners, "data-transition-id", "click");
   }
 
   _setStatePanelStatus(selector: string, open: boolean) {
@@ -195,14 +184,10 @@ export class RuntimeStatechartApi {
   }
 
   _addStateModifier(cssSelector: string, modifier: string = "selected") {
-    this._applyStateModifier(cssSelector, modifier, (elm, cls) =>
-      elm?.classList.add(cls),
-    );
+    this._applyStateModifier(cssSelector, modifier, (elm, cls) => elm?.classList.add(cls));
   }
   _removeStateModifier(cssSelector: string, modifier: string = "selected") {
-    this._applyStateModifier(cssSelector, modifier, (elm, cls) =>
-      elm?.classList.remove(cls),
-    );
+    this._applyStateModifier(cssSelector, modifier, (elm, cls) => elm?.classList.remove(cls));
   }
   _applyStateModifier(
     cssSelector: string,
@@ -224,17 +209,10 @@ export class RuntimeStatechartApi {
   }
 
   _addTransitionsModifier(cssSelector: string, modifier: string = "selected") {
-    this._applyTransitionsModifier(cssSelector, modifier, (elm, cls) =>
-      elm?.classList.add(cls),
-    );
+    this._applyTransitionsModifier(cssSelector, modifier, (elm, cls) => elm?.classList.add(cls));
   }
-  _removeTransitionsModifier(
-    cssSelector: string,
-    modifier: string = "selected",
-  ) {
-    this._applyTransitionsModifier(cssSelector, modifier, (elm, cls) =>
-      elm?.classList.remove(cls),
-    );
+  _removeTransitionsModifier(cssSelector: string, modifier: string = "selected") {
+    this._applyTransitionsModifier(cssSelector, modifier, (elm, cls) => elm?.classList.remove(cls));
   }
   _applyTransitionsModifier(
     cssSelector: string,

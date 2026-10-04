@@ -181,10 +181,7 @@ describe("Semantic rules", () => {
           ["", "*", "A"],
           ["A", "go", "B"],
         ],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "B" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "B" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["M2"] });
       expect(result.warnings).toHaveLength(0);
@@ -237,10 +234,7 @@ describe("Semantic rules", () => {
           ["A", "ok", "B"],
           ["A", "error", "B"],
         ],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "B" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "B" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["M4"] });
       expect(result.review).toHaveLength(1);
@@ -300,10 +294,7 @@ describe("Semantic rules", () => {
           ["A", "go", "B"],
           ["B", "go", "A"],
         ],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "B" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "B" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["M5"] });
       expect(result.warnings.filter((w) => w.rule === "M5")).toHaveLength(0);
@@ -317,10 +308,7 @@ describe("Semantic rules", () => {
           ["A", "go", "B"],
           ["B", "go", "A"],
         ],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "B" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "B" } as FsmStateConfig],
       };
       const result = validate(wrapInParent(child), { rules: ["M5"] });
       const m5 = result.warnings.filter((w) => w.rule === "M5");
@@ -337,10 +325,7 @@ describe("Semantic rules", () => {
           ["B", "go", "A"],
           ["B", "done", ""],
         ],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "B" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "B" } as FsmStateConfig],
       };
       const result = validate(wrapInParent(child), { rules: ["M5"] });
       expect(result.warnings.filter((w) => w.rule === "M5")).toHaveLength(0);
@@ -502,10 +487,7 @@ describe("Semantic rules", () => {
           ["", "*", "A"],
           ["A", "go", "B"],
         ],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "B" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "B" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["M6"] });
       expect(result.warnings).toHaveLength(0);

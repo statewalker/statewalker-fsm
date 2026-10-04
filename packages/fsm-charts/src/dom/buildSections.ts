@@ -38,10 +38,7 @@ export function buildSections(root: HTMLElement | Iterable<Node>): DomSection {
     if (isDomElement(node)) {
       if (/^H[1-6]$/i.test(node.tagName)) {
         const headerLevel = +node.tagName.replace(/^H/, "");
-        while (
-          headerLevels.length > 0 &&
-          headerLevels[headerLevels.length - 1] >= headerLevel
-        ) {
+        while (headerLevels.length > 0 && headerLevels[headerLevels.length - 1] >= headerLevel) {
           headerLevels.pop();
         }
         headerLevels.push(headerLevel);
@@ -76,10 +73,7 @@ export function* vistSections(
   }
 }
 
-export function findSection(
-  section: DomSection,
-  accept: (section: DomSection) => boolean,
-) {
+export function findSection(section: DomSection, accept: (section: DomSection) => boolean) {
   for (const s of vistSections(section)) {
     if (accept(s) === true) return s;
   }
@@ -93,9 +87,7 @@ export function isDomElement(node: Node): node is HTMLElement {
   return node.nodeType === Node.ELEMENT_NODE;
 }
 
-export function* toDomNodesIterator(
-  root: Node | Iterable<Node>,
-): Iterable<Node> {
+export function* toDomNodesIterator(root: Node | Iterable<Node>): Iterable<Node> {
   yield* root instanceof Node ? visitDom(root) : root;
 }
 

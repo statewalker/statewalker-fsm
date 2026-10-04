@@ -21,14 +21,7 @@ describe("BasisCurve", () => {
     const result: (string | number)[][] = [];
     const round = (...n: number[]) => n.map(Math.round);
     const base = new BasisCurve({
-      bezierCurveTo(
-        x0: number,
-        y0: number,
-        x1: number,
-        y1: number,
-        x2: number,
-        y2: number,
-      ) {
+      bezierCurveTo(x0: number, y0: number, x1: number, y1: number, x2: number, y2: number) {
         result.push(["C", ...round(x0, y0, x1, y1, x2, y2)]);
       },
       moveTo(x: number, y: number) {

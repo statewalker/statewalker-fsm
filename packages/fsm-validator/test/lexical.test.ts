@@ -108,9 +108,7 @@ describe("Lexical rules", () => {
     it("should report error for 4-element array", () => {
       const config: FsmStateConfig = {
         key: "Root",
-        transitions: [
-          ["A", "evt", "B", "extra"] as unknown as [string, string, string],
-        ],
+        transitions: [["A", "evt", "B", "extra"] as unknown as [string, string, string]],
       };
       const result = validate(config, { rules: ["L3"] });
       expect(result.valid).toBe(false);
@@ -332,10 +330,7 @@ describe("Lexical rules", () => {
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [["", "*", "A"]],
-        states: [
-          { key: "A" } as FsmStateConfig,
-          { key: "A" } as FsmStateConfig,
-        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "A" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["L7"] });
       expect(result.valid).toBe(false);

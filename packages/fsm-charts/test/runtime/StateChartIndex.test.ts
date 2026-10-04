@@ -65,12 +65,7 @@ describe("StateChartIndex", () => {
   });
 
   it("should return a list of all transitions for a specific state id", async () => {
-    const stateIds = api.getStatesIds(
-      "App",
-      "OpenFileSystem",
-      "ChooseFolder",
-      "A",
-    );
+    const stateIds = api.getStatesIds("App", "OpenFileSystem", "ChooseFolder", "A");
     const stateId = stateIds.pop() as string;
     const transitions = api.getTransitions(stateId);
     expect(transitions !== undefined).toBe(true);

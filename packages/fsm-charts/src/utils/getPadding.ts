@@ -7,7 +7,6 @@ import type { Padding } from "../types/Padding.js";
  */
 export function getPadding(padding: Padding): [number, number, number, number] {
   if (typeof padding === "number") return [padding, padding, padding, padding];
-  if (padding.length === 2)
-    return [padding[0], padding[1], padding[0], padding[1]];
+  if (padding.length === 2) return [padding[0], padding[1], padding[0], padding[1]];
   return padding;
 }

@@ -1,8 +1,4 @@
-import {
-  FsmProcess,
-  type FsmStateConfig,
-  setProcessPrinter,
-} from "@statewalker/fsm";
+import { FsmProcess, type FsmStateConfig, setProcessPrinter } from "@statewalker/fsm";
 import { prepareStateDescriptions, renderStateCharts } from "../index.js";
 
 export * from "@statewalker/fsm";

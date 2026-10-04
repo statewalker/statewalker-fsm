@@ -52,17 +52,12 @@ describe("startFsmProcess", () => {
             stack.pop();
           };
         };
-        return state === "Selection"
-          ? [eventsTrigger, trackState]
-          : [trackState];
+        return state === "Selection" ? [eventsTrigger, trackState] : [trackState];
       },
       "start", // initial event
     );
     expect(stack).toEqual(["Selection", "Wait"]);
-    expect(traces).toEqual([
-      '<Selection event="start">',
-      '  <Wait event="start">',
-    ]);
+    expect(traces).toEqual(['<Selection event="start">', '  <Wait event="start">']);
     await dispatch("select");
     expect(stack).toEqual(["Selection", "Selected", "Wait"]);
     expect(traces).toEqual([

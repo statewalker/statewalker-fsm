@@ -17,9 +17,7 @@ export function buildStatechartsPanel({
   render(statechart, println);
 
   function render(statechart: StateChart, println: (str: string) => void) {
-    println(
-      `  <details class="state-details" data-state-id="${statechart.id}">`,
-    );
+    println(`  <details class="state-details" data-state-id="${statechart.id}">`);
     println(
       `    <summary class="state-details__label">${statechart.text ?? statechart.state}</summary>`,
     );

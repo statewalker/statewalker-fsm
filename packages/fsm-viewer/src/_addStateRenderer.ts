@@ -2,10 +2,7 @@ import type { FsmProcess, FsmState } from "@statewalker/fsm";
 
 export function _addStateRenderer(
   process: FsmProcess,
-  renderer: (
-    stack: string[],
-    event?: string,
-  ) => void | (() => void) | Promise<void | (() => void)>,
+  renderer: (stack: string[], event?: string) => void | (() => void) | Promise<void | (() => void)>,
 ) {
   async function callHandlerOnState(state?: FsmState) {
     if (!state) return;
@@ -14,7 +11,7 @@ export function _addStateRenderer(
       stack.unshift(s.key);
     }
     const event = state.process.event;
-    let cleanup = await renderer(stack, event);
+    const cleanup = await renderer(stack, event);
     state.onExit(async () => cleanup?.());
   }
   callHandlerOnState(process.state);

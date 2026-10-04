@@ -5,11 +5,7 @@ export interface CssTree extends Record<string, string | number | CssTree> {}
 export function serializeCss(obj: CssTree) {
   return visitStyle(obj).join("\n");
 
-  function visitStyle(
-    obj: CssTree,
-    lines: string[] = [],
-    prefixes: string[] = [""],
-  ) {
+  function visitStyle(obj: CssTree, lines: string[] = [], prefixes: string[] = [""]) {
     for (const [key, style] of Object.entries(obj)) {
       const selectors = [];
       for (const sel of key.split(",").map((_) => _.trim())) {

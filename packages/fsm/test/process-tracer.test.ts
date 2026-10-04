@@ -9,8 +9,7 @@ describe("newProcessLogger", () => {
     const lines: unknown[][] = [];
     return [
       (...args: unknown[]) => lines.push(args),
-      (...control: string[]) =>
-        expect(lines.map((items) => items.join(""))).toEqual(control),
+      (...control: string[]) => expect(lines.map((items) => items.join(""))).toEqual(control),
     ] as const;
   }
 

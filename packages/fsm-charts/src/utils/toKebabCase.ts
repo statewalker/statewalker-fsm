@@ -2,10 +2,7 @@ export function toKebabCase(str?: string): string {
   // Remove spaces:
   str = (str || "").trim().replace(/\s+/gim, "-");
   // Transform to kebab:
-  str = str.replace(
-    /([^A-Z]?)([A-Z])/g,
-    (_, a, b) => `${a.toLowerCase()}-${b.toLowerCase()}`,
-  );
+  str = str.replace(/([^A-Z]?)([A-Z])/g, (_, a, b) => `${a.toLowerCase()}-${b.toLowerCase()}`);
   return str;
 
   // return (
