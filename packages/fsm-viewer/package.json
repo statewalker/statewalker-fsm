@@ -1,6 +1,6 @@
 {
   "name": "@statewalker/fsm-viewer",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Interactive statechart viewer for @statewalker/fsm processes",
   "keywords": [],
   "homepage": "https://github.com/statewalker/statewalker-fsm-viewer",
@@ -35,8 +35,8 @@
     "eslint": "catalog:",
     "jsdom": "catalog:",
     "lodash-es": "catalog:",
-    "tsup": "catalog:",
-    "typescript": "^6.0.3",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
     "vitest": "catalog:"
   },
   "repository": {
@@ -44,9 +44,9 @@
     "url": "git@github.com:statewalker/statewalker-fsm-viewer.git"
   },
   "scripts": {
-    "build": "rm -fr ./dist && tsup",
+    "build": "rm -fr ./dist && tsdown",
     "dev": "observable preview",
-    "watch": "tsup --watch",
+    "watch": "tsdown --watch",
     "clean": "rm -rf dist",
     "lint": "eslint",
     "lint:fix": "pnpm lint --fix",
@@ -59,7 +59,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@statewalker/fsm": "workspace:*",
-    "@statewalker/fsm-charts": "workspace:*"
+    "@statewalker/fsm": "workspace:^",
+    "@statewalker/fsm-charts": "workspace:^"
   }
 }

@@ -35,8 +35,8 @@
     "jsdom": "catalog:",
     "lodash": "catalog:",
     "lodash-es": "catalog:",
-    "tsup": "catalog:",
-    "typescript": "^5.9.3",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
     "vitest": "catalog:"
   },
   "repository": {
@@ -44,9 +44,8 @@
     "url": "git@github.com:statewalker/statewalker-fsm-charts.git"
   },
   "scripts": {
-    "build": "rm -fr ./dist && pnpm test && tsup",
-    "watch": "tsup --watch",
-    "watch-for-viewer": "tsup --watch --outDir=../statewalker-fsm-viewer/src/.observablehq/cache/_node/@statewalker/fsm-charts@0.2.1",
+    "build": "rm -fr ./dist && pnpm test && tsdown",
+    "watch": "tsdown --watch",
     "clean": "rm -rf dist",
     "lint": "eslint",
     "lint:fix": "pnpm lint --fix",
