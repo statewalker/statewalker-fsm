@@ -1,8 +1,4 @@
-import {
-  type FsmStateConfig,
-  FsmStateDescriptor,
-  STATE_FINAL,
-} from "../src/index.ts";
+import { type FsmStateConfig, FsmStateDescriptor, STATE_FINAL } from "../src/index.ts";
 import { describe, expect, it } from "./deps.ts";
 
 describe("FsmStateDescriptor", () => {

@@ -92,14 +92,12 @@ export function buildFlatCharts({
       n.y += -n.height / 2;
       return n;
     });
-    const edges = graph
-      .edges()
-      .map(({ v, w, name }: { v: string; w: string; name: string }) => {
-        const e = graph.edge(v, w, name) as StateGraphEdge;
-        e.x += -e.width / 2;
-        e.y += -e.height / 2;
-        return e;
-      });
+    const edges = graph.edges().map(({ v, w, name }: { v: string; w: string; name: string }) => {
+      const e = graph.edge(v, w, name) as StateGraphEdge;
+      e.x += -e.width / 2;
+      e.y += -e.height / 2;
+      return e;
+    });
 
     // Get the bounding box of the graph
     let x = 0;

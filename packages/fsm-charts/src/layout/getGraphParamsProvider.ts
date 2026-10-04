@@ -18,8 +18,7 @@ export function getGraphParamsProvider({
   transitionsFontSize = fontSize,
   transitionsTextPadding = 0,
   getStateLabel = (state: string) => state,
-  getTransitionLabel = (_fromState: string, event: string, _toState: string) =>
-    event,
+  getTransitionLabel = (_fromState: string, event: string, _toState: string) => event,
 }: {
   fontSize?: number;
   stateFontSize?: number;
@@ -27,11 +26,7 @@ export function getGraphParamsProvider({
   transitionsFontSize?: number;
   transitionsTextPadding?: Padding;
   getStateLabel?: (state: string) => string;
-  getTransitionLabel?: (
-    fromState: string,
-    event: string,
-    toState: string,
-  ) => string;
+  getTransitionLabel?: (fromState: string, event: string, toState: string) => string;
 } = {}): GraphParamsProvider {
   return {
     getStateParams: (stateKey: string, state: string = stateKey) => {
@@ -50,11 +45,7 @@ export function getGraphParamsProvider({
         fontSize,
       };
     },
-    getTransitionParams: (
-      fromStateKey: string,
-      event: string,
-      toStateKey: string,
-    ) => {
+    getTransitionParams: (fromStateKey: string, event: string, toStateKey: string) => {
       const padding = getPadding(transitionsTextPadding);
       const fontSize = transitionsFontSize;
       const eventLabel = getTransitionLabel(fromStateKey, event, toStateKey);

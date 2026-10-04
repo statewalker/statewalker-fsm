@@ -1,14 +1,5 @@
-import type {
-  RuleContext,
-  RuleFunction,
-  RuleId,
-  ValidationIssue,
-} from "../types.ts";
-import {
-  isPseudoKey,
-  referencingScopes,
-  resolveDefinition,
-} from "./resolution.ts";
+import type { RuleContext, RuleFunction, RuleId, ValidationIssue } from "../types.ts";
+import { isPseudoKey, referencingScopes, resolveDefinition } from "./resolution.ts";
 
 export function initialTransitionRequired(ctx: RuleContext): ValidationIssue[] {
   const { config, path } = ctx;
@@ -32,10 +23,7 @@ export function initialTransitionRequired(ctx: RuleContext): ValidationIssue[] {
   // nowhere.
   const hasInitial = transitions.some(
     ([from, , to]) =>
-      from === "" &&
-      to !== "" &&
-      to !== "*" &&
-      !!resolveDefinition(to, config, ctx.ancestors),
+      from === "" && to !== "" && to !== "*" && !!resolveDefinition(to, config, ctx.ancestors),
   );
 
   if (!hasInitial) {
@@ -106,9 +94,7 @@ export function deliberateShadowing(ctx: RuleContext): ValidationIssue[] {
 
   const issues: ValidationIssue[] = [];
   for (const child of config.states) {
-    const shadowed = ancestors.find((a) =>
-      a.states?.some((s) => s.key === child.key),
-    );
+    const shadowed = ancestors.find((a) => a.states?.some((s) => s.key === child.key));
     if (shadowed) {
       issues.push({
         rule: "S9",
@@ -136,24 +122,19 @@ export function deliberateShadowing(ctx: RuleContext): ValidationIssue[] {
  * sub-machine, not sibling routing. Left alone, this rule would forbid the only
  * way the engine offers to share a sub-machine.
  */
-export function siblingTransitionsAtParent(
-  ctx: RuleContext,
-): ValidationIssue[] {
+export function siblingTransitionsAtParent(ctx: RuleContext): ValidationIssue[] {
   const { config, path, parent } = ctx;
   if (!parent || !parent.states) return [];
   if (!config.transitions || config.transitions.length === 0) return [];
 
   const ownKeys = new Set((config.states ?? []).map((s) => s.key));
   const instantiatesSharedDefinition = config.transitions.some(
-    ([from, , to]) =>
-      from === "" && to !== "" && to !== "*" && !ownKeys.has(to),
+    ([from, , to]) => from === "" && to !== "" && to !== "*" && !ownKeys.has(to),
   );
   if (instantiatesSharedDefinition) return [];
 
   // Collect sibling keys from parent's states (excluding this state itself)
-  const siblingKeys = new Set(
-    parent.states.map((s) => s.key).filter((k) => k !== config.key),
-  );
+  const siblingKeys = new Set(parent.states.map((s) => s.key).filter((k) => k !== config.key));
   if (siblingKeys.size === 0) return [];
 
   const issues: ValidationIssue[] = [];
@@ -241,9 +222,7 @@ export function reachabilityFromInitial(ctx: RuleContext): ValidationIssue[] {
     // just computed from them. Only ANOTHER scope resolving the key upward
     // makes the definition a shared one.
     const elsewhere = definition
-      ? referencingScopes(ctx.root, key, definition).filter(
-          (s) => s.config !== config,
-        )
+      ? referencingScopes(ctx.root, key, definition).filter((s) => s.config !== config)
       : [];
     if (elsewhere.length > 0) continue;
     issues.push({
@@ -319,8 +298,7 @@ export function exitEventPropagation(ctx: RuleContext): ValidationIssue[] {
     for (const exitEvent of exitEvents) {
       const handled = config.transitions.some(
         ([from, event]) =>
-          (from === child.key || from === "*") &&
-          (event === exitEvent || event === "*"),
+          (from === child.key || from === "*") && (event === exitEvent || event === "*"),
       );
       if (!handled) {
         issues.push({

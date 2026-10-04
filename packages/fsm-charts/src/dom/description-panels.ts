@@ -4,9 +4,7 @@ import { getStatesDescriptions } from "./getStatesDescriptions.js";
 export function getStateDescriptionRenderer(options: {
   element: HTMLElement;
   rootStateKey: string;
-  splitHeader?: (
-    header?: HTMLElement,
-  ) => [stateKey: undefined | string, label: string];
+  splitHeader?: (header?: HTMLElement) => [stateKey: undefined | string, label: string];
 }) {
   const descriptionsIndex = getStatesDescriptions(options);
 
@@ -28,7 +26,7 @@ export function getStateDescriptionRenderer(options: {
       },
     });
     const details = elm?.querySelector("details");
-    details && (details.open = true);
+    if (details) details.open = true;
     return elm;
   };
 }

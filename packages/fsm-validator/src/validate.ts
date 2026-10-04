@@ -9,10 +9,7 @@ import type {
   ValidationResult,
 } from "./types.ts";
 
-export function validate(
-  config: FsmStateConfig,
-  options?: ValidationOptions,
-): ValidationResult {
+export function validate(config: FsmStateConfig, options?: ValidationOptions): ValidationResult {
   const activeRules = resolveActiveRules(options);
   const issues: ValidationIssue[] = [];
 
@@ -30,9 +27,7 @@ export function validate(
   };
 }
 
-function resolveActiveRules(
-  options?: ValidationOptions,
-): Map<RuleId, RuleFunction> {
+function resolveActiveRules(options?: ValidationOptions): Map<RuleId, RuleFunction> {
   if (!options?.rules && !options?.exclude) return allRules;
   let entries = [...allRules.entries()];
   if (options.rules) {
@@ -66,14 +61,7 @@ function walkConfig(
   }
   if (config.states) {
     for (const child of config.states) {
-      walkConfig(
-        child,
-        [...path, config.key],
-        root,
-        [config, ...ancestors],
-        rules,
-        issues,
-      );
+      walkConfig(child, [...path, config.key], root, [config, ...ancestors], rules, issues);
     }
   }
 }

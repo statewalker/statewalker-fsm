@@ -30,11 +30,7 @@ export const selectedTransitionsStyle = {
   labelColor: "navy",
 };
 
-export function buildStateDetailsStyle({
-  root = ":root",
-}: {
-  root?: string;
-}): CssTree {
+export function buildStateDetailsStyle({ root = ":root" }: { root?: string }): CssTree {
   return {
     [root]: {
       // --------------------------
@@ -42,8 +38,7 @@ export function buildStateDetailsStyle({
 
       ".state-details": {
         backgroundColor: "var(--state-background-color, white)",
-        border:
-          "var(--state-border-width, 1px) solid var(--state-border-color, currentColor)",
+        border: "var(--state-border-width, 1px) solid var(--state-border-color, currentColor)",
         borderRadius: "0.5em",
         padding: "0.5em",
       },
@@ -109,8 +104,7 @@ export function buildStatechartStylesWithModifier({
     [root]: {
       // --------------------------------------
       // Default values for transitions
-      [`--transition-${modifier}-background-color`]:
-        transitions.backgroundColor,
+      [`--transition-${modifier}-background-color`]: transitions.backgroundColor,
       [`--transition-${modifier}-border-color`]: transitions.borderColor,
       [`--transition-${modifier}-border-width`]: transitions.borderWidth,
       [`--transition-${modifier}-line-color`]: transitions.lineColor,
@@ -147,11 +141,7 @@ export function buildStatechartStylesWithModifier({
   };
 }
 
-export function buildStatechartStyles({
-  root = ":root",
-}: {
-  root?: string;
-}): CssTree {
+export function buildStatechartStyles({ root = ":root" }: { root?: string }): CssTree {
   return {
     [root]: {
       // --------------------------------------

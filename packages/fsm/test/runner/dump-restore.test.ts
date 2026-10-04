@@ -1,9 +1,5 @@
 import type { FsmStateConfig } from "../../src/core/fsm-state-config.ts";
-import {
-  KEY_EVENT,
-  KEY_STATES,
-  startProcess,
-} from "../../src/start-process.ts";
+import { KEY_EVENT, KEY_STATES, startProcess } from "../../src/start-process.ts";
 import { describe, expect, it } from "../deps.ts";
 
 const config: FsmStateConfig = {

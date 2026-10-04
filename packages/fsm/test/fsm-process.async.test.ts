@@ -1,8 +1,4 @@
-import {
-  FsmProcess,
-  type FsmStateConfig,
-  STATUS_FINISHED,
-} from "../src/index.ts";
+import { FsmProcess, type FsmStateConfig, STATUS_FINISHED } from "../src/index.ts";
 import { describe, expect, it } from "./deps.ts";
 
 function delay(ms = 0): Promise<void> {
@@ -66,13 +62,7 @@ describe("FsmProcess: async handlers", () => {
     await p.dispatch("");
     await p.dispatch("next");
     // A's async exit should complete before B's enter
-    expect(timeline).toEqual([
-      "enter:Root",
-      "enter:A",
-      "exit-start:A",
-      "exit-end:A",
-      "enter:B",
-    ]);
+    expect(timeline).toEqual(["enter:Root", "enter:A", "exit-start:A", "exit-end:A", "enter:B"]);
   });
 
   it("multiple async handlers on same state run sequentially", async () => {
@@ -155,14 +145,7 @@ describe("FsmProcess: async handlers", () => {
     expect(log).toEqual(["+App", "+Idle", "-Idle", "+Working"]);
 
     await p.dispatch("done");
-    expect(log).toEqual([
-      "+App",
-      "+Idle",
-      "-Idle",
-      "+Working",
-      "-Working",
-      "+Idle",
-    ]);
+    expect(log).toEqual(["+App", "+Idle", "-Idle", "+Working", "-Working", "+Idle"]);
 
     await p.dispatch("quit");
     expect(log).toEqual([

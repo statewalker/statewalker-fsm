@@ -52,8 +52,7 @@ export const ruleDefinitions: RuleDefinition[] = [
     ruleId: "L6",
     rule: "Event keys are camelCase",
     severity: "warning",
-    constraint:
-      "Every key in the `events` record matches /^[a-z][a-zA-Z0-9]*$/",
+    constraint: "Every key in the `events` record matches /^[a-z][a-zA-Z0-9]*$/",
   },
   {
     category: "lexical",
@@ -171,8 +170,7 @@ export const ruleDefinitions: RuleDefinition[] = [
     ruleId: "M5",
     rule: "Cycle break requirement",
     severity: "warning",
-    constraint:
-      "Every cycle in the transition graph MUST have at least one exit event/transition",
+    constraint: "Every cycle in the transition graph MUST have at least one exit event/transition",
   },
   {
     category: "semantic",
@@ -208,22 +206,14 @@ export const ruleDefinitions: RuleDefinition[] = [
   },
 ];
 
-export const lexicalRules = ruleDefinitions.filter(
-  (r) => r.category === "lexical",
-);
-export const structuralRules = ruleDefinitions.filter(
-  (r) => r.category === "structural",
-);
-export const semanticRules = ruleDefinitions.filter(
-  (r) => r.category === "semantic",
-);
+export const lexicalRules = ruleDefinitions.filter((r) => r.category === "lexical");
+export const structuralRules = ruleDefinitions.filter((r) => r.category === "structural");
+export const semanticRules = ruleDefinitions.filter((r) => r.category === "semantic");
 
 export function getRulesByIds(ids: RuleId[]): RuleDefinition[] {
   return ruleDefinitions.filter((r) => ids.includes(r.ruleId));
 }
 
 export function formatRulesAsText(rules: RuleDefinition[]): string {
-  return rules
-    .map((r) => `[${r.ruleId}] ${r.rule} (${r.severity}): ${r.constraint}`)
-    .join("\n");
+  return rules.map((r) => `[${r.ruleId}] ${r.rule} (${r.severity}): ${r.constraint}`).join("\n");
 }

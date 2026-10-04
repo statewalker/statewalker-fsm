@@ -2,13 +2,21 @@
   "name": "@statewalker/fsm-validator",
   "version": "0.2.0",
   "description": "Validation library for Hierarchical Finite State Machine configurations",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/statewalker/statewalker-fsm.git",
+    "directory": "packages/fsm-validator"
+  },
+  "bugs": {
+    "url": "https://github.com/statewalker/statewalker-fsm/issues"
+  },
   "keywords": [
     "fsm",
     "hfsm",
     "validation",
     "state-machine"
   ],
-  "homepage": "https://github.com/statewalker/statewalker-fsm-validator",
+  "homepage": "https://github.com/statewalker/statewalker-fsm/tree/main/packages/fsm-validator#readme",
   "author": {
     "name": "Mikhail Kotelnikov",
     "email": "mikhail.kotelnikov@gmail.com"

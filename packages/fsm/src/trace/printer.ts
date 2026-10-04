@@ -43,10 +43,7 @@ export function preparePrinter(
  * process). Handlers/tracers then reach it via {@link getProcessPrinter} /
  * {@link getPrinter} rather than threading a logger through every call.
  */
-export function setProcessPrinter(
-  process: FsmProcess,
-  config: PrinterConfig = {},
-) {
+export function setProcessPrinter(process: FsmProcess, config: PrinterConfig = {}) {
   const printer = preparePrinter(process, config);
   printerStore.set(process, printer);
 }

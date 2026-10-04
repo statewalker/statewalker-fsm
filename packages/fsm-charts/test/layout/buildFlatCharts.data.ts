@@ -510,8 +510,7 @@ export const tests: {
     },
   },
   {
-    message:
-      "should generate graphs with multiple transitions between the same states",
+    message: "should generate graphs with multiple transitions between the same states",
     transitions: [
       ["", "", "a"],
       ["a", "x", "b"],

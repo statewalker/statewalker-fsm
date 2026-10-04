@@ -1,4 +1,4 @@
-import { describe, it, expect } from "./deps.ts";
+import { describe, expect, it } from "./deps.ts";
 
 describe("Pack", () => {
   it("should ...", () => {

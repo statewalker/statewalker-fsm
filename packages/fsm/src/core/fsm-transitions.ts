@@ -14,18 +14,14 @@ import type { FsmStateDescriptor } from "./fsm-state-descriptor.ts";
  * nearest state's rule for an event wins, so an outer fallback is masked by an inner
  * override. The returned tuples are ordered outer→inner (root first).
  */
-export function getStateTransitions(
-  state?: FsmState,
-): [from: string, event: string, to: string][] {
+export function getStateTransitions(state?: FsmState): [from: string, event: string, to: string][] {
   const result: [from: string, event: string, to: string][] = [];
   const index: Record<string, boolean> = {};
   if (state) {
     let prevStateKey = state.key;
     for (let parent = state.parent; parent; parent = parent.parent) {
       if (!parent.descriptor) continue;
-      result.push(
-        ...getTransitionsFromDescriptor(parent.descriptor, prevStateKey, index),
-      );
+      result.push(...getTransitionsFromDescriptor(parent.descriptor, prevStateKey, index));
       prevStateKey = parent.key;
     }
   }
@@ -61,10 +57,7 @@ function getTransitionsFromDescriptor(
  * consumers use it to enable/disable controls. Returns `true` iff `event` appears
  * among `getStateTransitions(process.state)`.
  */
-export function isStateTransitionEnabled(
-  process: FsmProcess,
-  event: string,
-): boolean {
+export function isStateTransitionEnabled(process: FsmProcess, event: string): boolean {
   const transitions = getStateTransitions(process.state);
   for (const [, ev] of transitions) {
     // A wildcard-event rule (`ev === EVENT_ANY`) matches any concrete event, just

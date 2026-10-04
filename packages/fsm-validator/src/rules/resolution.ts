@@ -56,11 +56,7 @@ export function resolveDefinition(
 /** Every state in the tree, each with its ancestor chain. */
 export function allScopes(root: FsmStateConfig): Scope[] {
   const out: Scope[] = [];
-  const walk = (
-    config: FsmStateConfig,
-    path: string[],
-    ancestors: FsmStateConfig[],
-  ) => {
+  const walk = (config: FsmStateConfig, path: string[], ancestors: FsmStateConfig[]) => {
     out.push({ config, path, ancestors });
     for (const child of config.states ?? []) {
       walk(child, [...path, config.key], [config, ...ancestors]);

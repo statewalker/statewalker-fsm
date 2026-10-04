@@ -1,9 +1,5 @@
 import { bindMethods, FsmBaseClass } from "./fsm-base-class.ts";
-import {
-  FsmState,
-  type FsmStateDump,
-  type FsmStateHandler,
-} from "./fsm-state.ts";
+import { FsmState, type FsmStateDump, type FsmStateHandler } from "./fsm-state.ts";
 import {
   EVENT_EMPTY,
   type FsmStateConfig,
@@ -36,10 +32,7 @@ export const STATUS_ENTER = STATUS_FIRST | STATUS_NEXT;
 export const STATUS_EXIT = STATUS_LEAF | STATUS_LAST;
 
 /** A process-level handler (`onStateCreate` / `onStateError`). */
-export type FsmProcessHandler = (
-  process: FsmProcess,
-  ...args: unknown[]
-) => void | Promise<void>;
+export type FsmProcessHandler = (process: FsmProcess, ...args: unknown[]) => void | Promise<void>;
 
 /** Serialized form of the whole machine: status, last event, and the root→leaf state stack. */
 export type FsmProcessDump = Record<string, unknown> & {
@@ -145,10 +138,7 @@ export class FsmProcess extends FsmBaseClass {
       await state._runHandler("dump", state, stateDump.data, ...args);
       return stateDump;
     };
-    const dumpStates = async (
-      state: FsmState | undefined,
-      stack: FsmStateDump[] = [],
-    ) => {
+    const dumpStates = async (state: FsmState | undefined, stack: FsmStateDump[] = []) => {
       if (!state) return stack;
       state.parent && (await dumpStates(state.parent, stack));
       stack.push(await dumpState(state));
@@ -176,12 +166,7 @@ export class FsmProcess extends FsmBaseClass {
       this.state = this.state
         ? await this._newSubstate(this.state, stateDump.key)
         : await this._newState(undefined, stateDump.key, this.rootDescriptor);
-      await this.state._runHandler(
-        "restore",
-        this.state,
-        stateDump.data,
-        ...args,
-      );
+      await this.state._runHandler("restore", this.state, stateDump.data, ...args);
     }
     return this;
   }
@@ -191,9 +176,7 @@ export class FsmProcess extends FsmBaseClass {
     return this._addHandler("onStateCreate", handler, true);
   }
 
-  onStateError(
-    handler: (state: FsmState, error: unknown) => void | Promise<void>,
-  ) {
+  onStateError(handler: (state: FsmState, error: unknown) => void | Promise<void>) {
     return this._addHandler("onStateError", handler);
   }
 
@@ -212,10 +195,7 @@ export class FsmProcess extends FsmBaseClass {
     return state;
   }
 
-  async _getSubstate(
-    parent: FsmState | undefined,
-    prevStateKey: string | undefined,
-  ) {
+  async _getSubstate(parent: FsmState | undefined, prevStateKey: string | undefined) {
     if (!parent) return;
     const toState =
       parent.descriptor?.getTargetStateKey(
@@ -228,11 +208,7 @@ export class FsmProcess extends FsmBaseClass {
 
   async _newSubstate(parent: FsmState | undefined, toState: string) {
     let descriptor: FsmStateDescriptor | undefined;
-    for (
-      let state: FsmState | undefined = parent;
-      !descriptor && state;
-      state = state.parent
-    ) {
+    for (let state: FsmState | undefined = parent; !descriptor && state; state = state.parent) {
       descriptor = state.descriptor?.states[toState];
     }
     return this._newState(parent, toState, descriptor);

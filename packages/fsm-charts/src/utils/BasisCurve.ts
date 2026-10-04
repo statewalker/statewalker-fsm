@@ -2,14 +2,7 @@
 // copied from d3-shape/src/curve/basis.ts (Mike Bostock, MIT License)
 
 export type DrawContext = {
-  bezierCurveTo(
-    x0: number,
-    y0: number,
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-  ): void;
+  bezierCurveTo(x0: number, y0: number, x1: number, y1: number, x2: number, y2: number): void;
   moveTo(x: number, y: number): void;
   lineTo(x: number, y: number): void;
   closePath(): void;
@@ -52,14 +45,14 @@ export class BasisCurve {
 
   lineEnd() {
     switch (this._point) {
+      // biome-ignore lint/suspicious/noFallthroughSwitchClause: deliberate fall-through, as in the d3-shape basis curve this ports
       case 3:
         this.$point(this._x1, this._y1); // falls through
       case 2:
         this._context.lineTo(this._x1, this._y1);
         break;
     }
-    if (this._line || (this._line !== 0 && this._point === 1))
-      this._context.closePath();
+    if (this._line || (this._line !== 0 && this._point === 1)) this._context.closePath();
     this._line = 1 - this._line;
   }
 
@@ -73,12 +66,10 @@ export class BasisCurve {
       case 1:
         this._point = 2;
         break;
+      // biome-ignore lint/suspicious/noFallthroughSwitchClause: deliberate fall-through, as in the d3-shape basis curve this ports
       case 2:
         this._point = 3;
-        this._context.lineTo(
-          (5 * this._x0 + this._x1) / 6,
-          (5 * this._y0 + this._y1) / 6,
-        ); // falls through
+        this._context.lineTo((5 * this._x0 + this._x1) / 6, (5 * this._y0 + this._y1) / 6); // falls through
       default:
         this.$point(x, y);
         break;

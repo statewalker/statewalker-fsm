@@ -313,9 +313,7 @@ describe("State definition resolution", () => {
       };
       const result = validate(config, { rules: ["M1"] });
       expect(result.warnings.length).toBeGreaterThanOrEqual(1);
-      expect(result.warnings.map((w) => w.message).join(" ")).toContain(
-        "PhaseB",
-      );
+      expect(result.warnings.map((w) => w.message).join(" ")).toContain("PhaseB");
     });
   });
 });

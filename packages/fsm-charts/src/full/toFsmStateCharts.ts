@@ -92,7 +92,7 @@ ${css}
         const stateId = node.id;
         if (i < nodes.length - 1 || selected) {
           const transitions = index.getTransitions(stateId);
-          transitions.forEach((t) => api.selectTransition(t.id));
+          for (const t of transitions) api.selectTransition(t.id);
         }
       }
       // api.focusStates(...nodeIds);

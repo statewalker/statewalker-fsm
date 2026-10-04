@@ -2,8 +2,11 @@
   "name": "@statewalker/fsm",
   "version": "0.38.1",
   "description": "HFSM Implementation",
+  "bugs": {
+    "url": "https://github.com/statewalker/statewalker-fsm/issues"
+  },
   "keywords": [],
-  "homepage": "https://github.com/statewalker/statewalker-fsm",
+  "homepage": "https://github.com/statewalker/statewalker-fsm/tree/main/packages/fsm#readme",
   "author": {
     "name": "Mikhail Kotelnikov",
     "email": "mikhail.kotelnikov@gmail.com"
@@ -34,7 +37,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:statewalker/statewalker-fsm.git"
+    "url": "git+https://github.com/statewalker/statewalker-fsm.git",
+    "directory": "packages/fsm"
   },
   "scripts": {
     "dist": "pnpm test && tsdown",

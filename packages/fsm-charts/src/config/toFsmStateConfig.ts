@@ -22,9 +22,7 @@ export function toFsmStateConfig(json: any): FsmStateConfig | undefined {
     const array = toArray(json);
     for (const line of array) {
       const lineTransitions =
-        typeof line === "string"
-          ? splitTransitionString(line)
-          : [toArray(line)];
+        typeof line === "string" ? splitTransitionString(line) : [toArray(line)];
       for (const transition of lineTransitions.map(validateTransition)) {
         if (!transition) continue;
         const key = transition.join("|");
@@ -40,12 +38,7 @@ export function toFsmStateConfig(json: any): FsmStateConfig | undefined {
     const array = toArray(value);
     if (array.length !== 3) return;
     const [from, event, to] = array;
-    if (
-      typeof from !== "string" ||
-      typeof event !== "string" ||
-      typeof to !== "string"
-    )
-      return;
+    if (typeof from !== "string" || typeof event !== "string" || typeof to !== "string") return;
     return [from, event, to];
   }
 

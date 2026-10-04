@@ -3,9 +3,7 @@ import type { Transition } from "../types/index.js";
 export function splitTransitionString(str: string): Transition[] {
   let list: string[] = [];
   let pos = 0;
-  const matches = Array.from(
-    str.matchAll(/-\s*("[^"]*?"|'[^']*?'|[^-]*?)\s*->/g),
-  );
+  const matches = Array.from(str.matchAll(/-\s*("[^"]*?"|'[^']*?'|[^-]*?)\s*->/g));
   for (const match of matches) {
     list.push(str.substring(pos, match.index));
     list.push(match[1]);

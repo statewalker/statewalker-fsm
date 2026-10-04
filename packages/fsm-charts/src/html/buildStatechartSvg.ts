@@ -1,9 +1,4 @@
-import type {
-  Dimensions,
-  Padding,
-  Position,
-  TransitionsGraph,
-} from "../types/index.js";
+import type { Dimensions, Padding, Position, TransitionsGraph } from "../types/index.js";
 import { BasisCurve } from "../utils/BasisCurve.js";
 import { getPadding } from "../utils/getPadding.js";
 import { serializeAttrs } from "../utils/serializeAttrs.js";
@@ -93,14 +88,7 @@ export function buildStatechartSvg({
     const path: string[] = [];
     const round = (...n: number[]) => n.map(Math.round);
     const base = new BasisCurve({
-      bezierCurveTo(
-        x0: number,
-        y0: number,
-        x1: number,
-        y1: number,
-        x2: number,
-        y2: number,
-      ) {
+      bezierCurveTo(x0: number, y0: number, x1: number, y1: number, x2: number, y2: number) {
         path.push(`C${round(x0, y0, x1, y1, x2, y2).join(",")}`);
       },
       moveTo(x: number, y: number) {

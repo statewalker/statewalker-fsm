@@ -2,8 +2,11 @@
   "name": "@statewalker/fsm-charts",
   "version": "0.2.5",
   "description": "Statechart layout, SVG rendering and runtime binding for hierarchical finite state machines",
+  "bugs": {
+    "url": "https://github.com/statewalker/statewalker-fsm/issues"
+  },
   "keywords": [],
-  "homepage": "https://github.com/statewalker/statewalker-fsm-charts",
+  "homepage": "https://github.com/statewalker/statewalker-fsm/tree/main/packages/fsm-charts#readme",
   "author": {
     "name": "Mikhail Kotelnikov",
     "email": "mikhail.kotelnikov@gmail.com"
@@ -41,7 +44,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:statewalker/statewalker-fsm-charts.git"
+    "url": "git+https://github.com/statewalker/statewalker-fsm.git",
+    "directory": "packages/fsm-charts"
   },
   "scripts": {
     "build": "rm -fr ./dist && pnpm test && tsdown",

@@ -1,9 +1,4 @@
-import {
-  EVENT_ANY,
-  type FsmStateConfig,
-  STATE_ANY,
-  STATE_FINAL,
-} from "./fsm-state-config.ts";
+import { EVENT_ANY, type FsmStateConfig, STATE_ANY, STATE_FINAL } from "./fsm-state-config.ts";
 
 /**
  * The *compiled* form of an `FsmStateConfig` subtree.
@@ -34,8 +29,7 @@ export class FsmStateDescriptor {
     }
     if (config.states) {
       for (const substateConfig of config.states) {
-        descriptor.states[substateConfig.key] =
-          FsmStateDescriptor.build(substateConfig);
+        descriptor.states[substateConfig.key] = FsmStateDescriptor.build(substateConfig);
       }
     }
     return descriptor;
@@ -56,11 +50,7 @@ export class FsmStateDescriptor {
       [STATE_ANY, EVENT_ANY],
     ];
     let targetKey: string | undefined;
-    for (
-      let i = 0, len = pairs.length;
-      targetKey === undefined && i < len;
-      i++
-    ) {
+    for (let i = 0, len = pairs.length; targetKey === undefined && i < len; i++) {
       const [stateKey, eventKey] = pairs[i];
       const stateTransitions = this.transitions[stateKey];
       if (!stateTransitions) continue;

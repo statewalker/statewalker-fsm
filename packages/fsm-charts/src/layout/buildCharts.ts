@@ -19,8 +19,7 @@ export function buildCharts({
   config,
   newId,
   getStateParams,
-  getStateLabel = (stateKey: string) =>
-    stateKey.replace(/([a-z])([A-Z])/g, "$1 $2"),
+  getStateLabel = (stateKey: string) => stateKey.replace(/([a-z])([A-Z])/g, "$1 $2"),
   getTransitionParams,
   padding = [5, 5],
   vertical = false,
