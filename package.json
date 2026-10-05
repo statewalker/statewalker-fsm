@@ -24,10 +24,12 @@
     "lint": "biome check --write .",
     "lint:check": "biome check .",
     "format": "biome format --write .",
-    "format:check": "biome format ."
+    "format:check": "biome format .",
+    "changeset": "changeset"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
+    "@changesets/cli": "catalog:",
     "turbo": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
