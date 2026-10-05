@@ -290,11 +290,8 @@ See [rules.md](./agent-rules/rules.md) for the full specification with examples,
   defined by an ancestor instead of flagging it.
 - **Only errors make a configuration invalid.** `valid` is `errors.length === 0`;
   warnings, info and review items never change it.
-- **Constraint: subpath imports do not work.** `package.json` declares a `./*` export, but
-  the build emits only `dist/index.js`. An import such as
-  `@statewalker/fsm-validator/validate` fails with
-  `ERR_MODULE_NOT_FOUND ... Cannot find module '.../dist/validate.js'`. Import from the
-  package root.
+- **One entry point.** Everything is exported from the package root; an import such as
+  `@statewalker/fsm-validator/validate` fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`.
 - **Dependencies.** None. Zero runtime dependencies; the configuration type is defined
   locally, so validating does not require the runtime.
 

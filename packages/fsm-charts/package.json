@@ -29,6 +29,36 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./config": {
+      "source": "./src/index-config.ts",
+      "types": "./dist/index-config.d.ts",
+      "import": "./dist/index-config.js",
+      "default": "./dist/index-config.js"
+    },
+    "./dom": {
+      "source": "./src/index-dom.ts",
+      "types": "./dist/index-dom.d.ts",
+      "import": "./dist/index-dom.js",
+      "default": "./dist/index-dom.js"
+    },
+    "./html": {
+      "source": "./src/index-html.ts",
+      "types": "./dist/index-html.d.ts",
+      "import": "./dist/index-html.js",
+      "default": "./dist/index-html.js"
+    },
+    "./layout": {
+      "source": "./src/index-layout.ts",
+      "types": "./dist/index-layout.d.ts",
+      "import": "./dist/index-layout.js",
+      "default": "./dist/index-layout.js"
+    },
+    "./runtime": {
+      "source": "./src/index-runtime.ts",
+      "types": "./dist/index-runtime.d.ts",
+      "import": "./dist/index-runtime.js",
+      "default": "./dist/index-runtime.js"
     }
   },
   "devDependencies": {
