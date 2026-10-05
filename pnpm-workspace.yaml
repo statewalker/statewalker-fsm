@@ -3,6 +3,7 @@ packages:
   - "apps/*"
 
 catalog:
+  "@changesets/cli": ^3.0.3
   "@biomejs/biome": ^2.5.15
   "@observablehq/framework": ^1.13.4
   "@types/jsdom": ^30.0.0
