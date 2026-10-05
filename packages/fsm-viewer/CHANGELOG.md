@@ -1,5 +1,17 @@
 # @statewalker/fsm-viewer
 
+## 0.4.4
+
+### Patch Changes
+
+- Release of the changes since the last published version:
+  
+  - files changed: README.md, dist/index.d.ts, dist/index.d.ts.map, dist/index.js, dist/index.js.map, 7 more
+- Updated dependencies
+- Updated dependencies
+  - @statewalker/fsm-charts@0.2.6
+  - @statewalker/fsm@0.38.2
+
 ## 0.4.2
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @statewalker/fsm-charts
 
+## 0.2.6
+
+### Patch Changes
+
+- Release of the changes since the last published version:
+  
+  - files changed: README.md, dist/StateChart-BYBjTmC2.d.ts, dist/StateChart-cXyVRcs-.d.ts, dist/StateChart-cXyVRcs-.d.ts.map, dist/StateChartIndex-BK2315qj.d.ts, 68 more
+
 ## 0.2.5
 
 ### Patch Changes

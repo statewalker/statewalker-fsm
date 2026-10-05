@@ -1,5 +1,13 @@
 # @statewalker/fsm
 
+## 0.38.2
+
+### Patch Changes
+
+- Release of the changes since the last published version:
+  
+  - files changed: README.md, dist/index.d.ts, dist/index.d.ts.map, dist/index.js.map, src/core/fsm-process.ts, 5 more
+
 ## 0.38.1
 
 ### Patch Changes

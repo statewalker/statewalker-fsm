@@ -1,6 +1,6 @@
 {
   "name": "@statewalker/fsm-charts",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Statechart layout, SVG rendering and runtime binding for hierarchical finite state machines",
   "bugs": {
     "url": "https://github.com/statewalker/statewalker-fsm/issues"
