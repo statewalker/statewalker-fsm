@@ -1,86 +1,108 @@
 # StateWalker FSM
 
-Hierarchical finite state machines (HFSM) for TypeScript: the runtime, a configuration
-validator, a statechart layout and rendering library, and an interactive viewer.
+## What it is
 
-Each package is published to npm on its own and can be used without the others.
+A pnpm workspace with four npm packages for hierarchical finite state machines (HFSM) in
+TypeScript: the runtime, a configuration validator, a statechart layout and rendering
+library, and a browser viewer. Each package is published on its own and can be used
+without the others.
 
-## Packages
+## The four packages and how they depend on each other
 
-| Package | Description | npm |
+| Package | What it does | npm |
 | --- | --- | --- |
-| [`@statewalker/fsm`](packages/fsm) | HFSM runtime. Nested states, event-driven transitions, per-state behaviour, dump/restore of a running process. No runtime dependencies. | [npm](https://www.npmjs.com/package/@statewalker/fsm) |
-| [`@statewalker/fsm-validator`](packages/fsm-validator) | Checks HFSM configurations against 25 lexical, structural and semantic rules and formats the results as reports. Also ships prompt texts for AI agents that write HFSM configs. No runtime dependencies. | [npm](https://www.npmjs.com/package/@statewalker/fsm-validator) |
-| [`@statewalker/fsm-charts`](packages/fsm-charts) | Turns an HFSM configuration into a statechart: layout (bundled dagre), SVG and CSS generation, and a runtime API that highlights states on the rendered chart. | [npm](https://www.npmjs.com/package/@statewalker/fsm-charts) |
-| [`@statewalker/fsm-viewer`](packages/fsm-viewer) | Browser viewer built on `fsm-charts`: draws a process, highlights the active state stack as it runs, reports clicks on states and events. | [npm](https://www.npmjs.com/package/@statewalker/fsm-viewer) |
+| [`@statewalker/fsm`](packages/fsm) | HFSM runtime: nested states, event-driven transitions, per-state behaviour, dump/restore of a running process. Zero dependencies. | [npm](https://www.npmjs.com/package/@statewalker/fsm) |
+| [`@statewalker/fsm-validator`](packages/fsm-validator) | Checks HFSM configurations against 25 lexical, structural and semantic rules, formats reports, and exports prompt texts for AI agents that write HFSM configs. Zero dependencies. | [npm](https://www.npmjs.com/package/@statewalker/fsm-validator) |
+| [`@statewalker/fsm-charts`](packages/fsm-charts) | Lays out a configuration as a statechart (vendored dagre), writes SVG/HTML and CSS, and highlights states on the rendered chart. Zero dependencies; lodash is passed in by the caller. | [npm](https://www.npmjs.com/package/@statewalker/fsm-charts) |
+| [`@statewalker/fsm-viewer`](packages/fsm-viewer) | Browser viewer: draws a process, follows its active state stack, reports clicks on states and events. | [npm](https://www.npmjs.com/package/@statewalker/fsm-viewer) |
 
-All packages are public. Inside the repository, `fsm-viewer` depends on `fsm` and
-`fsm-charts`. `fsm`, `fsm-charts` and `fsm-validator` have no `@statewalker`
-dependencies; `fsm-charts` and `fsm-validator` define their own configuration type.
-
-## Relation to other StateWalker repositories
-
-This repository consumes no packages from other StateWalker repositories. Other
-repositories build on it; for example, `statewalker-ai` and `sandclaw` depend on
-`@statewalker/fsm`.
-
-## Requirements
-
-- Node.js 24
-- pnpm 10 through corepack (`corepack enable`; the version is pinned in the root
-  `package.json` `packageManager` field)
-
-## Development
-
-```sh
-corepack enable
-pnpm install
-pnpm build        # pnpm -r run build (fsm, fsm-charts, fsm-validator run their tests first)
-pnpm test         # pnpm -r run test (vitest)
-pnpm typecheck    # pnpm -r run typecheck
-pnpm lint         # biome check --write .
-pnpm lint:check   # biome check .
-pnpm format       # biome format --write .
-pnpm format:check # biome format .
+```
+packages/
+  fsm            (no deps)  <---------+
+  fsm-charts     (no deps)  <------+  |
+  fsm-viewer     ------------------+--+   depends on fsm-charts and fsm
+  fsm-validator  (no deps)
 ```
 
-Run a script in one package:
+All four are public. Package sources live in `packages/*/src`, tests in
+`packages/*/test`. Each package builds with tsdown to `dist/` and publishes both `dist/`
+and `src/`.
 
-```sh
-pnpm --filter @statewalker/fsm test
-```
+## How to run it
 
-`turbo.json` is a nested config (`extends: ["//"]`) for use inside a StateWalker
-umbrella workspace. In a standalone clone, use the pnpm scripts above.
+Requirements: Node.js 24 and pnpm 10 through corepack. The pnpm version is pinned in the
+root `package.json` (`packageManager`).
 
-CI runs the shared workflow from
-[statewalker/.github](https://github.com/statewalker/.github): frozen install,
-dependency-reference checks, lint, format, build, typecheck, test, and export, dist-import
-and pack checks.
+1. `corepack enable`
+2. `pnpm install`
+3. `pnpm build` - builds every package. `fsm`, `fsm-validator` and `fsm-charts` run their
+   tests before bundling, so a failing test fails the build.
+4. `pnpm test` - runs vitest in every package.
+5. `pnpm lint:check` and `pnpm format:check` - the same Biome checks CI runs.
+
+One package only: `pnpm --filter @statewalker/fsm test`.
+
+## Why it is the way it is
+
+- **The packages share a repository but not a runtime.** `fsm`, `fsm-validator` and
+  `fsm-charts` each define the configuration shape they need instead of importing it, so
+  validating or drawing a configuration does not pull in the runtime. Only `fsm-viewer`,
+  which drives a live process, depends on `fsm`.
+- **`turbo.json` is a nested config** (`extends: ["//"]`). It is meant to be composed into
+  a larger workspace that has a root `turbo.json`. Standalone, the root scripts use
+  `pnpm -r` instead of turbo.
+- **Biome skips vendored code.** `biome.json` excludes `packages/fsm-charts/src/dagre`,
+  `src/graphlib` and `src/lodash-es` (vendored JavaScript) and the HTML test fixtures.
+  `fsm-charts` and `fsm-viewer` also keep their own `eslint` scripts.
+
+## What will surprise you
+
+- **`turbo run build` fails in a standalone clone.** Turbo has no root config to extend:
+
+  ```
+  x Failed to parse turbo.json.
+  `->   x Found an unknown key `extends`.
+  ```
+
+  Use `pnpm build`.
+- **`pnpm typecheck` does nothing locally.** It runs `pnpm -r run typecheck`, and no
+  package defines a `typecheck` script.
+- **Subpath imports fail.** `fsm-charts` and `fsm-validator` export only the package
+  root. See the package READMEs for the exact errors.
 
 ## Releases
 
-Releases are automated with changesets. After CI passes on `main`, a job adds a
-changeset for every package whose packed contents differ from the version on npm and
-opens a "chore: version packages" pull request. Merging that pull request publishes the
-packages to npm with provenance. To choose the bump level or the changelog text
-yourself, add a changeset to your pull request with `pnpm changeset`. Renovate keeps
-dependencies up to date.
+Packages are published to npm from CI with changesets: a job opens a "chore: version
+packages" pull request for packages whose packed contents differ from npm, and merging it
+publishes them. This repository does not have the changesets setup yet (no `.changeset/`
+directory and no `@changesets/cli` dependency), so `pnpm changeset` does not work here.
 
-See the [statewalker/.github README](https://github.com/statewalker/.github#readme) for
-details.
+## Reference
 
-## Repository history
+### Commands
 
-This monorepo was assembled from four repositories, now archived on GitHub:
-`statewalker/statewalker-fsm-charts`, `statewalker/statewalker-fsm-validator`,
-`statewalker/statewalker-fsm-viewer` and `statewalker/statewalker-fsm-process`. The
-packages kept their commit history on `main`.
+| Command | What it runs |
+| --- | --- |
+| `pnpm build` | `pnpm -r run build` |
+| `pnpm test` | `pnpm -r run test` (vitest) |
+| `pnpm typecheck` | `pnpm -r run typecheck` (no package defines it yet) |
+| `pnpm lint` | `biome check --write .` |
+| `pnpm lint:check` | `biome check .` |
+| `pnpm format` | `biome format --write .` |
+| `pnpm format:check` | `biome format .` |
 
-`statewalker-fsm-process` is history only: the package was retired, and its last
-release is `@statewalker/fsm-process@0.17.2`. Its history is kept in the
-`history/statewalker-fsm-process` branch.
+### CI
 
-## License
+`.github/workflows/ci.yml` calls a shared reusable workflow that runs: frozen install,
+dependency-reference checks, lint, format, build, typecheck, test, and export,
+dist-import and pack checks.
 
-MIT. See [LICENSE](LICENSE).
+### Files
+
+| Path | Purpose |
+| --- | --- |
+| `pnpm-workspace.yaml` | Workspace globs (`packages/*`, `apps/*`) and the dependency catalog |
+| `biome.json` | Lint and format config for the whole repository |
+| `turbo.json` | Nested turbo config, used only inside a larger workspace |
+| `packages/fsm-validator/agent-rules/` | Rule specification and AI agent instructions (Markdown and JSON) |
+| `LICENSE` | MIT |

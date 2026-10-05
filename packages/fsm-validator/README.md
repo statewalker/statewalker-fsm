@@ -1,23 +1,25 @@
 # @statewalker/fsm-validator
 
-Validation library for **Hierarchical Finite State Machine** (HFSM) configurations, such as the ones run by [`@statewalker/fsm`](../fsm).
+## What it is: 25 checks for HFSM configurations, run before the machine runs
 
-Implements **25 rules** across three tiers — lexical, structural, and semantic — to catch configuration errors, suspicious patterns, and conditions requiring human review. Zero runtime dependencies.
+A validation library for hierarchical finite state machine (HFSM) configurations in the
+`{ key, transitions, states }` format that `@statewalker/fsm` runs. It applies **25
+rules** in three tiers (lexical, structural, semantic) and reports errors, warnings,
+advisory hints, and items that need human review. It also exports the rule catalog and
+prompt texts for AI agents that write HFSM configurations. Zero runtime dependencies.
 
-For the full rule specification see [rules.md](./agent-rules/rules.md).
+## Why it exists: the runtime accepts broken configurations silently
 
-## AI agent resources
+`@statewalker/fsm` does not check a configuration. When a transition names a state that
+no enclosing scope defines, the engine creates an empty state with no transitions and
+carries on; an event with no matching rule makes the current state exit. A typo in a
+state key therefore shows up as a machine that stalls or exits early, not as an error.
+This package finds those problems (and naming, reachability and event-coverage problems)
+from the configuration alone, before anything runs. Configurations written by AI agents
+are the main case: the [`agent-rules/`](./agent-rules/) material tells an agent how to
+write a configuration, and `validate` checks the result.
 
-The [`agent-rules/`](./agent-rules/) folder contains everything an AI agent needs to generate and validate HFSM definitions:
-
-| File | Purpose |
-|------|---------|
-| [instructions.md](./agent-rules/instructions.md) | AI agent prompt — how to transform human-readable text into HFSM definitions: step-by-step methodology, data model, output format, transition patterns, naming conventions, and examples |
-| [validation.md](./agent-rules/validation.md) | Post-generation checklist organized by category (structural, naming, event consistency, cycles, semantic review) with rule ID cross-references |
-| [rules.md](./agent-rules/rules.md) | Full formalized rule specification with pseudocode, examples, and constraint details |
-| [rules.json](./agent-rules/rules.json) | Machine-readable rule catalog — category, ruleId, severity, and constraint for all 25 rules |
-
-## Installation
+## How to use: call `validate(config)` and read `errors`
 
 ```bash
 pnpm add @statewalker/fsm-validator
@@ -26,16 +28,65 @@ pnpm add @statewalker/fsm-validator
 No peer or runtime dependencies. ESM only; no DOM or Node-specific APIs, so it runs in
 browsers, Node.js and workers.
 
-## Entry points
+### The package root is the only entry point
 
 | Import | What it gives |
 |--------|---------------|
 | `@statewalker/fsm-validator` | Everything: `validate`, `allRules`, the report helpers, the rule definitions and the agent prompt texts, plus the types. Built to `dist/index.js` with `.d.ts` types; sources are published in `src/`. |
 
-`package.json` also declares a `./*` subpath export, but the build emits only
-`dist/index.js`, so import from the package root.
+Subpath imports fail; see [Internals](#internals-a-per-state-walk-with-lexical-key-resolution).
 
-## Quick start
+### `validate(config, options?)` returns a `ValidationResult`
+
+```typescript
+type ValidationResult = {
+  valid: boolean;              // true when zero errors
+  issues: ValidationIssue[];   // all issues
+  errors: ValidationIssue[];   // severity === "error"
+  warnings: ValidationIssue[]; // severity === "warning"
+  review: ValidationIssue[];   // severity === "review"
+};
+
+type ValidationIssue = {
+  rule: RuleId;       // e.g. "L1", "S2", "M5", "M8"
+  severity: Severity; // "error" | "warning" | "info" | "review"
+  message: string;    // human-readable description
+  path: string[];     // ancestor keys leading to the state, e.g. ["Root", "Handle"]
+};
+```
+
+- **Errors** — will break at runtime (missing keys, malformed transitions, dangling references)
+- **Warnings** — likely bugs or bad practice (unreachable states, naming violations, missing event coverage)
+- **Info** — advisory hints (complexity, missing event declarations)
+- **Review** — conditions that require human judgment to verify (event-state consistency, goal alignment, convergent transitions)
+
+Only errors affect the `valid` flag. Warnings, info, and review issues are reported but don't make the config invalid.
+
+Pass `options.rules` to run only the listed rule ids, or `options.exclude` to skip some.
+
+### The configuration format
+
+The validator defines its own `FsmStateConfig` type, a superset of the one `@statewalker/fsm` runs (the extra fields are descriptive and used by the semantic rules):
+
+```typescript
+type FsmStateConfig = {
+  key: string;                              // state identifier (mandatory)
+  name?: string;                            // human-readable display name
+  transitions?: [string, string, string][]; // [from, event, to] tuples
+  states?: FsmStateConfig[];                // nested sub-states (recursive)
+  events?: Record<string, string>;          // event name → description of when/how it occurs
+  description?: string;                     // purpose & behavior of this state
+  outcome?: string;                         // expected result upon completion
+  roles?: string[];                         // roles required for this state
+  object?: string;                          // primary entity acted upon
+};
+```
+
+The `events` field is a key/value record where each key is the event name (camelCase) and each value describes the conditions when and how that event occurs. This enables semantic validation rules (M8, M9) to report event descriptions alongside state goals for human review.
+
+## Examples
+
+### Validate a configuration
 
 ```typescript
 import { validate } from "@statewalker/fsm-validator";
@@ -78,7 +129,7 @@ console.log(result.review);   // [...] — conditions requiring human review
 console.log(result.issues);   // all issues (errors + warnings + info + review)
 ```
 
-## Selective validation
+### Run a subset of rules
 
 Run only specific rules or exclude rules you don't need:
 
@@ -90,53 +141,95 @@ const result = validate(config, { rules: ["L1", "L3"] });
 const result = validate(config, { exclude: ["M7"] });
 ```
 
-## Validation result
+### Review items need a person
+
+Rules M4, M8, and M9 produce issues with `severity: "review"`. These are structural patterns detected by the validator that **cannot be verified programmatically** — they require human judgment.
+
+The validator reports enough context in each issue message for a human reviewer to check:
+
+- **M4**: "State X has 2 transitions to Y via events [ok, error]. Verify that these outcomes are semantically compatible"
+- **M8**: "State X (description: ...) declares event Y described as '...'. Verify the event conditions do not contradict the state's goals"
+- **M9**: "Child state X (description: ...) is nested in Y (description: ...). Verify child goals do not contradict parent goals"
 
 ```typescript
-type ValidationResult = {
-  valid: boolean;              // true when zero errors
-  issues: ValidationIssue[];   // all issues
-  errors: ValidationIssue[];   // severity === "error"
-  warnings: ValidationIssue[]; // severity === "warning"
-  review: ValidationIssue[];   // severity === "review"
-};
+const result = validate(config);
 
-type ValidationIssue = {
-  rule: RuleId;       // e.g. "L1", "S2", "M5", "M8"
-  severity: Severity; // "error" | "warning" | "info" | "review"
-  message: string;    // human-readable description
-  path: string[];     // ancestor keys leading to the state, e.g. ["Root", "Handle"]
-};
+// Check review issues that need human review
+for (const issue of result.review) {
+  console.log(`[${issue.rule}] ${issue.path.join(" > ")}: ${issue.message}`);
+}
 ```
 
-- **Errors** — will break at runtime (missing keys, malformed transitions, dangling references)
-- **Warnings** — likely bugs or bad practice (unreachable states, naming violations, missing event coverage)
-- **Info** — advisory hints (complexity, missing event declarations)
-- **Review** — conditions that require human judgment to verify (event-state consistency, goal alignment, convergent transitions)
+### Build a report
 
-Only errors affect the `valid` flag. Warnings, info, and review issues are reported but don't make the config invalid.
-
-## Configuration type
-
-The validator uses a self-contained `FsmStateConfig` type (no dependency on `@statewalker/fsm`):
+`buildReport(result, rules)` groups the issues of a `ValidationResult` by category and
+rule, using rule definitions (names and constraints) from `ruleDefinitions`.
+`formatReport` turns the report into a plain-text listing; `formatReportCompact` gives a
+short Markdown form with errors and warnings in a table and review items in a collapsed
+`<details>` block.
 
 ```typescript
-type FsmStateConfig = {
-  key: string;                              // state identifier (mandatory)
-  name?: string;                            // human-readable display name
-  transitions?: [string, string, string][]; // [from, event, to] tuples
-  states?: FsmStateConfig[];                // nested sub-states (recursive)
-  events?: Record<string, string>;          // event name → description of when/how it occurs
-  description?: string;                     // purpose & behavior of this state
-  outcome?: string;                         // expected result upon completion
-  roles?: string[];                         // roles required for this state
-  object?: string;                          // primary entity acted upon
-};
+import {
+  buildReport,
+  formatReport,
+  formatReportCompact,
+  ruleDefinitions,
+  validate,
+} from "@statewalker/fsm-validator";
+
+const report = buildReport(validate(config), ruleDefinitions);
+console.log(report.summary); // { total, errors, warnings, info, review }
+console.log(formatReport(report));
+console.log(formatReportCompact(report)); // e.g. "**PASS** 6R" followed by the review table
 ```
 
-The `events` field is a key/value record where each key is the event name (camelCase) and each value describes the conditions when and how that event occurs. This enables semantic validation rules (M8, M9) to report event descriptions alongside state goals for human review.
+### Use the rule catalog
 
-## Rule overview
+`ruleDefinitions` lists all 25 rules as `{ category, ruleId, rule, severity, constraint }`
+(the same data as [rules.json](./agent-rules/rules.json)). `lexicalRules`,
+`structuralRules` and `semanticRules` are the same list filtered by category.
+`getRulesByIds(ids)` picks rules by id, and `formatRulesAsText(rules)` renders them as
+text for a prompt.
+
+```typescript
+import { formatRulesAsText, getRulesByIds, structuralRules } from "@statewalker/fsm-validator";
+
+console.log(structuralRules.length); // 9
+console.log(formatRulesAsText(getRulesByIds(["S1", "S2"])));
+```
+
+### Use the agent prompt texts
+
+The prompt material from [`agent-rules/`](./agent-rules/) is also exported as strings:
+`dataModel`, `outputFormat`, `transitionPatterns`, `namingRules`, `structureRules`,
+`eventConsistencyRules`, `semanticConsistencyRules`, `transformationMethodology`,
+`namingConventions`, `commonMistakes`, and `examples` (`lightBulb`, `ticketFlow`).
+`prompts` holds pre-composed sections for three use cases: `generation`, `validation` and
+`refinement`.
+
+```typescript
+import { examples, prompts } from "@statewalker/fsm-validator";
+
+const systemPrompt = prompts.generation; // one string: data model, format, rules, examples
+console.log(examples.lightBulb); // a YAML example configuration
+```
+
+### Call rule functions directly
+
+The rule map is exported for advanced use cases (custom orchestration, tooling integration):
+
+```typescript
+import { allRules } from "@statewalker/fsm-validator";
+
+// allRules is Map<RuleId, RuleFunction>
+for (const [id, fn] of allRules) {
+  console.log(id); // "L1", "L2", ..., "M8", "M9"
+}
+```
+
+## Rule reference
+
+For the full specification see [rules.md](./agent-rules/rules.md).
 
 ### Tier 1 — Lexical (L1–L7)
 
@@ -186,79 +279,39 @@ Consistency, completeness, and semantic review rules.
 
 See [rules.md](./agent-rules/rules.md) for the full specification with examples, pseudocode, and checklists.
 
-## Review validation
+## Internals: a per-state walk with lexical key resolution
 
-Rules M4, M8, and M9 produce issues with `severity: "review"`. These are structural patterns detected by the validator that **cannot be verified programmatically** — they require human judgment.
+- **Walk.** `validate` visits every state depth-first. Each active rule is a function of a
+  `RuleContext` (`config`, `path`, `root`, `parent`, `ancestors`) and returns issues for
+  that state. `allRules` maps rule ids to these functions in L, S, M order.
+- **Key resolution is lexical, as in the engine.** A transition target resolves to the
+  nearest definition in the declaring state's `states` or in an ancestor's. That is the
+  only way to share a sub-machine between scopes, so S2, S3 and S4 accept a key that is
+  defined by an ancestor instead of flagging it.
+- **Only errors make a configuration invalid.** `valid` is `errors.length === 0`;
+  warnings, info and review items never change it.
+- **Constraint: subpath imports do not work.** `package.json` declares a `./*` export, but
+  the build emits only `dist/index.js`. An import such as
+  `@statewalker/fsm-validator/validate` fails with
+  `ERR_MODULE_NOT_FOUND ... Cannot find module '.../dist/validate.js'`. Import from the
+  package root.
+- **Dependencies.** None. Zero runtime dependencies; the configuration type is defined
+  locally, so validating does not require the runtime.
 
-The validator reports enough context in each issue message for a human reviewer to check:
+## Reference
 
-- **M4**: "State X has 2 transitions to Y via events [ok, error]. Verify that these outcomes are semantically compatible"
-- **M8**: "State X (description: ...) declares event Y described as '...'. Verify the event conditions do not contradict the state's goals"
-- **M9**: "Child state X (description: ...) is nested in Y (description: ...). Verify child goals do not contradict parent goals"
+### AI agent resources
 
-```typescript
-const result = validate(config);
+The [`agent-rules/`](./agent-rules/) folder contains everything an AI agent needs to generate and validate HFSM definitions:
 
-// Check review issues that need human review
-for (const issue of result.review) {
-  console.log(`[${issue.rule}] ${issue.path.join(" > ")}: ${issue.message}`);
-}
-```
+| File | Purpose |
+|------|---------|
+| [instructions.md](./agent-rules/instructions.md) | AI agent prompt — how to transform human-readable text into HFSM definitions: step-by-step methodology, data model, output format, transition patterns, naming conventions, and examples |
+| [validation.md](./agent-rules/validation.md) | Post-generation checklist organized by category (structural, naming, event consistency, cycles, semantic review) with rule ID cross-references |
+| [rules.md](./agent-rules/rules.md) | Full formalized rule specification with pseudocode, examples, and constraint details |
+| [rules.json](./agent-rules/rules.json) | Machine-readable rule catalog — category, ruleId, severity, and constraint for all 25 rules |
 
-## Reports
-
-`buildReport(result, rules)` groups the issues of a `ValidationResult` by category and
-rule, using rule definitions (names and constraints) from `ruleDefinitions`.
-`formatReport` turns the report into a plain-text listing; `formatReportCompact` gives a
-short Markdown form with errors and warnings in a table and review items in a collapsed
-`<details>` block.
-
-```typescript
-import {
-  buildReport,
-  formatReport,
-  formatReportCompact,
-  ruleDefinitions,
-  validate,
-} from "@statewalker/fsm-validator";
-
-const report = buildReport(validate(config), ruleDefinitions);
-console.log(report.summary); // { total, errors, warnings, info, review }
-console.log(formatReport(report));
-console.log(formatReportCompact(report)); // e.g. "**PASS** 6R" followed by the review table
-```
-
-## Rule definitions
-
-`ruleDefinitions` lists all 25 rules as `{ category, ruleId, rule, severity, constraint }`
-(the same data as [rules.json](./agent-rules/rules.json)). `lexicalRules`,
-`structuralRules` and `semanticRules` are the same list filtered by category.
-`getRulesByIds(ids)` picks rules by id, and `formatRulesAsText(rules)` renders them as
-text for a prompt.
-
-## Agent prompt texts
-
-The prompt material from [`agent-rules/`](./agent-rules/) is also exported as strings:
-`dataModel`, `outputFormat`, `transitionPatterns`, `namingRules`, `structureRules`,
-`eventConsistencyRules`, `semanticConsistencyRules`, `transformationMethodology`,
-`namingConventions`, `commonMistakes`, and `examples` (`lightBulb`, `ticketFlow`).
-`prompts` holds pre-composed sections for three use cases: `generation`, `validation` and
-`refinement`.
-
-## Accessing individual rules
-
-The rule map is exported for advanced use cases (custom orchestration, tooling integration):
-
-```typescript
-import { allRules } from "@statewalker/fsm-validator";
-
-// allRules is Map<RuleId, RuleFunction>
-for (const [id, fn] of allRules) {
-  console.log(id); // "L1", "L2", ..., "M8", "M9"
-}
-```
-
-## Development
+### Development commands
 
 ```bash
 pnpm install       # at the repository root
