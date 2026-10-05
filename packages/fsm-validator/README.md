@@ -1,8 +1,8 @@
 # @statewalker/fsm-validator
 
-Standalone validation library for **Hierarchical Finite State Machine** (HFSM) configurations used in the [StateWalker](https://github.com/statewalker) ecosystem.
+Validation library for **Hierarchical Finite State Machine** (HFSM) configurations, such as the ones run by [`@statewalker/fsm`](../fsm).
 
-Implements **24 rules** across three tiers — lexical, structural, and semantic — to catch configuration errors, suspicious patterns, and conditions requiring human review. Zero runtime dependencies.
+Implements **25 rules** across three tiers — lexical, structural, and semantic — to catch configuration errors, suspicious patterns, and conditions requiring human review. Zero runtime dependencies.
 
 For the full rule specification see [rules.md](./agent-rules/rules.md).
 
@@ -15,15 +15,25 @@ The [`agent-rules/`](./agent-rules/) folder contains everything an AI agent need
 | [instructions.md](./agent-rules/instructions.md) | AI agent prompt — how to transform human-readable text into HFSM definitions: step-by-step methodology, data model, output format, transition patterns, naming conventions, and examples |
 | [validation.md](./agent-rules/validation.md) | Post-generation checklist organized by category (structural, naming, event consistency, cycles, semantic review) with rule ID cross-references |
 | [rules.md](./agent-rules/rules.md) | Full formalized rule specification with pseudocode, examples, and constraint details |
-| [rules.json](./agent-rules/rules.json) | Machine-readable rule catalog — category, ruleId, severity, and constraint for all 24 rules |
+| [rules.json](./agent-rules/rules.json) | Machine-readable rule catalog — category, ruleId, severity, and constraint for all 25 rules |
 
 ## Installation
 
 ```bash
-npm install @statewalker/fsm-validator
-# or
 pnpm add @statewalker/fsm-validator
 ```
+
+No peer or runtime dependencies. ESM only; no DOM or Node-specific APIs, so it runs in
+browsers, Node.js and workers.
+
+## Entry points
+
+| Import | What it gives |
+|--------|---------------|
+| `@statewalker/fsm-validator` | Everything: `validate`, `allRules`, the report helpers, the rule definitions and the agent prompt texts, plus the types. Built to `dist/index.js` with `.d.ts` types; sources are published in `src/`. |
+
+`package.json` also declares a `./*` subpath export, but the build emits only
+`dist/index.js`, so import from the package root.
 
 ## Quick start
 
@@ -195,6 +205,46 @@ for (const issue of result.review) {
 }
 ```
 
+## Reports
+
+`buildReport(result, rules)` groups the issues of a `ValidationResult` by category and
+rule, using rule definitions (names and constraints) from `ruleDefinitions`.
+`formatReport` turns the report into a plain-text listing; `formatReportCompact` gives a
+short Markdown form with errors and warnings in a table and review items in a collapsed
+`<details>` block.
+
+```typescript
+import {
+  buildReport,
+  formatReport,
+  formatReportCompact,
+  ruleDefinitions,
+  validate,
+} from "@statewalker/fsm-validator";
+
+const report = buildReport(validate(config), ruleDefinitions);
+console.log(report.summary); // { total, errors, warnings, info, review }
+console.log(formatReport(report));
+console.log(formatReportCompact(report)); // e.g. "**PASS** 6R" followed by the review table
+```
+
+## Rule definitions
+
+`ruleDefinitions` lists all 25 rules as `{ category, ruleId, rule, severity, constraint }`
+(the same data as [rules.json](./agent-rules/rules.json)). `lexicalRules`,
+`structuralRules` and `semanticRules` are the same list filtered by category.
+`getRulesByIds(ids)` picks rules by id, and `formatRulesAsText(rules)` renders them as
+text for a prompt.
+
+## Agent prompt texts
+
+The prompt material from [`agent-rules/`](./agent-rules/) is also exported as strings:
+`dataModel`, `outputFormat`, `transitionPatterns`, `namingRules`, `structureRules`,
+`eventConsistencyRules`, `semanticConsistencyRules`, `transformationMethodology`,
+`namingConventions`, `commonMistakes`, and `examples` (`lightBulb`, `ticketFlow`).
+`prompts` holds pre-composed sections for three use cases: `generation`, `validation` and
+`refinement`.
+
 ## Accessing individual rules
 
 The rule map is exported for advanced use cases (custom orchestration, tooling integration):
@@ -211,9 +261,9 @@ for (const [id, fn] of allRules) {
 ## Development
 
 ```bash
-pnpm install
+pnpm install       # at the repository root
 pnpm test          # run all tests
-pnpm build         # bundle with tsdown (ESM + .d.ts)
+pnpm build         # run tests, then bundle with tsdown (ESM + .d.ts)
 pnpm check         # biome lint
 pnpm format        # biome format
 ```

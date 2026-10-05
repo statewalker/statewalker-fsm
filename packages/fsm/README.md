@@ -52,12 +52,23 @@ Player                        Player          ← root, always active
 
 Transitions are `[from, event, to]` tuples. `""` means *initial* (as `from`) or *final*
 (as `to`); `"*"` is a wildcard matching *any* state or *any* event. When the current leaf
-has no matching rule, the lookup walks up the parent chain — that is how an event handled
-only by an outer state still fires from deep inside.
+has no matching rule, it exits (its target is *final*) and the parent's rules are checked
+for the same event, and so on up the tree. That is how an event handled only by an outer
+state still fires from deep inside.
+
+## Install
+
+```sh
+pnpm add @statewalker/fsm
+```
+
+No peer or runtime dependencies. The package is ESM-only and has a single entry point,
+`@statewalker/fsm` (`dist/index.js` with `.d.ts` types; the TypeScript sources are
+published in `src/`). It uses no DOM or Node-specific APIs, so it runs in browsers,
+Node.js and workers.
 
 ## How to use
 
-This package is consumed inside the workspace via `"@statewalker/fsm": "workspace:*"`.
 Everything is exported from the package root:
 
 ```typescript
@@ -178,7 +189,8 @@ setProcessTracer(process); // logs <Playing event="play"> … </Playing> <!-- ev
 **Engine**
 
 - **`FsmProcess`** — the running machine: it owns the active-state stack and the traversal algorithm.
-  `dispatch(event)` advances the machine and resolves to a leaf; `shutdown(event?)` unwinds every
+  `dispatch(event)` advances the machine until it rests on a leaf and resolves to `false` once
+  the machine has finished (`true` otherwise); `shutdown(event?)` unwinds every
   active state; `state` is the current leaf; `onStateCreate(handler)` is the primary extension point
   (fires once per state instance); `dump()` / `restore(data)` serialize and rehydrate it.
 - **`FsmState`** — a live node in the stack you hang behaviour on. It carries the `onEnter` / `onExit`
@@ -209,7 +221,8 @@ setProcessTracer(process); // logs <Playing event="play"> … </Playing> <!-- ev
   `dump(...)`, `restore(dump, ...)`.
 - **`KEY_DISPATCH` / `KEY_TERMINATE` / `KEY_STATES` / `KEY_EVENT`** — the context keys under which
   `startProcess` binds the dispatch fn, terminate fn, current state-stack, and last event, so handlers
-  reach the machine through the shared context rather than closures over the process.
+  reach the machine through the shared context rather than closures over the process. The bound dispatch
+  fn ignores events for which `isStateTransitionEnabled` returns `false`.
 
 **Debug / observability**
 
@@ -227,8 +240,8 @@ setProcessTracer(process); // logs <Playing event="play"> … </Playing> <!-- ev
   it rests on a leaf (`STATUS_LEAF`) or the machine finishes (`STATUS_FINISHED`). The `STATUS_*` bits
   encode where in that cycle the process is: `FIRST`/`NEXT` while entering (descending to a first child
   vs. advancing to a target), `LEAF` when settled, `LAST` when popping to a parent. Dispatching while
-  the machine is already running just queues the next event (`nextEvent`) and returns — runs never
-  re-enter.
+  the machine is already running appends the event to the `nextEvents` FIFO queue and returns; the
+  queued events are applied in order when the current run settles. Runs never nest.
 - **Transition resolution order.** For `(state, event)` the descriptor tries, in order:
   `(state, event)` → `(*, event)` → `(state, *)` → `(*, *)`, then falls back to `STATE_FINAL`. Unhandled
   events bubble up the parent chain, so an outer state can catch events its children ignore.
@@ -239,10 +252,6 @@ setProcessTracer(process); // logs <Playing event="play"> … </Playing> <!-- ev
   `restore()` rebuilds the stack and replays each state's `restore` hooks. Only what you record via
   `state.dump(...)` is persisted — the engine keeps snapshots minimal.
 - **Dependencies.** None. Zero runtime dependencies by design.
-
-## License
-
-MIT.
 
 ## Migration from pre-0.35
 
@@ -256,3 +265,7 @@ Removed in 0.35:
 
 Removed in 0.38 (see `CHANGELOG.md`): the unused orchestration layer (`launcher`,
 `createHandlerRegistry`, the `fsm` CLI). Use `startProcess` + your own `load` callback.
+
+## License
+
+MIT.
