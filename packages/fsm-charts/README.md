@@ -194,11 +194,10 @@ console.log(splitTransitionString("Idle -play-> Active -stop-> Idle"));
   holder that `buildFlatCharts` sets from the `lodash` option, so the host decides which
   lodash build ends up in its bundle. Without it, layout fails with
   `TypeError: Cannot read properties of undefined (reading 'has')`.
-- **Constraint: no subpath entry points.** The build emits `dist/index-config.js`,
-  `index-layout.js`, `index-html.js`, `index-dom.js` and `index-runtime.js`, but
-  `package.json` `exports` does not list them. An import such as
-  `@statewalker/fsm-charts/layout` fails with
-  `ERR_PACKAGE_PATH_NOT_EXPORTED: Package subpath './layout' is not defined by "exports"`.
+- **Entry points by area.** Besides the package root (everything), each area is its own
+  entry: `@statewalker/fsm-charts/config`, `/layout`, `/html`, `/dom` and `/runtime`. Layout
+  and HTML generation import no DOM code, so a Node.js or worker build can take
+  `/layout` and `/html` alone.
 - **Dependencies.** Zero runtime dependencies. dagre and graphlib are vendored; lodash
   comes from the caller.
 
