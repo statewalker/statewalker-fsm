@@ -12,7 +12,9 @@ prompt texts for AI agents that write HFSM configurations. Zero runtime dependen
 
 `@statewalker/fsm` does not check a configuration. When a transition names a state that
 no enclosing scope defines, the engine creates an empty state with no transitions and
-carries on; an event with no matching rule makes the current state exit. A typo in a
+carries on; an event with no matching rule, passed to `dispatch` of `FsmProcess` or of the
+synchronous `FsmProcessSync`, makes the current state exit (the handles returned by
+`startProcess` / `startProcessSync` ignore such an event instead). A typo in a
 state key therefore shows up as a machine that stalls or exits early, not as an error.
 This package finds those problems (and naming, reachability and event-coverage problems)
 from the configuration alone, before anything runs. Configurations written by AI agents
@@ -51,13 +53,13 @@ type ValidationIssue = {
   rule: RuleId;       // e.g. "L1", "S2", "M5", "M8"
   severity: Severity; // "error" | "warning" | "info" | "review"
   message: string;    // human-readable description
-  path: string[];     // ancestor keys leading to the state, e.g. ["Root", "Handle"]
+  path: string[];     // keys from the root down to the reported state, e.g. ["Root", "Handle"]
 };
 ```
 
 - **Errors** — will break at runtime (missing keys, malformed transitions, dangling references)
-- **Warnings** — likely bugs or bad practice (unreachable states, naming violations, missing event coverage)
-- **Info** — advisory hints (complexity, missing event declarations)
+- **Warnings** — likely bugs or bad practice (dead ends, naming violations, missing event coverage)
+- **Info** — advisory hints (sub-state count, M7)
 - **Review** — conditions that require human judgment to verify (event-state consistency, goal alignment, convergent transitions)
 
 Only errors affect the `valid` flag. Warnings, info, and review issues are reported but don't make the config invalid.
@@ -66,7 +68,7 @@ Pass `options.rules` to run only the listed rule ids, or `options.exclude` to sk
 
 ### The configuration format
 
-The validator defines its own `FsmStateConfig` type, a superset of the one `@statewalker/fsm` runs (the extra fields are descriptive and used by the semantic rules):
+The validator defines its own `FsmStateConfig` type, a superset of the one `@statewalker/fsm` runs (the extra fields are descriptive; the semantic rules read `events`, `description` and `outcome`):
 
 ```typescript
 type FsmStateConfig = {
@@ -79,7 +81,7 @@ type FsmStateConfig = {
   outcome?: string;                         // expected result upon completion
   roles?: string[];                         // roles required for this state
   object?: string;                          // primary entity acted upon
-};
+} & Record<string, unknown>;                // any other fields are allowed
 ```
 
 The `events` field is a key/value record where each key is the event name (camelCase) and each value describes the conditions when and how that event occurs. This enables semantic validation rules (M8, M9) to report event descriptions alongside state goals for human review.
@@ -89,9 +91,9 @@ The `events` field is a key/value record where each key is the event name (camel
 ### Validate a configuration
 
 ```typescript
-import { validate } from "@statewalker/fsm-validator";
+import { type FsmStateConfig, validate } from "@statewalker/fsm-validator";
 
-const config = {
+const config: FsmStateConfig = {
   key: "LightBulb",
   description: "A simple on/off light bulb",
   transitions: [
@@ -135,10 +137,10 @@ Run only specific rules or exclude rules you don't need:
 
 ```typescript
 // Run only lexical rules L1 and L3
-const result = validate(config, { rules: ["L1", "L3"] });
+const lexicalOnly = validate(config, { rules: ["L1", "L3"] });
 
 // Run everything except complexity advisory
-const result = validate(config, { exclude: ["M7"] });
+const withoutM7 = validate(config, { exclude: ["M7"] });
 ```
 
 ### Review items need a person
@@ -148,8 +150,8 @@ Rules M4, M8, and M9 produce issues with `severity: "review"`. These are structu
 The validator reports enough context in each issue message for a human reviewer to check:
 
 - **M4**: "State X has 2 transitions to Y via events [ok, error]. Verify that these outcomes are semantically compatible"
-- **M8**: "State X (description: ...) declares event Y described as '...'. Verify the event conditions do not contradict the state's goals"
-- **M9**: "Child state X (description: ...) is nested in Y (description: ...). Verify child goals do not contradict parent goals"
+- **M8**: "State X (description: ...) declares event Y described as '...'. Verify the event conditions do not contradict the state's goals and outcomes"
+- **M9**: "Child state X (description: ...) is nested in Y (description: ...). Verify child goals do not contradict parent goals, or if they do, that they align with an ancestor's goals"
 
 ```typescript
 const result = validate(config);
@@ -255,9 +257,9 @@ Graph topology validation — checks the transition graph is well-formed.
 | S2 | error | Every transition key resolves — in the declaring state's `states[]` or an ancestor's |
 | S3 | error | Sibling transitions must be at parent level — unless the child is instantiating a shared definition |
 | S4 | error | All sub-states reachable from the initial transition, or referenced by a descendant scope (a shared definition) |
-| S5 | warning | Non-final sub-states must have at least one outgoing transition |
+| S5 | warning | Composite sub-states must have at least one outgoing transition (leaf sub-states count as final; a `"*"` source covers all) |
 | S6 | error | Exit events from sub-states must be handled at parent level |
-| S7 | warning | Wildcard transitions must not create ambiguity |
+| S7 | warning | No `[from, event]` pair may lead to more than one target (overlaps between a wildcard and a specific rule are not checked) |
 | S8 | error | Leaf states — driving no `states[]` and no `transitions[]` — must declare `events` |
 | S9 | warning | A key defined at several depths shadows the outer definition — keep it deliberate |
 
@@ -268,12 +270,12 @@ Consistency, completeness, and semantic review rules.
 | Rule | Severity | Check |
 |------|----------|-------|
 | M1 | warning | Every event in `events` handled by some referencing scope, and every referencing scope handling some event |
-| M2 | warning | Every transition event must exist in the source state's `events` |
-| M3 | warning | Hierarchical event declaration — child exit events must be in child's `events` |
+| M2 | warning | Every transition event must exist in the source state's `events` (checked only when the source declares `events`) |
+| M3 | warning | Hierarchical event declaration — exit events of a state's sub-machine (`[X, e, ""]`) must be handled by its parent; checked only for states that declare `events` |
 | M4 | **review** | Reports convergent transitions (same source, different events, same target) for human review |
-| M5 | warning | Every cycle in the transition graph must have an exit |
+| M5 | warning | Every cycle in the transition graph must have an exit (not checked at the root) |
 | M6 | warning | Decision points should have exhaustive outgoing events |
-| M7 | info | Manageable complexity: 3–7 sub-states per level |
+| M7 | info | Manageable complexity: reports a level with 1 or more than 7 sub-states (recommended 3–7) |
 | M8 | **review** | Event descriptions must not contradict state goals/outcomes — reports for human review |
 | M9 | **review** | Child state goals should align with parent goals (or ancestor goals) — reports for human review |
 
@@ -306,7 +308,7 @@ The [`agent-rules/`](./agent-rules/) folder contains everything an AI agent need
 | [instructions.md](./agent-rules/instructions.md) | AI agent prompt — how to transform human-readable text into HFSM definitions: step-by-step methodology, data model, output format, transition patterns, naming conventions, and examples |
 | [validation.md](./agent-rules/validation.md) | Post-generation checklist organized by category (structural, naming, event consistency, cycles, semantic review) with rule ID cross-references |
 | [rules.md](./agent-rules/rules.md) | Full formalized rule specification with pseudocode, examples, and constraint details |
-| [rules.json](./agent-rules/rules.json) | Machine-readable rule catalog — category, ruleId, severity, and constraint for all 25 rules |
+| [rules.json](./agent-rules/rules.json) | Machine-readable rule catalog — category, ruleId, rule name, severity, and constraint for all 25 rules |
 
 ### Development commands
 
@@ -314,7 +316,7 @@ The [`agent-rules/`](./agent-rules/) folder contains everything an AI agent need
 pnpm install       # at the repository root
 pnpm test          # run all tests
 pnpm build         # run tests, then bundle with tsdown (ESM + .d.ts)
-pnpm check         # biome lint
+pnpm check         # biome check (lint + format)
 pnpm format        # biome format
 ```
 

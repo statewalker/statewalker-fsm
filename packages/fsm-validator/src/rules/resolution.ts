@@ -4,12 +4,14 @@ import type { FsmStateConfig, FsmStateKey } from "../types.ts";
  * State definition resolution.
  *
  * The engine resolves a transition's state key LEXICALLY, not locally.
- * `FsmProcess._newSubstate` starts at the state whose transition is being
- * followed and walks `state.parent` upward, taking the first
+ * `findStateDescriptor` (in `@statewalker/fsm`'s traversal, shared by
+ * `FsmProcess` and `FsmProcessSync`) starts at the state whose transition is
+ * being followed and walks `state.parent` upward, taking the first
  * `descriptor.states[key]` it finds:
  *
- *     for (let state = parent; !descriptor && state; state = state.parent) {
- *       descriptor = state.descriptor?.states[toState];
+ *     for (let state = parent; state; state = state.parent) {
+ *       const descriptor = state.descriptor?.states[key];
+ *       if (descriptor) return descriptor;
  *     }
  *
  * So a state may be REFERENCED in a scope that does not DEFINE it — that is
@@ -30,7 +32,7 @@ export function isPseudoKey(key: string): boolean {
 /** A state in the tree, with the ancestor chain that resolution walks. */
 export type Scope = {
   config: FsmStateConfig;
-  /** Keys of the ancestors, root first — the `path` a ValidationIssue carries. */
+  /** Keys of the ancestors, root first — the `path` a RuleContext carries. */
   path: string[];
   /** Ancestors nearest first, excluding `config` itself. */
   ancestors: FsmStateConfig[];
