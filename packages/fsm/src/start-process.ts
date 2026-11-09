@@ -11,7 +11,9 @@ import { isStateTransitionEnabled } from "./core/fsm-transitions.ts";
  * - nothing — no teardown;
  * - a cleanup `function` — registered as this state's `onExit`;
  * - an async/sync generator — run concurrently, each yielded string dispatched back
- *   into the machine (self-driving/reactive states), auto-`return()`ed on exit.
+ *   into the machine (self-driving/reactive states), auto-`return()`ed on exit. A
+ *   yielded event is applied once the machine has settled, and the next value is
+ *   pulled after it has been processed (as with `startProcessSync`).
  */
 export type StageHandler<C = Record<string, unknown>> = (
   context: C,
@@ -121,6 +123,11 @@ export async function startProcess<C = unknown>(
           (async () => {
             try {
               for await (const event of result) {
+                if (stateExited || terminated) break;
+                // Apply a generator's event only once the machine has settled (the
+                // transition that created this state may still be descending) —
+                // the same rule as `startProcessSync`.
+                while (process.running) await process.whenIdle();
                 if (stateExited || terminated) break;
                 await dispatch(event);
                 if (stateExited || terminated) break;

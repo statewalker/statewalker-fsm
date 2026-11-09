@@ -379,3 +379,29 @@ describe("README §9 — one handler set on both runners", () => {
     expect(ctxB.log).toEqual(ctxA.log);
   });
 });
+
+describe("README — onStateError scope", () => {
+  for (const flavour of ["async", "sync"] as const) {
+    it(`errors from onStateCreate handlers are only logged (${flavour})`, async () => {
+      const fsm = flavour === "async" ? new FsmProcess(config) : new FsmProcessSync(config);
+      const seen: unknown[] = [];
+      const logged: unknown[] = [];
+      fsm.onStateError((_s: unknown, e: unknown) => {
+        seen.push(e);
+      });
+      (fsm as FsmProcessSync).onStateCreate(() => {
+        throw new Error("create failed");
+      });
+      const orig = console.error;
+      console.error = (e: unknown) => logged.push(e);
+      try {
+        await fsm.dispatch("");
+      } finally {
+        console.error = orig;
+      }
+      expect(seen).toEqual([]);
+      expect(logged.length).toBeGreaterThan(0);
+      expect(fsm.state?.key).toBe("Idle");
+    });
+  }
+});

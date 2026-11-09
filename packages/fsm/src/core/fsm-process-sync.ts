@@ -39,7 +39,9 @@ export class FsmProcessSync extends FsmBaseClassSync {
   status: number = 0;
   config: FsmStateConfig;
   rootDescriptor: FsmStateDescriptor;
-  private _shuttingDown = false;
+  /** A shutdown requested while busy; applied by the dispatch loop. */
+  private _pendingShutdown?: { event?: string };
+  private _unwinding = false;
 
   constructor(config: FsmStateConfig) {
     super();
@@ -50,55 +52,82 @@ export class FsmProcessSync extends FsmBaseClassSync {
 
   /**
    * Force-exit the whole stack (root last), running each state's `onExit`; ends the
-   * machine. Pending queued events are discarded. A shutdown requested while one
-   * is already unwinding (e.g. from an `onExit` handler) is a no-op.
+   * machine. Pending queued events are discarded.
+   *
+   * Called while the machine is busy (from a handler during a dispatch), the
+   * shutdown is only recorded; the running dispatch unwinds the stack as soon as
+   * the current handler returns, so every entered state is exited exactly once and
+   * a state still being created is discarded. A shutdown requested while one is
+   * already unwinding is a no-op. Same semantics as `FsmProcess.shutdown`.
    */
   shutdown(event?: string): void {
-    if (this._shuttingDown) return;
-    this._shuttingDown = true;
+    if (this._unwinding) return;
+    if (this.running) {
+      this._pendingShutdown ??= { event };
+      this.nextEvents.length = 0;
+      return;
+    }
+    this._unwind(event);
+  }
+
+  private _unwind(event?: string) {
+    this._unwinding = true;
     try {
       this.status = STATUS_FINISHED;
       this.nextEvents.length = 0;
       while (this.state) {
+        const state = this.state;
         this.event = event;
-        this.status = STATUS_FINISHED;
-        this.state._runHandler("onExit", this.state);
-        this.state = this.state.parent;
+        state._runHandler("onExit", state);
+        this.state = state.parent;
       }
     } finally {
-      this._shuttingDown = false;
+      this._unwinding = false;
     }
   }
 
   /**
    * Feed an event and run the enter/exit cycle until the machine rests on a leaf
    * (`status & mask`) or finishes. Re-entrant calls (from handlers) are queued and
-   * applied in order once the current run settles. Returns `false` once finished.
+   * applied in order once the current run settles; they return `true` at once.
+   * Returns `false` once finished.
    */
   dispatch(event: string): boolean {
-    if (this.status & STATUS_FINISHED) return false;
+    if (this.status & STATUS_FINISHED || this._pendingShutdown) return false;
     this.nextEvents.push(event);
-    if (!this.running) {
-      this.running = true;
-      try {
-        while (this.nextEvents.length > 0 && !(this.status & STATUS_FINISHED)) {
-          this.event = this.nextEvents.shift();
-          while (true) {
-            if (this.status & STATUS_EXIT) {
-              this.state?._runHandler("onExit", this.state);
+    if (this.running) return true;
+    this.running = true;
+    try {
+      run: while (this.nextEvents.length > 0 && !(this.status & STATUS_FINISHED)) {
+        this.event = this.nextEvents.shift();
+        while (true) {
+          if (this.status & STATUS_EXIT) {
+            const exited = this.state;
+            exited?._runHandler("onExit", exited);
+            if (this._pendingShutdown) {
+              this.state = exited?.parent;
+              break run;
             }
-            if (!this._update()) break;
-            if (this.status & STATUS_ENTER) {
-              this.state?._runHandler("onEnter", this.state);
-            }
-            if (this.status & this.mask) break;
           }
+          if (!this._update()) break;
+          if (this._pendingShutdown) break run;
+          if (this.status & STATUS_ENTER) {
+            this.state?._runHandler("onEnter", this.state);
+            if (this._pendingShutdown) break run;
+          }
+          if (this.status & this.mask) break;
         }
-      } finally {
-        this.running = false;
-        if (this.status & STATUS_FINISHED) this.nextEvents.length = 0;
       }
+    } finally {
+      this.running = false;
     }
+    // Handlers may have requested a shutdown during the loop (TS cannot see that).
+    const pending = this._pendingShutdown as { event?: string } | undefined;
+    if (pending) {
+      this._pendingShutdown = undefined;
+      this._unwind(pending.event);
+    }
+    if (this.status & STATUS_FINISHED) this.nextEvents.length = 0;
     return !(this.status & STATUS_FINISHED);
   }
 
@@ -121,6 +150,9 @@ export class FsmProcessSync extends FsmBaseClassSync {
    * replaced as-is — call `shutdown()` first to run its `onExit` handlers.
    */
   restore(dump: FsmProcessDump, ...args: unknown[]): this {
+    if (this.running || this._unwinding) {
+      throw new Error("FsmProcessSync.restore() called while a dispatch or shutdown is running");
+    }
     this.status = dump.status || 0;
     this.event = dump.event;
     this.nextEvents.length = 0;
@@ -170,6 +202,11 @@ export class FsmProcessSync extends FsmBaseClassSync {
       this.rootDescriptor,
     );
     const nextState = target && this._newState(target.parent, target.key, target.descriptor);
+    if (this._pendingShutdown) {
+      // See FsmProcess._update: drop the state created after a shutdown request.
+      if (this.status & STATUS_EXIT) this.state = this.state?.parent;
+      return true;
+    }
     [this.state, this.status] = settleStep(this.status, this.state, nextState);
     return !(this.status & STATUS_FINISHED);
   }

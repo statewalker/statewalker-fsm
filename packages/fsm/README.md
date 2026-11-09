@@ -116,13 +116,20 @@ the whole machine (the runners guard against that; see "Constraints" below).
     machine has finished (`true` otherwise). Called while a dispatch is running (e.g. from a
     handler), it queues the event and returns at once; queued events run in order before the
     outer `dispatch` resolves.
-  - `shutdown(event?)` unwinds every active state (inner-to-outer) and finishes the machine;
-    concurrent calls share one unwinding.
+  - `shutdown(event?)` unwinds every active state (inner-to-outer) and finishes the machine.
+    Called while the machine is busy (from a handler, or during a dispatch or another
+    shutdown), it only records the request and resolves at once — so awaiting it inside a
+    handler cannot deadlock; the running dispatch unwinds as soon as the current handler
+    returns. Every entered state is exited exactly once.
+  - `whenIdle()` resolves once no dispatch or shutdown is in progress.
   - `dump(...args)` / `restore(dump, ...args)` serialize and rehydrate the stack.
   - `onStateCreate(handler)` is the primary extension point (fires once per state instance —
-    attach that state's hooks there); `onStateError(handler)` sees every handler error.
+    attach that state's hooks there); `onStateError(handler)` receives every error thrown by a
+    state's handlers (`onEnter`, `onExit`, `dump`, `restore`). Errors thrown by process-level
+    handlers (`onStateCreate`) are only logged.
   - `state` is the current leaf, `event` the event being processed, `status` the `STATUS_*` bits.
-  - `dispatch`, `shutdown`, `dump` and `restore` are pre-bound, so they can be passed as callbacks.
+  - `dispatch`, `shutdown`, `dump`, `restore` and `whenIdle` are pre-bound, so they can be passed
+    as callbacks.
 - **`FsmState`** — a live node in the stack you hang behaviour on: `onEnter` / `onExit` (exit
   handlers run in reverse registration order, so unwinding is inner-to-outer) / `onStateError`
   lifecycle hooks and `dump` / `restore` hooks for per-state data; `key`, `parent`, `descriptor` and
@@ -134,9 +141,10 @@ the whole machine (the runners guard against that; see "Constraints" below).
 
 - **`FsmProcessSync` / `FsmStateSync`** — synchronous twins with the same members:
   `dispatch(event)` returns a `boolean`, `dump()` returns the dump, `restore()` returns the process,
-  `shutdown()` returns when the stack is unwound (a shutdown requested from an `onExit` during a
-  shutdown is a no-op). Handlers are plain functions; one that returns a promise cannot be honoured
-  synchronously and is reported as a `TypeError` through `onStateError`.
+  `shutdown()` returns when the stack is unwound — or, called from a handler, records the request,
+  which the running dispatch applies once that handler returns (same rule as `FsmProcess`).
+  Handlers are plain functions; one that returns a promise cannot be honoured synchronously and is
+  reported as a `TypeError` through `onStateError`.
 - **`FsmStateSyncHandler`, `FsmStateSyncDumpHandler`, `FsmStateSyncErrorHandler`,
   `FsmProcessSyncStateHandler`** — the corresponding types.
 
@@ -171,12 +179,14 @@ the whole machine (the runners guard against that; see "Constraints" below).
   `startEvent`, and resolves to a `ProcessHandle`. `startFsmProcess` is an alias.
 - **`StageHandler`** — per-state behaviour, a function of `context` whose return value wires up the
   rest: nothing; a cleanup `function` (→ `onExit`); or an async/sync generator whose yielded strings
-  are dispatched as events (consumed concurrently, `return()`-ed when the state exits).
+  are dispatched as events. The generator runs concurrently with the caller; each yielded event is
+  applied once the machine has settled, and the generator is `return()`-ed when its state exits.
 - **`ProcessHandle`** — `dispatch(event)` (guarded, like `KEY_DISPATCH`), `shutdown()`, `dump(...)`,
   `restore(dump, ...)`, all returning promises.
 - **`startProcessSync(context, config, load, startEvent = "")`** — the same runner on
   `FsmProcessSync`; `load` must be synchronous. Returns a `ProcessHandleSync` with the same four
-  methods, returning values directly.
+  methods, returning values directly. An async stage handler or async generator returned to it is
+  reported as a `TypeError` (through the state's error handling) instead of being ignored.
 - **`StageHandlerSync`** — like `StageHandler` without promises: nothing, a cleanup function, or a
   **sync generator**. The generator starts on entry (code before its first `yield` runs then); each
   yielded event is dispatched once the machine has settled, and the next value is pulled after that
@@ -338,10 +348,11 @@ handle.dispatch("play");
 context[KEY_STATES];  // ["Player", "Active", "Paused"] — the generator already ran
 ```
 
-On the **async** runner, events from generators (sync or async) are dispatched
-asynchronously: do not rely on them having been applied when `dispatch` resolves. On the
-**sync** runner, a generator must eventually finish or leave its state — an endless one
-would keep `dispatch` from returning.
+Both runners apply a generator's event only once the machine has settled (so a generator on a
+composite state sees its initial child entered first), and pull the next value after that event
+has been processed. On the **async** runner this happens asynchronously: do not rely on the
+events having been applied when `dispatch` resolves. On the **sync** runner, a generator must
+eventually finish or leave its state — an endless one would keep `dispatch` from returning.
 
 ### 5. Errors — `onStateError`
 
@@ -433,7 +444,9 @@ spaces.
 
 A `StageHandlerSync` is also a valid async `StageHandler`, so a synchronous handler set can be
 tested on `startProcessSync` and deployed on `startProcess` (or the other way round). Both produce
-the same sequence of enters, exits and cleanups:
+the same sequence of enters, exits and cleanups — including the events of a sync generator (on the
+async runner, after its events have been processed). With several generators active at the same
+time, the interleaving of their events may differ between the runners.
 
 ```typescript
 const handlers: Record<string, StageHandlerSync<Ctx>> = {
@@ -478,10 +491,14 @@ which strips TypeScript types natively). Each one is executed by `test/examples.
   Unhandled events bubble up the parent chain, so an outer state can catch events its children
   ignore. A state key not declared under its parent is looked up in the ancestors' `states`;
   unknown keys behave as plain leaves.
-- **Generator handlers.** Async runner: a generator is consumed concurrently, each yielded event
-  goes through the guarded dispatch. Sync runner: generators are pumped round-robin after each
-  settle, one event per generator per pass. Either way the generator is `return()`-ed when its
-  state exits — this is the mechanism for self-driving/timed states.
+- **Generator handlers.** Async runner: a generator is consumed concurrently; before each yielded
+  event goes through the guarded dispatch, it waits for `whenIdle()`. Sync runner: generators are
+  pumped round-robin after each settle, one event per generator per pass. Either way the generator
+  is `return()`-ed when its state exits — also when it leaves its own state from its body — which
+  is the mechanism for self-driving/timed states.
+- **Shutdown while busy.** `shutdown()` during a dispatch sets a request; the dispatch loop checks
+  it after every handler and step, discards a state that was being created, and unwinds from the
+  current state (or from its parent if that state has just exited).
 - **Handler lists.** Handlers run in registration order (`onExit`: reverse), over a snapshot of the
   list taken when the run starts — a handler registered while its list is running (e.g. an
   `onEnter` adding another `onEnter`) takes effect from the next run.
@@ -501,12 +518,13 @@ which strips TypeScript types natively). Each one is executed by `test/examples.
     yourself when you need to know.
   - A re-entrant `dispatch` (from inside a handler) only queues: it returns `true` before the
     event has been applied.
-  - An error thrown by a handler does not reject/throw from `dispatch`. It goes to the state's
-    `onStateError` handlers, then to the process's `onStateError` handlers, and is then
+  - An error thrown by a state's handler does not reject/throw from `dispatch`. It goes to the
+    state's `onStateError` handlers, then to the process's `onStateError` handlers, and is then
     logged with `console.error`; the transition continues. An error thrown by an
-    `onStateError` handler is only logged.
+    `onStateError` or `onStateCreate` handler is only logged.
   - `FsmProcess.restore` / `FsmProcessSync.restore` replace the current stack without running its
     `onExit` handlers — call `shutdown()` first if they must run (the runner handles do this).
+    Calling `restore` while a dispatch or shutdown is running throws.
 - **Dependencies.** None. Zero runtime dependencies, so the package can sit at the core of
   larger systems without adding to their install.
 

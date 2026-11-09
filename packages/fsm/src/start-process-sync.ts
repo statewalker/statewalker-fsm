@@ -1,3 +1,4 @@
+import { isThenable } from "./core/fsm-base-class.ts";
 import type { FsmProcessDump } from "./core/fsm-process.ts";
 import { FsmProcessSync } from "./core/fsm-process-sync.ts";
 import type { FsmStateConfig } from "./core/fsm-state-config.ts";
@@ -36,6 +37,13 @@ type GeneratorRunner = {
   pending?: string;
   closed: boolean;
 };
+
+function asyncMisuse(what: string) {
+  return new TypeError(
+    `startProcessSync: ${what} used with the synchronous runner; it is not awaited. ` +
+      "Use startProcess for async handlers.",
+  );
+}
 
 function isIterator(value: unknown): value is Generator<string, void, unknown> {
   return (
@@ -78,7 +86,23 @@ export function startProcessSync<C = unknown>(
   /** Pull the next event of a generator into `pending` (or close it). */
   function pull(runner: GeneratorRunner) {
     try {
-      const { value, done } = runner.generator.next();
+      const step = runner.generator.next();
+      if (isThenable(step)) {
+        // An async generator: its steps are promises and cannot be pumped here.
+        runner.closed = true;
+        runners.delete(runner);
+        (step as PromiseLike<unknown>).then(undefined, (e) => runner.state._handleError(e));
+        void (runner.generator as unknown as AsyncGenerator).return?.(undefined);
+        runner.state._handleError(asyncMisuse("async generator"));
+        return;
+      }
+      const { value, done } = step;
+      if (runner.closed) {
+        // The generator left its own state from its body: `close()` could not
+        // `return()` it while it was running — finalize it now that it is suspended.
+        if (!done) finalize(runner);
+        return;
+      }
       if (done) close(runner);
       else runner.pending = value;
     } catch (error) {
@@ -92,11 +116,19 @@ export function startProcessSync<C = unknown>(
     runner.closed = true;
     runner.pending = undefined;
     runners.delete(runner);
+    finalize(runner);
+  }
+
+  function finalize(runner: GeneratorRunner) {
     try {
       runner.generator.return?.(undefined);
-    } catch {
-      // `return()` on a generator that is currently executing (it dispatched an
-      // event that exited its own state) throws; it is finished either way.
+    } catch (error) {
+      // A generator that is executing right now (it dispatched an event that
+      // exited its own state) cannot be returned; `pull` finalizes it once it
+      // yields. Any other error comes from its `finally` block.
+      if (!(error instanceof TypeError && /already running/i.test(error.message))) {
+        runner.state._handleError(error);
+      }
     }
   }
 
@@ -130,8 +162,12 @@ export function startProcessSync<C = unknown>(
       statesStack.push(state.key);
       syncContext();
       for (const module of load(state.key, process.event) ?? []) {
-        const result = module?.(context);
-        if (isIterator(result)) {
+        const result = module?.(context) as unknown;
+        if (isThenable(result)) {
+          // An async stage handler: its result cannot be honoured synchronously.
+          result.then(undefined, (error) => state._handleError(error));
+          state._handleError(asyncMisuse("async stage handler"));
+        } else if (isIterator(result)) {
           const runner: GeneratorRunner = { state, generator: result, closed: false };
           runners.add(runner);
           state.onExit(() => close(runner));

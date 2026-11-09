@@ -65,38 +65,68 @@ export class FsmProcess extends FsmBaseClass {
   status: number = 0;
   config: FsmStateConfig;
   rootDescriptor: FsmStateDescriptor;
-  private _shutdown?: Promise<void>;
+  /** A shutdown requested while busy; applied by the dispatch loop. */
+  private _pendingShutdown?: { event?: string };
+  private _unwinding = false;
+  private _idleWaiters: (() => void)[] = [];
 
   constructor(config: FsmStateConfig) {
     super();
     this.rootDescriptor = FsmStateDescriptor.build(config);
     this.config = config;
-    bindMethods(this, "dispatch", "shutdown", "dump", "restore");
+    bindMethods(this, "dispatch", "shutdown", "dump", "restore", "whenIdle");
   }
 
   /**
    * Force-exit the whole stack (root last), running each state's `onExit`; ends the
    * machine. Pending queued events are discarded and later `dispatch` calls are
-   * no-ops (until a `restore`). Concurrent calls share one unwinding, so no state
-   * is exited twice.
+   * no-ops (until a `restore`).
+   *
+   * Like a re-entrant `dispatch`, a shutdown requested while the machine is busy —
+   * from a handler, or while a dispatch or another shutdown is in progress — only
+   * records the request and resolves at once (so awaiting it inside a handler can
+   * never deadlock). The running dispatch then unwinds the stack as soon as the
+   * current handler returns; every entered state is exited exactly once, and a
+   * state still being created is discarded. Await `whenIdle()` to wait for the
+   * unwinding to finish.
    */
-  shutdown(event?: string): Promise<void> {
-    if (!this._shutdown) {
-      this._shutdown = this._doShutdown(event).finally(() => {
-        this._shutdown = undefined;
-      });
+  async shutdown(event?: string): Promise<void> {
+    if (this._unwinding) return;
+    if (this.running) {
+      this._pendingShutdown ??= { event };
+      this.nextEvents.length = 0;
+      return;
     }
-    return this._shutdown;
+    await this._unwind(event);
+    this._notifyIdle();
   }
 
-  private async _doShutdown(event?: string) {
-    this.status = STATUS_FINISHED;
-    this.nextEvents.length = 0;
-    while (this.state) {
-      this.event = event;
+  /** Resolves once no dispatch or shutdown is in progress. */
+  whenIdle(): Promise<void> {
+    if (!this.running && !this._unwinding) return Promise.resolve();
+    return new Promise((resolve) => this._idleWaiters.push(resolve));
+  }
+
+  private _notifyIdle() {
+    if (this.running || this._unwinding) return;
+    const waiters = this._idleWaiters;
+    this._idleWaiters = [];
+    for (const resolve of waiters) resolve();
+  }
+
+  private async _unwind(event?: string) {
+    this._unwinding = true;
+    try {
       this.status = STATUS_FINISHED;
-      await this.state._runHandler("onExit", this.state);
-      this.state = this.state.parent;
+      this.nextEvents.length = 0;
+      while (this.state) {
+        const state = this.state;
+        this.event = event;
+        await state._runHandler("onExit", state);
+        this.state = state.parent;
+      }
+    } finally {
+      this._unwinding = false;
     }
   }
 
@@ -106,36 +136,51 @@ export class FsmProcess extends FsmBaseClass {
    *
    * If a dispatch is already running (e.g. an `onEnter` handler dispatches
    * synchronously), the event is appended to the `nextEvents` FIFO queue and applied
-   * — in order, none dropped — when the current run settles; runs never nest. Events
-   * sent to a finished machine are ignored. Returns `false` once the machine has
-   * finished, `true` otherwise.
+   * — in order, none dropped — when the current run settles; runs never nest, and
+   * the re-entrant call resolves at once. Events sent to a finished (or shutting
+   * down) machine are ignored. Returns `false` once the machine has finished, `true`
+   * otherwise.
    */
   async dispatch(event: string): Promise<boolean> {
-    if (this.status & STATUS_FINISHED) return false;
+    if (this.status & STATUS_FINISHED || this._pendingShutdown) return false;
     // Queue the event. Re-entrant dispatches (from handlers running mid-settle)
     // append here and are drained in order — so no earlier event is overwritten.
     this.nextEvents.push(event);
-    if (!this.running) {
-      this.running = true;
-      try {
-        while (this.nextEvents.length > 0 && !(this.status & STATUS_FINISHED)) {
-          this.event = this.nextEvents.shift();
-          while (true) {
-            if (this.status & STATUS_EXIT) {
-              await this.state?._runHandler("onExit", this.state);
+    if (this.running) return true;
+    this.running = true;
+    try {
+      run: while (this.nextEvents.length > 0 && !(this.status & STATUS_FINISHED)) {
+        this.event = this.nextEvents.shift();
+        while (true) {
+          if (this.status & STATUS_EXIT) {
+            const exited = this.state;
+            await exited?._runHandler("onExit", exited);
+            if (this._pendingShutdown) {
+              // `exited` is done; unwind from its parent.
+              this.state = exited?.parent;
+              break run;
             }
-            if (!(await this._update())) break;
-            if (this.status & STATUS_ENTER) {
-              await this.state?._runHandler("onEnter", this.state);
-            }
-            if (this.status & this.mask) break;
           }
+          if (!(await this._update())) break;
+          if (this._pendingShutdown) break run;
+          if (this.status & STATUS_ENTER) {
+            await this.state?._runHandler("onEnter", this.state);
+            if (this._pendingShutdown) break run;
+          }
+          if (this.status & this.mask) break;
         }
-      } finally {
-        this.running = false;
-        if (this.status & STATUS_FINISHED) this.nextEvents.length = 0;
       }
+    } finally {
+      this.running = false;
     }
+    // Handlers may have requested a shutdown during the loop (TS cannot see that).
+    const pending = this._pendingShutdown as { event?: string } | undefined;
+    if (pending) {
+      this._pendingShutdown = undefined;
+      await this._unwind(pending.event);
+    }
+    if (this.status & STATUS_FINISHED) this.nextEvents.length = 0;
+    this._notifyIdle();
     return !(this.status & STATUS_FINISHED);
   }
 
@@ -162,6 +207,9 @@ export class FsmProcess extends FsmBaseClass {
    * `onExit` handlers do not run — call `shutdown()` first to unwind it).
    */
   async restore(dump: FsmProcessDump, ...args: unknown[]) {
+    if (this.running || this._unwinding) {
+      throw new Error("FsmProcess.restore() called while a dispatch or shutdown is running");
+    }
     this.status = dump.status || 0;
     this.event = dump.event;
     this.nextEvents.length = 0;
@@ -225,6 +273,12 @@ export class FsmProcess extends FsmBaseClass {
     );
     const nextState =
       target && (await this._newState(target.parent, target.key, target.descriptor));
+    if (this._pendingShutdown) {
+      // A shutdown was requested while the state was being created: drop it. If
+      // the current state has just exited, the unwinding starts from its parent.
+      if (this.status & STATUS_EXIT) this.state = this.state?.parent;
+      return true;
+    }
     [this.state, this.status] = settleStep(this.status, this.state, nextState);
     return !(this.status & STATUS_FINISHED);
   }
