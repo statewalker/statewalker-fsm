@@ -12,8 +12,8 @@ reports clicks on states and transitions. Layout and SVG rendering come from
 `@statewalker/fsm-charts` produces strings and low-level DOM bindings; turning them into
 something you can drop on a page takes layout parameters, CSS scoping, id generation and
 event wiring. This package does that once. `renderStateCharts` also follows a live
-`FsmProcess`, so you can see which states are active and fire transitions by clicking
-them while you develop a machine.
+process — `FsmProcess` (async) or `FsmProcessSync` (sync) — so you can see which states
+are active and fire transitions by clicking them while you develop a machine.
 
 ## How to use: give it a configuration or a process, append the element
 
@@ -33,8 +33,8 @@ DOM implementation such as jsdom.
 | Export | Purpose |
 | --- | --- |
 | `newProcessCharts(options)` | Build the interactive chart for a configuration. Returns the element with `selectState(stack)`. Default direction `"lr"`. |
-| `renderStateCharts(options)` | Same chart, bound to a live `FsmProcess` (`options.process`). Default direction `"tb"`. |
-| `renderStateDescription({ process, renderer })` | Returns a `<div>` that shows `renderer(stack)` for the current state and replaces it on every transition. |
+| `renderStateCharts(options)` | Same chart, bound to a live process (`options.process`: `FsmProcess` or `FsmProcessSync`). Default direction `"tb"`. |
+| `renderStateDescription({ process, renderer, invalidation? })` | Returns a `<div>` that shows `renderer(stack)` for the current state of a process (either engine) and replaces it on every transition. |
 | `prepareStateDescriptions({ element, rootStateKey, titleElementName })` | Read per-state descriptions from a document section whose headings are written `[StateKey] Title` and return a `renderer` for the functions above. |
 | `renderCss(rootSelector = ":root")` | Returns a `<style>` element with the chart styles scoped to `rootSelector`. |
 | `newId(prefix)` | Shared id generator (`prefix_1`, `prefix_2`, ...), so ids stay unique across charts on one page. |
@@ -83,6 +83,17 @@ document.body.append(renderStateCharts({ process, lodash }));
 await process.dispatch("");
 ```
 
+The synchronous engine works the same way; the highlight has moved by the time
+`dispatch` returns:
+
+```js
+import { FsmProcessSync } from "@statewalker/fsm";
+
+const process = new FsmProcessSync(config);
+document.body.append(renderStateCharts({ process, lodash }));
+process.dispatch("");
+```
+
 ### Show a description of the current state
 
 ```js
@@ -111,14 +122,15 @@ document.body.append(renderStateDescription({ process, renderer }));
   transitions with the `active` modifier and opens their panels. A click on a state marks
   the clicked stack with `selected`, so a user's selection and the running state do not
   overwrite each other.
-- **Following a process.** `renderStateCharts` and `renderStateDescription` register an
-  `onStateCreate` handler on the process and update on every state entry; the cleanup
-  runs on that state's exit.
+- **Following a process.** `renderStateCharts` and `renderStateDescription` render the
+  current state, then register an `onStateCreate` handler on the process and update on
+  every state entry; the cleanup runs on that state's exit. The handlers are synchronous,
+  so they work with `FsmProcess` and `FsmProcessSync` alike.
 - **Constraint: listeners stay until `invalidation` resolves.** Without an
   `invalidation` promise, the click listeners and the process subscription of
-  `newProcessCharts` / `renderStateCharts` are never removed, even after the element
-  leaves the page. `renderStateDescription` takes no `invalidation` and never
-  unsubscribes from the process.
+  `newProcessCharts` / `renderStateCharts` / `renderStateDescription` are never removed,
+  even after the element leaves the page. After `invalidation` resolves, states entered
+  later are no longer rendered.
 - **Constraint: headings are read with `innerText`.** `prepareStateDescriptions` reads
   heading text through `HTMLElement.innerText`, which jsdom does not implement. Under jsdom
   it throws `TypeError: Cannot read properties of undefined (reading 'trim')`.
