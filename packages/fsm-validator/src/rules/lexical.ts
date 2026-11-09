@@ -18,8 +18,10 @@ export function keyRequired(ctx: RuleContext): ValidationIssue[] {
 }
 
 export function stateKeyFormat(ctx: RuleContext): ValidationIssue[] {
-  if (!ctx.config.key || !STATE_KEY_PATTERN.test(ctx.config.key)) return [];
-  // Only warn if the key exists but doesn't match the recommended PascalCase
+  // A missing key is L1's job. Any other key that is not PascalCase is reported here —
+  // including keys that fail STATE_KEY_PATTERN entirely, which no other rule sees
+  // when the state is never referenced from a transition (L4 checks references only).
+  if (typeof ctx.config.key !== "string" || ctx.config.key === "") return [];
   if (!/^[A-Z][a-zA-Z0-9]*$/.test(ctx.config.key)) {
     return [
       {
