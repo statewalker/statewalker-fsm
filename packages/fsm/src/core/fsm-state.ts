@@ -10,8 +10,16 @@ export type FsmStateDump = Record<string, unknown> & {
 /** An `onEnter` / `onExit` callback; receives the state it fired on. */
 export type FsmStateHandler = (state: FsmState, ...args: unknown[]) => void | Promise<void>;
 
-/** A `dump` / `restore` callback; reads or fills the mutable per-state `data` bag. */
-export type FsmStateDumpHandler = (state: FsmState, dump: FsmStateDump) => void | Promise<void>;
+/**
+ * A `dump` / `restore` callback; reads or fills the mutable per-state `data` bag
+ * (`FsmStateDump["data"]`), followed by any extra arguments given to
+ * `process.dump(...)` / `process.restore(dump, ...)`.
+ */
+export type FsmStateDumpHandler = (
+  state: FsmState,
+  data: FsmStateDump["data"],
+  ...args: unknown[]
+) => void | Promise<void>;
 
 /** An `onStateError` callback; receives the error thrown by another handler on this state. */
 export type FsmStateErrorHandler = (state: FsmState, error: unknown) => void | Promise<void>;

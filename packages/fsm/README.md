@@ -34,6 +34,14 @@ There are **two layers — pick your altitude**:
   a single `load` callback and binds the machine into a shared context object. **Most
   consumers use this.**
 
+Both layers come in two flavours that run **the same traversal algorithm**:
+
+- **async** — `FsmProcess` / `startProcess`: handlers may be `async`, every call returns a
+  promise;
+- **sync** — `FsmProcessSync` / `startProcessSync`: handlers are plain functions and the
+  machine has fully moved by the time `dispatch` returns. Use it for tokenizers, reducers,
+  game loops, SSR or tests. Dumps are interchangeable between the two.
+
 ## How to use: install, then drive it with the runner or the engine
 
 ```sh
@@ -109,6 +117,16 @@ state still fires from deep inside.
   and `FsmState` (add/run/remove typed handler lists, sequential with error routing). Mostly internal;
   exported for subclassing.
 
+**Sync engine**
+
+- **`FsmProcessSync` / `FsmStateSync` / `FsmBaseClassSync`** — synchronous twins of the three classes
+  above, with the same API minus the promises: `dispatch(event)` returns a `boolean`, `dump()` returns
+  the dump, `restore()` / `shutdown()` return when done. A handler that returns a promise cannot be
+  honoured synchronously and is reported as a `TypeError` through `onStateError`.
+- **`STATUS_*`, `getNextStateTarget`, `settleStep`, `resolveTargetStateKey`, `findStateDescriptor`,
+  `FsmStateNode`** — the pure traversal steps (`fsm-traversal.ts`) both engines are built from, which
+  is what guarantees they visit states in the same order.
+
 **Runner**
 
 - **`startProcess` / `startFsmProcess`** — wiring `onStateCreate` + `onEnter` + a loader by hand is
@@ -118,8 +136,12 @@ state still fires from deep inside.
 - **`StageHandler`** — the contract for per-state behaviour, with its return type doing double duty: a
   function of `context` returning `void` (nothing), a cleanup `function` (→ `onExit`), or an async/sync
   generator (its yielded strings are dispatched as events).
-- **`ProcessHandle`** — the caller's remote control after `startProcess` returns: `shutdown()`,
-  `dump(...)`, `restore(dump, ...)`.
+- **`ProcessHandle`** — the caller's remote control after `startProcess` returns: `dispatch(event)`
+  (guarded, like `KEY_DISPATCH`), `shutdown()`, `dump(...)`, `restore(dump, ...)`. `restore` first
+  unwinds the live stack (its cleanups run and its generators stop).
+- **`startProcessSync` / `StageHandlerSync` / `ProcessHandleSync`** — the same runner on the sync
+  engine. A `StageHandlerSync` may return a sync generator: it starts on entry, each yielded event is
+  dispatched once the machine settles, and the next value is pulled after that event is processed.
 - **`KEY_DISPATCH` / `KEY_TERMINATE` / `KEY_STATES` / `KEY_EVENT`** — the context keys under which
   `startProcess` binds the dispatch fn, terminate fn, current state-stack, and last event, so handlers
   reach the machine through the shared context rather than closures over the process. The bound dispatch
@@ -133,7 +155,7 @@ state still fires from deep inside.
   optional line numbers).
 - **`setProcessTracer` / `setStateTracer`** — see the machine's motion as a stream of enter/exit
   events: emit `<state event="…">` on enter and `</state>` on exit, for a whole process or a single
-  state.
+  state. Printers and tracers accept either engine.
 
 ## Examples
 
@@ -235,6 +257,37 @@ setProcessPrinter(process, { prefix: "[player]", lineNumbers: true });
 setProcessTracer(process); // logs <Playing event="play"> … </Playing> <!-- event="pause" --> per state
 ```
 
+### 6. Synchronous — `FsmProcessSync` / `startProcessSync`
+
+```typescript
+import { FsmProcessSync, startProcessSync, KEY_STATES } from "@statewalker/fsm";
+
+const fsm = new FsmProcessSync(config);
+fsm.onStateCreate((state) => state.onEnter(() => console.log("→", state.key)));
+fsm.dispatch("");      // returns true — the machine already rests on Player/Idle
+fsm.dispatch("play");  // Idle → Active → Playing, before this line returns
+
+const ctx = {};
+const handle = startProcessSync(ctx, config, (state) =>
+  state === "Playing" ? [function* () { yield "pause"; }] : [],
+);
+handle.dispatch("play");
+ctx[KEY_STATES];       // ["Player", "Active", "Paused"] — the generator already ran
+```
+
+### More: runnable examples
+
+[`examples/`](./examples) holds runnable use cases (`node examples/<file>.ts`, Node ≥ 22.18), each
+covered by `test/examples.test.ts`:
+
+| File | Shows |
+| --- | --- |
+| `01-traffic-light.ts` | the sync engine, a composite state, fault bubbling, guarding events |
+| `02-signup-wizard.ts` | `startProcessSync`: per-state handlers, cleanups, a generator state, cancel from any step |
+| `03-csv-parser.ts` | a character-level tokenizer on `FsmProcessSync`; syntax errors via unmatched events |
+| `04-async-reconnect.ts` | `startProcess` with async generators: retry, back-off, give up |
+| `05-pause-and-resume.ts` | dumping a sync machine to JSON and resuming it on the async engine |
+
 ## Internals: traversal, transition lookup and serialization
 
 - **Traversal & the `status` bitmask.** `dispatch` pumps an enter/exit cycle over the state stack until
@@ -253,16 +306,23 @@ setProcessTracer(process); // logs <Playing event="play"> … </Playing> <!-- ev
   `restore()` rebuilds the stack and replays each state's `restore` hooks. Only what you record via
   `state.dump(...)` is persisted — the engine keeps snapshots minimal.
 - **Constraints and quiet failures.**
-  - Once the root state exits, the process is finished: `dispatch` resolves to `false` and
-    does nothing. Create a new `FsmProcess` (or `restore` a dump) to run again.
+  - Once the root state exits (or after `shutdown()`, even on a machine that never started),
+    the process is finished: `dispatch` resolves to `false` and does nothing; queued events
+    are discarded. Create a new `FsmProcess` (or `restore` a dump) to run again.
+  - With the raw engine, an event that matches no rule exits the current state and keeps
+    bubbling — if no ancestor handles it, the whole machine finishes. Guard with
+    `isStateTransitionEnabled` (the runners do).
   - The dispatch function that `startProcess` binds under `KEY_DISPATCH` drops events for
     which `isStateTransitionEnabled` is `false`, without an error. Call
     `isStateTransitionEnabled` yourself when you need to know.
   - An error thrown by a handler does not reject `dispatch`. It goes to the state's
     `onStateError` handlers, then to the process's `onStateError` handlers, and is then
     logged with `console.error`; the transition continues.
-  - `dump` / `restore` hooks receive the state's `data` bag as the second argument, although
-    the `FsmStateDumpHandler` type names that parameter `FsmStateDump`.
+  - `dump` / `restore` hooks receive the state's `data` bag as the second argument (typed
+    `FsmStateDump["data"]`), followed by any extra arguments passed to `dump(...)` /
+    `restore(dump, ...)`.
+  - Handlers registered while a handler list is running (e.g. an `onEnter` adding another
+    `onEnter`) take effect from the next run of that list.
 - **Dependencies.** None. Zero runtime dependencies, so the package can sit at the core of
   larger systems without adding to their install.
 

@@ -2,6 +2,7 @@ import {
   FsmProcess,
   type FsmProcessDump,
   type FsmStateConfig,
+  type FsmStateDumpHandler,
   KEY_TERMINATE,
   STATUS_FINISHED,
   startProcess,
@@ -155,5 +156,24 @@ describe("startProcess handle.restore over a live process (R4)", () => {
     const after = await handle.dump();
     expect(after.stack.map((s) => s.key)).toEqual(["App", "Working"]);
     await (ctx[KEY_TERMINATE] as () => Promise<void>)();
+  });
+});
+
+describe("FsmStateDumpHandler typing (R5)", () => {
+  it("types the second argument as the state's data bag (what is passed at runtime)", async () => {
+    const handler: FsmStateDumpHandler = (_state, data) => {
+      // The runtime value is the `data` bag, which has no `key`: before the fix the
+      // type claimed it was the whole `FsmStateDump`, so this line type-checked.
+      // @ts-expect-error — `data.key` is `unknown`, not the state key.
+      const key: string = data.key;
+      data.seen = key === undefined;
+    };
+    const p = new FsmProcess(linear);
+    p.onStateCreate((s) => {
+      s.dump(handler);
+    });
+    await p.dispatch("");
+    const dump = await p.dump();
+    expect(dump.stack[0].data).toEqual({ seen: true });
   });
 });

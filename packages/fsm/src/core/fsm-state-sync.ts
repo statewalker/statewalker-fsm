@@ -7,7 +7,11 @@ import type { FsmStateDescriptor } from "./fsm-state-descriptor.ts";
 export type FsmStateSyncHandler = (state: FsmStateSync, ...args: unknown[]) => void;
 
 /** A synchronous `dump` / `restore` callback; reads or fills the per-state `data` bag. */
-export type FsmStateSyncDumpHandler = (state: FsmStateSync, data: FsmStateDump["data"]) => void;
+export type FsmStateSyncDumpHandler = (
+  state: FsmStateSync,
+  data: FsmStateDump["data"],
+  ...args: unknown[]
+) => void;
 
 /** A synchronous `onStateError` callback. */
 export type FsmStateSyncErrorHandler = (state: FsmStateSync, error: unknown) => void;
