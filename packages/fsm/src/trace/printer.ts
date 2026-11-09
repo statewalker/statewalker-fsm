@@ -1,4 +1,8 @@
 import type { FsmProcess } from "../core/fsm-process.ts";
+import type { FsmProcessSync } from "../core/fsm-process-sync.ts";
+
+/** Either engine — printers and tracers work with both. */
+export type FsmAnyProcess = FsmProcess | FsmProcessSync;
 
 /** A sink for trace output — anything shaped like `console.log`. */
 export type Printer = (...args: unknown[]) => void;
@@ -22,7 +26,7 @@ const printerStore = new WeakMap<object, Printer>();
  * tree — hierarchical indentation makes enter/exit traces readable at a glance.
  */
 export function preparePrinter(
-  process: FsmProcess,
+  process: FsmAnyProcess,
   { prefix = "", print = console.log, lineNumbers = false }: PrinterConfig,
 ): Printer {
   let lineCounter = 0;
@@ -43,17 +47,17 @@ export function preparePrinter(
  * process). Handlers/tracers then reach it via {@link getProcessPrinter} /
  * {@link getPrinter} rather than threading a logger through every call.
  */
-export function setProcessPrinter(process: FsmProcess, config: PrinterConfig = {}) {
+export function setProcessPrinter(process: FsmAnyProcess, config: PrinterConfig = {}) {
   const printer = preparePrinter(process, config);
   printerStore.set(process, printer);
 }
 
 /** The printer attached to `process`, or `console.log` if none was set. */
-export function getProcessPrinter(process: FsmProcess): Printer {
+export function getProcessPrinter(process: FsmAnyProcess): Printer {
   return printerStore.get(process) || console.log;
 }
 
 /** The printer for a state — its own if set, else its process's (see {@link getProcessPrinter}). */
-export function getPrinter(state: { process: FsmProcess }): Printer {
+export function getPrinter(state: { process: FsmAnyProcess }): Printer {
   return printerStore.get(state) || getProcessPrinter(state.process);
 }

@@ -1,7 +1,6 @@
-import type { FsmProcess } from "./fsm-process.ts";
-import type { FsmState } from "./fsm-state.ts";
-import { EVENT_ANY } from "./fsm-state-config.ts";
+import { EVENT_ANY, STATE_ANY } from "./fsm-state-config.ts";
 import type { FsmStateDescriptor } from "./fsm-state-descriptor.ts";
+import type { FsmStateNode } from "./fsm-traversal.ts";
 
 // ---------------------------------------------------------------------------
 // Transition introspection — read-only queries over the state/transition graph
@@ -14,7 +13,9 @@ import type { FsmStateDescriptor } from "./fsm-state-descriptor.ts";
  * nearest state's rule for an event wins, so an outer fallback is masked by an inner
  * override. The returned tuples are ordered outer→inner (root first).
  */
-export function getStateTransitions(state?: FsmState): [from: string, event: string, to: string][] {
+export function getStateTransitions(
+  state?: FsmStateNode,
+): [from: string, event: string, to: string][] {
   const result: [from: string, event: string, to: string][] = [];
   const index: Record<string, boolean> = {};
   if (state) {
@@ -34,7 +35,7 @@ function getTransitionsFromDescriptor(
   index: Record<string, boolean>,
 ): [from: string, event: string, to: string][] {
   const result: [from: string, event: string, to: string][] = [];
-  const prevStateKeys = [prevStateKey, "*"];
+  const prevStateKeys = [prevStateKey, STATE_ANY];
   for (const prevKey of prevStateKeys) {
     const targets = descriptor.transitions[prevKey];
     if (targets) {
@@ -52,12 +53,16 @@ function getTransitionsFromDescriptor(
 }
 
 /**
- * Guard: would `event` trigger any transition in the process's current state? Used
+ * Guard: would `event` trigger any transition in the process's current state? Works
+ * with both `FsmProcess` and `FsmProcessSync`. Used
  * to avoid dispatching dead events — the runner calls it before `dispatch`, and
  * consumers use it to enable/disable controls. Returns `true` iff `event` appears
  * among `getStateTransitions(process.state)`.
  */
-export function isStateTransitionEnabled(process: FsmProcess, event: string): boolean {
+export function isStateTransitionEnabled(
+  process: { state?: FsmStateNode },
+  event: string,
+): boolean {
   const transitions = getStateTransitions(process.state);
   for (const [, ev] of transitions) {
     // A wildcard-event rule (`ev === EVENT_ANY`) matches any concrete event, just

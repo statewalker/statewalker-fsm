@@ -1,9 +1,14 @@
-import type { FsmProcess } from "@statewalker/fsm";
+import type { FsmAnyProcess } from "@statewalker/fsm";
 import { isStateTransitionEnabled } from "@statewalker/fsm";
 import type { StateGraphEdge, StateGraphNode } from "@statewalker/fsm-charts";
 import { _addStateRenderer } from "./_addStateRenderer.js";
 import { newProcessCharts } from "./newProcessCharts.js";
 
+/**
+ * The interactive statechart of `newProcessCharts`, bound to a live process (either
+ * `FsmProcess` or `FsmProcessSync`): the highlight follows the active state stack,
+ * and clicking a transition dispatches its event when it is enabled.
+ */
 export function renderStateCharts({
   process,
   direction = "tb",
@@ -13,7 +18,7 @@ export function renderStateCharts({
   renderer,
   invalidation,
 }: {
-  process: FsmProcess;
+  process: FsmAnyProcess;
   direction?: "tb" | "bt" | "lr" | "rl";
   lodash: unknown;
   onStateClick?: (statesStack: StateGraphNode[]) => void;
@@ -25,7 +30,7 @@ export function renderStateCharts({
     config: process.config,
     renderer,
     onStateClick,
-    onEventClick: async (edge) => {
+    onEventClick: (edge) => {
       const { event } = edge;
       if (isStateTransitionEnabled(process, event)) {
         process.dispatch(event);

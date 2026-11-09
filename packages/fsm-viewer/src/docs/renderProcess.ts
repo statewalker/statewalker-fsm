@@ -42,6 +42,7 @@ export function renderProcess(
   });
   invalidation?.then(async () => {
     await process.shutdown("exit");
+    await process.whenIdle(); // the unwinding may only have been requested
     // description.remove();
     charts.remove();
   });

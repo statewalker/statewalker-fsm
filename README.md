@@ -11,10 +11,10 @@ without the others.
 
 | Package | What it does | npm |
 | --- | --- | --- |
-| [`@statewalker/fsm`](packages/fsm) | HFSM runtime: nested states, event-driven transitions, per-state behaviour, dump/restore of a running process. Zero dependencies. | [npm](https://www.npmjs.com/package/@statewalker/fsm) |
+| [`@statewalker/fsm`](packages/fsm) | HFSM runtime: nested states, event-driven transitions, per-state behaviour, dump/restore of a running process. Async (`FsmProcess`, `startProcess`) and sync (`FsmProcessSync`, `startProcessSync`) engines over one traversal algorithm; runnable examples in `packages/fsm/examples`. Zero dependencies. | [npm](https://www.npmjs.com/package/@statewalker/fsm) |
 | [`@statewalker/fsm-validator`](packages/fsm-validator) | Checks HFSM configurations against 25 lexical, structural and semantic rules, formats reports, and exports prompt texts for AI agents that write HFSM configs. Zero dependencies. | [npm](https://www.npmjs.com/package/@statewalker/fsm-validator) |
 | [`@statewalker/fsm-charts`](packages/fsm-charts) | Lays out a configuration as a statechart (vendored dagre), writes SVG/HTML and CSS, and highlights states on the rendered chart. Zero dependencies; lodash is passed in by the caller. | [npm](https://www.npmjs.com/package/@statewalker/fsm-charts) |
-| [`@statewalker/fsm-viewer`](packages/fsm-viewer) | Browser viewer: draws a process, follows its active state stack, reports clicks on states and events. | [npm](https://www.npmjs.com/package/@statewalker/fsm-viewer) |
+| [`@statewalker/fsm-viewer`](packages/fsm-viewer) | Browser viewer: draws a process, follows its active state stack (async `FsmProcess` or sync `FsmProcessSync`), reports clicks on states and events. | [npm](https://www.npmjs.com/package/@statewalker/fsm-viewer) |
 
 ```
 packages/
@@ -74,8 +74,8 @@ One package only: `pnpm --filter @statewalker/fsm test`.
 
 Packages are published to npm from CI with changesets: a job opens a "chore: version
 packages" pull request for packages whose packed contents differ from npm, and merging it
-publishes them. This repository does not have the changesets setup yet (no `.changeset/`
-directory and no `@changesets/cli` dependency), so `pnpm changeset` does not work here.
+publishes them. Record a change with `pnpm changeset`, which writes a Markdown file to
+`.changeset/` describing the affected packages and the version bump.
 
 ## Reference
 

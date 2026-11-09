@@ -33,8 +33,9 @@ FsmStateConfig --buildCharts--> StateChart --buildStatechartsPanel--> HTML + SVG
                                     +--> RuntimeStatechartApi (highlight, panels, clicks on the DOM)
 ```
 
-The only entry point is the package root, `@statewalker/fsm-charts` (`dist/index.js` with
-`.d.ts` types; sources are published in `src/`). It is ESM only.
+The main entry point is the package root, `@statewalker/fsm-charts` (`dist/index.js` with
+`.d.ts` types; sources are published in `src/`); each area also has its own subpath entry
+(see [Internals](#internals-vendored-layout-injected-lodash)). It is ESM only.
 
 The `config`, `layout` and `html` functions produce plain strings and objects and run
 anywhere, including Node.js. The `dom` helpers and `RuntimeStatechartApi` work on DOM
@@ -50,7 +51,8 @@ elements and need a browser or a DOM implementation such as jsdom.
   into `[from, event, to]` tuples; `concatTransitionsToString(transitions)` does the
   reverse.
 - `toFsmStateConfig(json)` - normalize a loosely written configuration (transitions as
-  strings or arrays, duplicates removed) into an `FsmStateConfig`.
+  strings or arrays, duplicates removed) into an `FsmStateConfig` (`undefined` when `json`
+  has no string `key`).
 
 **Layout**
 
@@ -68,7 +70,8 @@ elements and need a browser or a DOM implementation such as jsdom.
 **HTML and CSS**
 
 - `buildStatechartsPanel({ statechart, newId, println })` - write nested `<details>`
-  panels, one per composite state, each with its SVG chart.
+  panels, one per state (the root and every nested `states` entry), with an SVG chart in
+  each state that has transitions.
 - `buildStatechartSvg({ graph, newId, println, ... })` - write the SVG of one chart.
 - `buildStatechartCss({ prefix })` - the stylesheet for the charts, scoped to `prefix`
   (default `:root`). `buildStatechartStyles`, `buildStatechartStylesWithModifier`,
@@ -183,7 +186,10 @@ console.log(splitTransitionString("Idle -play-> Active -stop-> Idle"));
 - **Layout.** `buildCharts` walks the state tree and lays out each composite state as a
   separate flat graph with `buildFlatCharts`, which uses the vendored dagre and graphlib
   sources in `src/dagre` and `src/graphlib`. Pseudo-states are drawn as `"<initial>"` and
-  `"<final>"` nodes; both keys can be changed with `initialStateKey` / `finalStateKey`.
+  `"<final>"` nodes (a `"*"` source becomes a node keyed `"*"`); both keys can be changed
+  with `initialStateKey` / `finalStateKey`, and the same values must then be passed to
+  `buildStatechartsPanel` / `buildStatechartSvg` and `StateChartIndex`, which default to
+  the same two keys.
 - **Rendering is string output.** `buildStatechartsPanel` and `buildStatechartSvg` write
   lines through a `println` callback instead of creating DOM nodes, so the same code
   renders in a browser, in Node.js, or into a file.
@@ -194,7 +200,8 @@ console.log(splitTransitionString("Idle -play-> Active -stop-> Idle"));
   holder that `buildFlatCharts` sets from the `lodash` option, so the host decides which
   lodash build ends up in its bundle. Without it, layout fails with
   `TypeError: Cannot read properties of undefined (reading 'has')`.
-- **Entry points by area.** Besides the package root (everything), each area is its own
+- **Entry points by area.** Besides the package root (everything, including the
+  `serializeCss` / `toKebabCase` helpers, which no subpath exports), each area is its own
   entry: `@statewalker/fsm-charts/config`, `/layout`, `/html`, `/dom` and `/runtime`. Layout
   and HTML generation import no DOM code, so a Node.js or worker build can take
   `/layout` and `/html` alone.

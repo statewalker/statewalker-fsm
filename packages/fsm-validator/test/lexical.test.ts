@@ -64,8 +64,28 @@ describe("Lexical rules", () => {
       expect(result.warnings[0].message).toContain("MAIN_VIEW");
     });
 
-    it("should not warn for keys that fail STATE_KEY_PATTERN entirely (L1/L4 handles that)", () => {
+    // L1 only checks that a key exists and L4 only checks transition references, so
+    // L2 is the only rule that sees the format of a key that is never referenced.
+    it("should warn for keys that fail STATE_KEY_PATTERN entirely", () => {
       const config: FsmStateConfig = { key: "123invalid" };
+      const result = validate(config, { rules: ["L2"] });
+      expect(result.warnings).toHaveLength(1);
+      expect(result.warnings[0].rule).toBe("L2");
+      expect(result.warnings[0].message).toContain("123invalid");
+    });
+
+    it("should warn for kebab-case keys that are never referenced", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [["", "*", "Start"]],
+        states: [{ key: "Start" }, { key: "my-state" }],
+      };
+      const result = validate(config, { rules: ["L2", "L4"] });
+      expect(result.warnings.map((w) => [w.rule, w.path])).toEqual([["L2", ["Root", "my-state"]]]);
+    });
+
+    it("should not report a missing key (that is L1's job)", () => {
+      const config = { key: "" } as FsmStateConfig;
       const result = validate(config, { rules: ["L2"] });
       expect(result.warnings).toHaveLength(0);
     });
