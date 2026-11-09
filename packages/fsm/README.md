@@ -121,7 +121,9 @@ the whole machine (the runners guard against that; see "Constraints" below).
     shutdown), it only records the request and resolves at once — so awaiting it inside a
     handler cannot deadlock; the running dispatch unwinds as soon as the current handler
     returns. Every entered state is exited exactly once.
-  - `whenIdle()` resolves once no dispatch or shutdown is in progress.
+  - `whenIdle()` resolves once no dispatch or shutdown is in progress — use it to wait for an
+    unwinding that `shutdown()` only requested (a second `shutdown()` during an unwinding also
+    resolves at once). Do not await it inside a handler: the dispatch waits for that handler.
   - `dump(...args)` / `restore(dump, ...args)` serialize and rehydrate the stack.
   - `onStateCreate(handler)` is the primary extension point (fires once per state instance —
     attach that state's hooks there); `onStateError(handler)` receives every error thrown by a
@@ -179,10 +181,13 @@ the whole machine (the runners guard against that; see "Constraints" below).
   `startEvent`, and resolves to a `ProcessHandle`. `startFsmProcess` is an alias.
 - **`StageHandler`** — per-state behaviour, a function of `context` whose return value wires up the
   rest: nothing; a cleanup `function` (→ `onExit`); or an async/sync generator whose yielded strings
-  are dispatched as events. The generator runs concurrently with the caller; each yielded event is
-  applied once the machine has settled, and the generator is `return()`-ed when its state exits.
+  are dispatched as events. The generator runs concurrently with the caller and is never held at a
+  `yield`; its events are applied in order, each once the machine has settled; it is
+  `return()`-ed when its state exits.
 - **`ProcessHandle`** — `dispatch(event)` (guarded, like `KEY_DISPATCH`), `shutdown()`, `dump(...)`,
-  `restore(dump, ...)`, all returning promises.
+  `restore(dump, ...)`, all returning promises. `shutdown()` and `restore()` first wait for an
+  in-flight dispatch to settle and resolve once the stack is unwound / restored, so call them from
+  outside the machine; inside handlers use `context[KEY_TERMINATE]`, which never waits.
 - **`startProcessSync(context, config, load, startEvent = "")`** — the same runner on
   `FsmProcessSync`; `load` must be synchronous. Returns a `ProcessHandleSync` with the same four
   methods, returning values directly. An async stage handler or async generator returned to it is
@@ -348,10 +353,12 @@ handle.dispatch("play");
 context[KEY_STATES];  // ["Player", "Active", "Paused"] — the generator already ran
 ```
 
-Both runners apply a generator's event only once the machine has settled (so a generator on a
-composite state sees its initial child entered first), and pull the next value after that event
-has been processed. On the **async** runner this happens asynchronously: do not rely on the
-events having been applied when `dispatch` resolves. On the **sync** runner, a generator must
+Both runners apply a generator's events in order, each only once the machine has settled (so a
+generator on a composite state sees its initial child entered first). The sync runner pulls the
+next value after the event has been processed; the async runner, while the machine is busy, keeps
+pulling and queues the events, so a handler can await something a generator does after a
+`yield`. On the **async** runner this happens asynchronously: do not rely on the events having
+been applied when `dispatch` resolves. On the **sync** runner, a generator must
 eventually finish or leave its state — an endless one would keep `dispatch` from returning.
 
 ### 5. Errors — `onStateError`
@@ -491,8 +498,8 @@ which strips TypeScript types natively). Each one is executed by `test/examples.
   Unhandled events bubble up the parent chain, so an outer state can catch events its children
   ignore. A state key not declared under its parent is looked up in the ancestors' `states`;
   unknown keys behave as plain leaves.
-- **Generator handlers.** Async runner: a generator is consumed concurrently; before each yielded
-  event goes through the guarded dispatch, it waits for `whenIdle()`. Sync runner: generators are
+- **Generator handlers.** Async runner: a generator is consumed concurrently; its events go to a
+  per-generator queue drained in order, each waiting for `whenIdle()` before the guarded dispatch. Sync runner: generators are
   pumped round-robin after each settle, one event per generator per pass. Either way the generator
   is `return()`-ed when its state exits — also when it leaves its own state from its body — which
   is the mechanism for self-driving/timed states.

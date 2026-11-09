@@ -23,6 +23,8 @@ Behaviour/type changes to check when upgrading:
   compiles.
 - `shutdown()` on a machine that never started finishes it (a later `dispatch` is a no-op).
 - `shutdown()` called while the machine is busy resolves immediately; use `whenIdle()` to
-  wait for the unwinding.
+  wait for the unwinding. A ProcessHandle's `shutdown()` / `restore()` wait for an in-flight
+  dispatch and resolve once done — call them from outside the machine (`KEY_TERMINATE` is the
+  non-waiting variant for handlers).
 - `restore()` throws when called while a dispatch or shutdown is running.
 - A ProcessHandle's `restore` runs the `onExit` handlers of the states it replaces.

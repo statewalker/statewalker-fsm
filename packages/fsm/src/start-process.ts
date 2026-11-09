@@ -120,16 +120,35 @@ export async function startProcess<C = unknown>(
             stateExited = true;
             result.return?.(undefined as never);
           });
+          // Events are applied only once the machine has settled (the transition
+          // that created this state may still be descending), in order — the
+          // same rule as `startProcessSync`. The generator itself is never held
+          // at a `yield`: a handler may await something it does after yielding.
+          const pending: string[] = [];
+          let draining: Promise<void> | undefined;
+          const drain = () => {
+            draining ??= (async () => {
+              try {
+                while (pending.length > 0 && !stateExited && !terminated) {
+                  while (process.running) await process.whenIdle();
+                  if (stateExited || terminated) break;
+                  await dispatch(pending.shift() as string);
+                }
+              } finally {
+                draining = undefined;
+              }
+            })();
+            return draining;
+          };
           (async () => {
             try {
               for await (const event of result) {
                 if (stateExited || terminated) break;
-                // Apply a generator's event only once the machine has settled (the
-                // transition that created this state may still be descending) —
-                // the same rule as `startProcessSync`.
-                while (process.running) await process.whenIdle();
-                if (stateExited || terminated) break;
-                await dispatch(event);
+                pending.push(event);
+                // Idle: process the event before pulling the next value. Busy
+                // (e.g. still inside the entering transition): queue it and go on.
+                if (process.running) void drain();
+                else await drain();
                 if (stateExited || terminated) break;
               }
             } catch (error) {
@@ -157,9 +176,18 @@ export async function startProcess<C = unknown>(
       await process.dispatch(event);
     }
   }
+  // Bound under KEY_TERMINATE and called from handlers: must not wait for the
+  // unwinding (that would wait for the calling handler itself).
   async function terminate(): Promise<void> {
     terminated = true;
     await process.shutdown();
+  }
+
+  // The handle's shutdown — external API: resolves once the stack is unwound,
+  // even when a dispatch was in flight. Do not await it from a handler.
+  async function shutdownHandle(): Promise<void> {
+    await terminate();
+    await process.whenIdle();
   }
 
   async function dumpProcess(...args: unknown[]): Promise<FsmProcessDump> {
@@ -169,6 +197,9 @@ export async function startProcess<C = unknown>(
   async function restoreProcess(dumpData: FsmProcessDump, ...args: unknown[]): Promise<void> {
     // Unwind the live stack first: its cleanups run and its generators stop,
     // so nothing from the replaced states leaks into the restored machine.
+    // External API: let an in-flight dispatch settle first (do not await this
+    // from a handler).
+    await process.whenIdle();
     if (process.state) await process.shutdown();
     statesStack.length = 0;
     terminated = false;
@@ -185,7 +216,7 @@ export async function startProcess<C = unknown>(
   await process.dispatch(startEvent);
   return {
     dispatch,
-    shutdown: terminate,
+    shutdown: shutdownHandle,
     dump: dumpProcess,
     restore: restoreProcess,
   };

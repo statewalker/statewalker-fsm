@@ -330,3 +330,100 @@ describe("startProcessSync generators and async handlers (round 2, #4/#5)", () =
     expect(logged.some((e) => (e as Error)?.message === "async failure")).toBe(true);
   });
 });
+
+describe("round 3 — runner waits and generator progress", () => {
+  const withTimeout = <T>(p: Promise<T>, ms = 300) =>
+    Promise.race([p.then(() => "done"), new Promise((r) => setTimeout(() => r("timeout"), ms))]);
+
+  it("async runner: a handler may await a generator's progress past its first yield", async () => {
+    const config: FsmStateConfig = {
+      key: "R",
+      transitions: [
+        ["", "*", "Loading"],
+        ["Loading", "loaded", "Ready"],
+      ],
+    };
+    let signal: () => void = () => {};
+    const advanced = new Promise<void>((r) => {
+      signal = r;
+    });
+    const ctx: Record<string, unknown> = {};
+    const started = startProcess(ctx, config, (key) => {
+      if (key === "R")
+        return [
+          async function* () {
+            yield "tick"; // not enabled anywhere — ignored once the machine settles
+            signal();
+            yield "loaded";
+          },
+        ];
+      if (key === "Loading")
+        return [
+          async () => {
+            await advanced;
+          },
+        ];
+      return [];
+    });
+    expect(await withTimeout(started)).toBe("done");
+    await new Promise((r) => setTimeout(r, 10));
+    expect(ctx[KEY_STATES]).toEqual(["R", "Ready"]);
+  });
+
+  it("handle.shutdown() resolves only after the stack has been unwound", async () => {
+    const ctx: Record<string, unknown> = {};
+    const cleanups: string[] = [];
+    const handle = await startProcess(ctx, cfg, (key) => [
+      async () => {
+        if (key === "B") await new Promise((r) => setTimeout(r, 10));
+        return () => {
+          cleanups.push(key);
+        };
+      },
+    ]);
+    const running = handle.dispatch("go");
+    await new Promise((r) => setTimeout(r, 1)); // B's handler is in flight
+    await handle.shutdown();
+    expect(ctx[KEY_STATES]).toEqual([]);
+    expect(cleanups).toEqual(["A", "B", "Root"]);
+    await running;
+  });
+
+  it("handle.restore() during an in-flight dispatch waits for it, then restores", async () => {
+    const src = new FsmProcessSync(cfg);
+    src.dispatch("");
+    src.dispatch("go");
+    const snapshot = src.dump(); // Root/B
+
+    const ctx: Record<string, unknown> = {};
+    const handle = await startProcess(ctx, cfg, (key) =>
+      key === "B" ? [async () => void (await new Promise((r) => setTimeout(r, 10)))] : [],
+    );
+    const running = handle.dispatch("go");
+    await new Promise((r) => setTimeout(r, 1));
+    await handle.restore(snapshot);
+    await running;
+    expect(ctx[KEY_STATES]).toEqual(["Root", "B"]);
+    expect((await handle.dump()).stack.map((s) => s.key)).toEqual(["Root", "B"]);
+  });
+
+  it("whenIdle waiters are released even when the error sink throws mid-dispatch", async () => {
+    const p = new FsmProcess(cfg);
+    p.onStateCreate((s) => {
+      s.onEnter(() => {
+        throw new Error("enter failed");
+      });
+    });
+    const orig = console.error;
+    console.error = () => {
+      throw new Error("sink failed");
+    };
+    try {
+      await p.dispatch("").catch(() => {});
+    } finally {
+      console.error = orig;
+    }
+    expect(p.running).toBe(false);
+    expect(await withTimeout(p.whenIdle(), 50)).toBe("done");
+  });
+});

@@ -172,15 +172,20 @@ export class FsmProcess extends FsmBaseClass {
       }
     } finally {
       this.running = false;
+      // Applied even if something escaped the loop (e.g. a throwing error sink),
+      // so a requested shutdown is never left stuck and idle waiters are released.
+      try {
+        // Handlers may have requested a shutdown during the loop (TS cannot see that).
+        const pending = this._pendingShutdown as { event?: string } | undefined;
+        if (pending) {
+          this._pendingShutdown = undefined;
+          await this._unwind(pending.event);
+        }
+      } finally {
+        if (this.status & STATUS_FINISHED) this.nextEvents.length = 0;
+        this._notifyIdle();
+      }
     }
-    // Handlers may have requested a shutdown during the loop (TS cannot see that).
-    const pending = this._pendingShutdown as { event?: string } | undefined;
-    if (pending) {
-      this._pendingShutdown = undefined;
-      await this._unwind(pending.event);
-    }
-    if (this.status & STATUS_FINISHED) this.nextEvents.length = 0;
-    this._notifyIdle();
     return !(this.status & STATUS_FINISHED);
   }
 
@@ -210,6 +215,7 @@ export class FsmProcess extends FsmBaseClass {
     if (this.running || this._unwinding) {
       throw new Error("FsmProcess.restore() called while a dispatch or shutdown is running");
     }
+    this._pendingShutdown = undefined;
     this.status = dump.status || 0;
     this.event = dump.event;
     this.nextEvents.length = 0;
