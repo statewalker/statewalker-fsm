@@ -1,35 +1,30 @@
 import { bindMethods, FsmBaseClass } from "./fsm-base-class.ts";
 import { FsmState, type FsmStateDump, type FsmStateHandler } from "./fsm-state.ts";
-import {
-  EVENT_EMPTY,
-  type FsmStateConfig,
-  STATE_FINAL,
-  STATE_INITIAL,
-} from "./fsm-state-config.ts";
+import type { FsmStateConfig } from "./fsm-state-config.ts";
 import { FsmStateDescriptor } from "./fsm-state-descriptor.ts";
+import {
+  getNextStateTarget,
+  getSubstateTarget,
+  resolveTargetStateKey,
+  STATUS_ENTER,
+  STATUS_EXIT,
+  STATUS_FINISHED,
+  STATUS_LEAF,
+  settleStep,
+} from "./fsm-traversal.ts";
 
-// Status bitmask: where the process is in the enter/exit cycle of `dispatch`.
-// Why a bitmask (rather than an enum): the loop tests *phases* with cheap bitwise
-// masks — `status & STATUS_ENTER`, `status & this.mask` — and composite masks
-// (ENTER / EXIT) are just OR-combinations of the primitive bits.
-/** Not started / no current transition. */
-export const STATUS_NONE = 0;
-/** Entering: descended into a parent's first (initial) child. */
-export const STATUS_FIRST = 1;
-/** Entering: advanced to a resolved target (sibling) state. */
-export const STATUS_NEXT = 2;
-/** Rested on a leaf — dispatch returns control here (the default `mask`). */
-export const STATUS_LEAF = 4;
-/** Exiting: popped back up to the parent state. */
-export const STATUS_LAST = 8;
-/** Terminated: the machine has exited its root and cannot advance further. */
-export const STATUS_FINISHED = 16;
-
-//
-/** Composite: any "entering" phase. */
-export const STATUS_ENTER = STATUS_FIRST | STATUS_NEXT;
-/** Composite: any "exiting" phase. */
-export const STATUS_EXIT = STATUS_LEAF | STATUS_LAST;
+// The status constants live with the shared traversal algorithm; re-exported
+// here so existing `import { STATUS_LEAF } from "./fsm-process.ts"` keeps working.
+export {
+  STATUS_ENTER,
+  STATUS_EXIT,
+  STATUS_FINISHED,
+  STATUS_FIRST,
+  STATUS_LAST,
+  STATUS_LEAF,
+  STATUS_NEXT,
+  STATUS_NONE,
+} from "./fsm-traversal.ts";
 
 /** A process-level handler (`onStateCreate` / `onStateError`). */
 export type FsmProcessHandler = (process: FsmProcess, ...args: unknown[]) => void | Promise<void>;
@@ -68,20 +63,37 @@ export class FsmProcess extends FsmBaseClass {
   status: number = 0;
   config: FsmStateConfig;
   rootDescriptor: FsmStateDescriptor;
+  private _shutdown?: Promise<void>;
 
   constructor(config: FsmStateConfig) {
     super();
     this.rootDescriptor = FsmStateDescriptor.build(config);
     this.config = config;
-    bindMethods(this, "dispatch", "dump", "restore");
+    bindMethods(this, "dispatch", "shutdown", "dump", "restore");
   }
 
-  /** Force-exit the whole stack (root last), running each state's `onExit`; ends the machine. */
-  async shutdown(event?: string) {
+  /**
+   * Force-exit the whole stack (root last), running each state's `onExit`; ends the
+   * machine. Pending queued events are discarded and later `dispatch` calls are
+   * no-ops (until a `restore`). Concurrent calls share one unwinding, so no state
+   * is exited twice.
+   */
+  shutdown(event?: string): Promise<void> {
+    if (!this._shutdown) {
+      this._shutdown = this._doShutdown(event).finally(() => {
+        this._shutdown = undefined;
+      });
+    }
+    return this._shutdown;
+  }
+
+  private async _doShutdown(event?: string) {
+    this.status = STATUS_FINISHED;
+    this.nextEvents.length = 0;
     while (this.state) {
       this.event = event;
       this.status = STATUS_FINISHED;
-      await this.state?._runHandler("onExit", this.state);
+      await this.state._runHandler("onExit", this.state);
       this.state = this.state.parent;
     }
   }
@@ -92,20 +104,21 @@ export class FsmProcess extends FsmBaseClass {
    *
    * If a dispatch is already running (e.g. an `onEnter` handler dispatches
    * synchronously), the event is appended to the `nextEvents` FIFO queue and applied
-   * — in order, none dropped — when the current run settles; runs never nest. Returns
-   * `false` once the machine has finished, `true` otherwise.
+   * — in order, none dropped — when the current run settles; runs never nest. Events
+   * sent to a finished machine are ignored. Returns `false` once the machine has
+   * finished, `true` otherwise.
    */
   async dispatch(event: string): Promise<boolean> {
+    if (this.status & STATUS_FINISHED) return false;
     // Queue the event. Re-entrant dispatches (from handlers running mid-settle)
     // append here and are drained in order — so no earlier event is overwritten.
     this.nextEvents.push(event);
-    if (!this.running && !(this.status & STATUS_FINISHED)) {
+    if (!this.running) {
       this.running = true;
       try {
-        while (this.nextEvents.length > 0) {
+        while (this.nextEvents.length > 0 && !(this.status & STATUS_FINISHED)) {
           this.event = this.nextEvents.shift();
           while (true) {
-            // ---
             if (this.status & STATUS_EXIT) {
               await this.state?._runHandler("onExit", this.state);
             }
@@ -114,12 +127,11 @@ export class FsmProcess extends FsmBaseClass {
               await this.state?._runHandler("onEnter", this.state);
             }
             if (this.status & this.mask) break;
-            // ---
           }
-          if (this.status & STATUS_FINISHED) break;
         }
       } finally {
         this.running = false;
+        if (this.status & STATUS_FINISHED) this.nextEvents.length = 0;
       }
     }
     return !(this.status & STATUS_FINISHED);
@@ -130,39 +142,29 @@ export class FsmProcess extends FsmBaseClass {
    * stack is root→leaf, each entry carrying whatever its `dump` hooks recorded.
    */
   async dump(...args: unknown[]): Promise<FsmProcessDump> {
-    const dumpState = async (state: FsmState) => {
-      const stateDump: FsmStateDump = {
-        key: state.key,
-        data: {},
-      };
+    const states: FsmState[] = [];
+    for (let state = this.state; state; state = state.parent) states.unshift(state);
+    const stack: FsmStateDump[] = [];
+    for (const state of states) {
+      const stateDump: FsmStateDump = { key: state.key, data: {} };
       await state._runHandler("dump", state, stateDump.data, ...args);
-      return stateDump;
-    };
-    const dumpStates = async (state: FsmState | undefined, stack: FsmStateDump[] = []) => {
-      if (!state) return stack;
-      state.parent && (await dumpStates(state.parent, stack));
-      stack.push(await dumpState(state));
-      return stack;
-    };
-    const dump: FsmProcessDump = {
-      status: this.status,
-      event: this.event,
-      stack: await dumpStates(this.state),
-    };
-    return dump;
+      stack.push(stateDump);
+    }
+    return { status: this.status, event: this.event, stack };
   }
 
   /**
    * Rebuild the machine from a `dump`: recreate each state in the stack (firing
    * `onStateCreate`) and replay its `restore` hooks, leaving the process resumable
-   * from where it was snapshotted.
+   * from where it was snapshotted. The current stack is replaced as-is (its
+   * `onExit` handlers do not run — call `shutdown()` first to unwind it).
    */
   async restore(dump: FsmProcessDump, ...args: unknown[]) {
     this.status = dump.status || 0;
     this.event = dump.event;
+    this.nextEvents.length = 0;
     this.state = undefined;
-    for (let i = 0; i < dump.stack.length; i++) {
-      const stateDump = dump.stack[i];
+    for (const stateDump of dump.stack) {
       this.state = this.state
         ? await this._newSubstate(this.state, stateDump.key)
         : await this._newState(undefined, stateDump.key, this.rootDescriptor);
@@ -182,7 +184,7 @@ export class FsmProcess extends FsmBaseClass {
 
   async _handleStateError(state: FsmState, error: Error | unknown) {
     await this._runHandler("onStateError", state, error);
-    this._handleError(error);
+    await this._handleError(error);
   }
 
   async _newState(
@@ -196,52 +198,32 @@ export class FsmProcess extends FsmBaseClass {
   }
 
   async _getSubstate(parent: FsmState | undefined, prevStateKey: string | undefined) {
-    if (!parent) return;
-    const toState =
-      parent.descriptor?.getTargetStateKey(
-        prevStateKey || STATE_INITIAL,
-        this.event || EVENT_EMPTY,
-      ) || STATE_FINAL;
-    if (!toState) return;
-    return this._newSubstate(parent, toState);
+    const key = resolveTargetStateKey(parent, prevStateKey, this.event);
+    if (key === undefined) return;
+    return this._newSubstate(parent, key);
   }
 
   async _newSubstate(parent: FsmState | undefined, toState: string) {
-    let descriptor: FsmStateDescriptor | undefined;
-    for (let state: FsmState | undefined = parent; !descriptor && state; state = state.parent) {
-      descriptor = state.descriptor?.states[toState];
-    }
+    const { descriptor } = getSubstateTarget(parent, toState);
     return this._newState(parent, toState, descriptor);
   }
 
   /**
-   * One step of the traversal: compute the next state and update `status`.
-   *
-   * Either descends to a child / advances to a resolved target (setting an ENTER
-   * status), or — when no target resolves — settles on the current leaf
-   * (`STATUS_LEAF`) or pops to the parent (`STATUS_LAST`), reaching `STATUS_FINISHED`
-   * once the root is exited. Returns `false` when finished.
+   * One step of the traversal (see `fsm-traversal.ts`): create the next state, if
+   * any, and update `state` / `status`. Returns `false` when finished.
    */
   async _update() {
     if (this.status & STATUS_FINISHED) return false;
+    const target = getNextStateTarget(
+      this.status,
+      this.state,
+      this.event,
+      this.config.key,
+      this.rootDescriptor,
+    );
     const nextState =
-      this.status !== STATUS_NONE
-        ? this.status & STATUS_ENTER
-          ? await this._getSubstate(this.state, STATE_INITIAL)
-          : await this._getSubstate(this.state?.parent, this.state?.key)
-        : await this._newState(undefined, this.config.key, this.rootDescriptor);
-    if (nextState !== undefined) {
-      this.state = nextState;
-      this.status = this.status & STATUS_EXIT ? STATUS_NEXT : STATUS_FIRST;
-    } else {
-      if (this.status & STATUS_EXIT) {
-        this.state = this.state?.parent;
-        this.status = STATUS_LAST;
-      } else {
-        this.status = STATUS_LEAF;
-      }
-      if (!this.state) this.status = STATUS_FINISHED;
-    }
+      target && (await this._newState(target.parent, target.key, target.descriptor));
+    [this.state, this.status] = settleStep(this.status, this.state, nextState);
     return !(this.status & STATUS_FINISHED);
   }
 }

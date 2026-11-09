@@ -27,6 +27,8 @@ export type StageHandler<C = Record<string, unknown>> = (
  * snapshot/rehydrate it without holding a reference to the underlying `FsmProcess`.
  */
 export interface ProcessHandle {
+  /** Dispatch an event (guarded — ignored unless it triggers a transition). */
+  dispatch(event: string): Promise<void>;
   shutdown(): Promise<void>;
   dump(...args: unknown[]): Promise<FsmProcessDump>;
   restore(dump: FsmProcessDump, ...args: unknown[]): Promise<void>;
@@ -152,6 +154,9 @@ export async function startProcess<C = unknown>(
   }
 
   async function restoreProcess(dumpData: FsmProcessDump, ...args: unknown[]): Promise<void> {
+    // Unwind the live stack first: its cleanups run and its generators stop,
+    // so nothing from the replaced states leaks into the restored machine.
+    if (process.state) await process.shutdown();
     statesStack.length = 0;
     terminated = false;
     await process.restore(dumpData, ...args);
@@ -166,6 +171,7 @@ export async function startProcess<C = unknown>(
   ctx[KEY_TERMINATE] = terminate;
   await process.dispatch(startEvent);
   return {
+    dispatch,
     shutdown: terminate,
     dump: dumpProcess,
     restore: restoreProcess,
