@@ -53,6 +53,8 @@ export type FsmProcessDumpHandler = (
  * and rehydrate the whole stack. Typical use: `new FsmProcess(config)`, register
  * `onStateCreate`, then `dispatch("")` to enter the initial state and
  * `dispatch(event)` for each subsequent event.
+ *
+ * `FsmProcessSync` is the synchronous twin — same traversal, no promises.
  */
 export class FsmProcess extends FsmBaseClass {
   state?: FsmState;

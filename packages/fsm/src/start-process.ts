@@ -23,8 +23,11 @@ export type StageHandler<C = Record<string, unknown>> = (
   | Generator<string, void, unknown>;
 
 /**
- * The caller's remote control returned by `startProcess`: stop the machine and
- * snapshot/rehydrate it without holding a reference to the underlying `FsmProcess`.
+ * The caller's remote control returned by `startProcess`: dispatch events, stop the
+ * machine and snapshot/rehydrate it without holding a reference to the underlying
+ * `FsmProcess`. `restore` first unwinds the live stack (cleanups run, generators
+ * stop); restored states do not re-run `load`. See `ProcessHandleSync` for the sync
+ * runner's equivalent.
  */
 export interface ProcessHandle {
   /** Dispatch an event (guarded — ignored unless it triggers a transition). */
@@ -37,9 +40,12 @@ export interface ProcessHandle {
 // Context keys under which `startProcess` binds the machine into the shared context
 // object. Why via context (not closures): handlers reach the running machine
 // uniformly — `(ctx[KEY_DISPATCH])(event)` — regardless of where they are defined.
-/** Context key: `(event) => Promise<void>` that dispatches an event (guarded). */
+/**
+ * Context key: the guarded dispatch fn — `(event) => Promise<void>` from `startProcess`,
+ * `(event) => void` from `startProcessSync`. Ignores events with no transition.
+ */
 export const KEY_DISPATCH = "fsm:dispatch";
-/** Context key: `() => Promise<void>` that shuts the machine down. */
+/** Context key: shuts the machine down — `() => Promise<void>` (async runner) or `() => void` (sync). */
 export const KEY_TERMINATE = "fsm:terminate";
 /** Context key: the current state-key stack (root→leaf), refreshed on every transition. */
 export const KEY_STATES = "fsm:states";

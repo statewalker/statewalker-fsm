@@ -3,6 +3,8 @@ import { runWizard } from "../examples/02-signup-wizard.ts";
 import { parseCsvLine } from "../examples/03-csv-parser.ts";
 import { runClient } from "../examples/04-async-reconnect.ts";
 import { firstSession, secondSession } from "../examples/05-pause-and-resume.ts";
+import { type OrderServices, runOrder } from "../examples/06-async-order-workflow.ts";
+import { runAsync, runSync } from "../examples/07-one-machine-two-engines.ts";
 import { describe, expect, it } from "./deps.ts";
 
 // Every example in `examples/` is executed here, so the docs cannot rot.
@@ -138,5 +140,62 @@ describe("examples/05 pause and resume across engines", () => {
       now: "Receipt",
       order: { items: ["book", "pen", "ink"], paid: 30 },
     });
+  });
+});
+
+describe("examples/06 order workflow (FsmProcess, async handlers)", () => {
+  const services: OrderServices = {
+    validate: async (o) => o.amount > 0,
+    charge: async (o) => {
+      await new Promise((r) => setTimeout(r, 1));
+      if (o.amount > 100) throw new Error("card declined");
+      return `pay-${o.id}`;
+    },
+    ship: async (o) => `trk-${o.id}`,
+  };
+
+  it("one top-level dispatch runs the whole async chain", async () => {
+    const r = await runOrder({ id: "A1", amount: 30 }, services);
+    expect(r.outcome).toBe("Done");
+    expect(r.order).toEqual({ id: "A1", amount: 30, paymentId: "pay-A1", tracking: "trk-A1" });
+    expect(r.errors).toEqual([]);
+    expect(r.trace[0]).toBe('[A1]<Order event="">');
+    expect(r.trace).toContain('[A1]  <Done event="ok">');
+  });
+
+  it("a throwing step becomes a 'failed' event via onStateError", async () => {
+    const r = await runOrder({ id: "B2", amount: 500 }, services);
+    expect(r.outcome).toBe("Rejected");
+    expect(r.errors).toEqual(["Charge: card declined"]);
+    expect(r.order.tracking).toBeUndefined();
+  });
+
+  it("a negative validation goes straight to Rejected", async () => {
+    const r = await runOrder({ id: "C3", amount: 0 }, services);
+    expect(r.outcome).toBe("Rejected");
+    expect(r.order.paymentId).toBeUndefined();
+  });
+});
+
+describe("examples/07 one handler set on both runners", () => {
+  const events = ["push", "coin", "coin", "push", "service", "coin", "done", "coin", "push"];
+
+  it("produces the same transcript on startProcessSync and startProcess", async () => {
+    const sync = runSync(events);
+    expect(sync.log).toEqual([
+      "locked",
+      "unlocked (coins=1)",
+      "left Unlocked",
+      "unlocked (coins=2)",
+      "left Unlocked",
+      "locked",
+      "maintenance: emptied 2 coins",
+      "locked",
+      "unlocked (coins=1)",
+      "left Unlocked",
+      "locked",
+    ]);
+    const async = await runAsync(events);
+    expect({ coins: async.coins, log: async.log }).toEqual({ coins: sync.coins, log: sync.log });
   });
 });
