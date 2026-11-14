@@ -4,7 +4,6 @@ import {
   type FsmStateConfig,
   KEY_DISPATCH,
   KEY_STATES,
-  KEY_TERMINATE,
   STATUS_FINISHED,
   type StageHandlerSync,
   startProcess,

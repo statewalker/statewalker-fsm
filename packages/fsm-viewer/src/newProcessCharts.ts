@@ -149,7 +149,7 @@ export function newProcessCharts({
   //     console.log(">> transition", transitionId);
   //   }
   // );
-  invalidation && invalidation.then(unregisterStateListeners);
+  invalidation?.then(unregisterStateListeners);
   // invalidation.then(unregisterTransitionsListeners);
 
   if (onEventClick) {

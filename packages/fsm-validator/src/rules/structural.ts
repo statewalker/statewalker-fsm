@@ -124,7 +124,7 @@ export function deliberateShadowing(ctx: RuleContext): ValidationIssue[] {
  */
 export function siblingTransitionsAtParent(ctx: RuleContext): ValidationIssue[] {
   const { config, path, parent } = ctx;
-  if (!parent || !parent.states) return [];
+  if (!parent?.states) return [];
   if (!config.transitions || config.transitions.length === 0) return [];
 
   const ownKeys = new Set((config.states ?? []).map((s) => s.key));

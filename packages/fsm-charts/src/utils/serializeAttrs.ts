@@ -8,9 +8,7 @@ export function serializeAttrs(
   for (const [key, value] of Object.entries(attrs || {}).sort(([a], [b]) => (a > b ? 1 : -1))) {
     if (value === undefined || value === null || value === "") continue;
     result.push(
-      `${prefix}${escapeValue(key)}${
-        "=" + JSON.stringify(escapeValue(transform ? toKebabCase(String(value)) : value))
-      }`,
+      `${prefix}${escapeValue(key)}=${JSON.stringify(escapeValue(transform ? toKebabCase(String(value)) : value))}`,
     );
   }
   return result.join(" ");

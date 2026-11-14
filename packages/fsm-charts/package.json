@@ -64,7 +64,6 @@
   "devDependencies": {
     "@types/jsdom": "catalog:",
     "@types/lodash-es": "catalog:",
-    "eslint": "catalog:",
     "jsdom": "catalog:",
     "lodash": "catalog:",
     "lodash-es": "catalog:",
@@ -81,8 +80,6 @@
     "build": "rm -fr ./dist && pnpm test && tsdown",
     "watch": "tsdown --watch",
     "clean": "rm -rf dist",
-    "lint": "eslint",
-    "lint:fix": "pnpm lint --fix",
     "test": "vitest --run",
     "test:watch": "vitest",
     "prepublish": "pnpm build"
