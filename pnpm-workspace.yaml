@@ -8,7 +8,6 @@ catalog:
   "@observablehq/framework": ^1.13.4
   "@types/jsdom": ^30.0.0
   "@types/lodash-es": ^4.17.12
-  eslint: ^10.12.0
   jsdom: ^30.1.1
   lodash: ^4.18.1
   lodash-es: ^4.18.1

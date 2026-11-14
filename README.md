@@ -52,8 +52,7 @@ One package only: `pnpm --filter @statewalker/fsm test`.
   a larger workspace that has a root `turbo.json`. Standalone, the root scripts use
   `pnpm -r` instead of turbo.
 - **Biome skips vendored code.** `biome.json` excludes `packages/fsm-charts/src/dagre`,
-  `src/graphlib` and `src/lodash-es` (vendored JavaScript) and the HTML test fixtures.
-  `fsm-charts` and `fsm-viewer` also keep their own `eslint` scripts.
+  `src/graphlib` and `src/lodash-es` (vendored JavaScript) and the HTML test fixtures. Biome is the only linter.
 
 ## What will surprise you
 

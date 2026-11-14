@@ -35,7 +35,6 @@
     "@observablehq/framework": "catalog:",
     "@types/jsdom": "catalog:",
     "@types/lodash-es": "catalog:",
-    "eslint": "catalog:",
     "jsdom": "catalog:",
     "lodash-es": "catalog:",
     "tsdown": "catalog:",
@@ -52,8 +51,6 @@
     "dev": "observable preview",
     "watch": "tsdown --watch",
     "clean": "rm -rf dist",
-    "lint": "eslint",
-    "lint:fix": "pnpm lint --fix",
     "test": "vitest --run",
     "test:watch": "vitest",
     "prepublish": "pnpm test && pnpm build"
