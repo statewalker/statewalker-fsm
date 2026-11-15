@@ -114,9 +114,11 @@ const instanceCache = new WeakMap<FsmStateConfig, Map<FsmStateConfig, Instance[]
  * then each running ancestor's) to the definition the runtime enters there,
  * which becomes an instance with this one prepended to its chain.
  *
- * A definition already on its own live chain is recorded but not expanded
- * again: below it the same lookups repeat, so expanding it adds nothing and
- * would not terminate.
+ * Recursion: a definition entered again below itself is expanded again, since
+ * the scopes entered in between can define keys its first occurrence never saw.
+ * An instance is recorded but not expanded once its (definition, entering
+ * definition) pair already occurs on its live chain: the pairs are finite, so
+ * this terminates, and `MAX_INSTANCES` bounds the rest.
  */
 export function instancesByDefinition(root: FsmStateConfig): Map<FsmStateConfig, Instance[]> {
   const cached = instanceCache.get(root);
@@ -129,7 +131,7 @@ export function instancesByDefinition(root: FsmStateConfig): Map<FsmStateConfig,
     const list = out.get(instance.config);
     if (list) list.push(instance);
     else out.set(instance.config, [instance]);
-    if (instance.ancestors.includes(instance.config)) return;
+    if (repeatsEntry(instance)) return;
     const path = [...instance.path, instance.config.key];
     const ancestors = [instance.config, ...instance.ancestors];
     for (const key of referencedKeys(instance.config)) {
@@ -140,6 +142,16 @@ export function instancesByDefinition(root: FsmStateConfig): Map<FsmStateConfig,
   visit({ config: root, path: [], ancestors: [] });
   instanceCache.set(root, out);
   return out;
+}
+
+/** Whether `instance`'s (definition, entering definition) pair is already on its chain. */
+function repeatsEntry(instance: Instance): boolean {
+  const { config, ancestors } = instance;
+  const parent = ancestors[0];
+  for (let i = 1; i < ancestors.length; i++) {
+    if (ancestors[i - 1] === config && ancestors[i] === parent) return true;
+  }
+  return false;
 }
 
 /** The places the runtime enters `config`; empty when it is never entered. */

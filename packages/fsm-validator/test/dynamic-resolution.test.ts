@@ -203,4 +203,47 @@ describe("Dynamic key resolution (per instantiation path)", () => {
     const result = validate(config, { rules: ["S1", "S2", "S4", "S6", "M1", "M3"] });
     expect(result.errors).toEqual([]);
   });
+
+  it("follows a recursive entry far enough to see keys only the deeper chain defines", () => {
+    // Root/A enters M; M enters A again; that inner A's Y resolves through M
+    // to M's own Y (the runtime enters Root/A/M/A/Y/MyChild), so M's Y is
+    // reachable, not dead.
+    const config: FsmStateConfig = {
+      key: "Root",
+      transitions: [
+        ["", "*", "A"],
+        ["A", "done", ""],
+      ],
+      states: [
+        {
+          key: "A",
+          transitions: [
+            ["", "*", "Y"],
+            ["Y", "go", "M"],
+            ["M", "done", ""],
+          ],
+          events: { done: "When M completes" },
+        },
+        {
+          key: "M",
+          transitions: [
+            ["", "*", "A"],
+            ["A", "done", ""],
+          ],
+          states: [
+            {
+              key: "Y",
+              transitions: [["", "*", "MyChild"]],
+              states: [{ key: "MyChild", events: { go: "Go on" } }],
+              events: { go: "Go on" },
+            },
+          ],
+          events: { done: "When A completes" },
+        },
+        { key: "Y", events: { go: "Go on" } },
+      ],
+    };
+    const result = validate(config, { rules: ["S2", "S4"] });
+    expect(result.errors).toEqual([]);
+  });
 });
