@@ -1,18 +1,17 @@
 import { bindMethods, FsmBaseClass } from "./fsm-base-class.ts";
+import {
+  dispatchSteps,
+  dumpSteps,
+  type FsmEngine,
+  restoreSteps,
+  runAsync,
+  shutdownSteps,
+  updateSteps,
+} from "./fsm-controller.ts";
 import { FsmState, type FsmStateDump, type FsmStateHandler } from "./fsm-state.ts";
 import type { FsmStateConfig } from "./fsm-state-config.ts";
 import { FsmStateDescriptor } from "./fsm-state-descriptor.ts";
-import {
-  assertDumpRootKey,
-  getNextStateTarget,
-  getSubstateTarget,
-  resolveTargetStateKey,
-  STATUS_ENTER,
-  STATUS_EXIT,
-  STATUS_FINISHED,
-  STATUS_LEAF,
-  settleStep,
-} from "./fsm-traversal.ts";
+import { getSubstateTarget, resolveTargetStateKey, STATUS_LEAF } from "./fsm-traversal.ts";
 
 // The status constants live with the shared traversal algorithm; re-exported
 // here so existing `import { STATUS_LEAF } from "./fsm-process.ts"` keeps working.
@@ -55,9 +54,11 @@ export type FsmProcessDumpHandler = (
  * `onStateCreate`, then `dispatch("")` to enter the initial state and
  * `dispatch(event)` for each subsequent event.
  *
- * `FsmProcessSync` is the synchronous twin — same traversal, no promises.
+ * `FsmProcessSync` is the synchronous twin — same traversal, no promises. Both
+ * are thin shells over one controller (`fsm-controller.ts`): this one awaits
+ * each of its steps.
  */
-export class FsmProcess extends FsmBaseClass {
+export class FsmProcess extends FsmBaseClass implements FsmEngine<FsmState> {
   state?: FsmState;
   event?: string;
   nextEvents: string[] = [];
@@ -73,9 +74,12 @@ export class FsmProcess extends FsmBaseClass {
    * machine was busy is checked where it lands, not where it was queued.
    */
   eventFilter?: (event: string) => boolean;
-  /** A shutdown requested while busy; applied by the dispatch loop. */
-  private _pendingShutdown?: { event?: string };
-  private _unwinding = false;
+  /** @internal A shutdown requested while busy; applied by the dispatch loop. */
+  _pendingShutdown?: { event?: string };
+  /** @internal `true` while the stack is being unwound. */
+  _unwinding = false;
+  /** @internal See `FsmEngine._sync`. */
+  readonly _sync = false;
   private _idleWaiters: (() => void)[] = [];
 
   constructor(config: FsmStateConfig) {
@@ -99,14 +103,7 @@ export class FsmProcess extends FsmBaseClass {
    * unwinding to finish.
    */
   async shutdown(event?: string): Promise<void> {
-    if (this._unwinding) return;
-    if (this.running) {
-      this._pendingShutdown ??= { event };
-      this.nextEvents.length = 0;
-      return;
-    }
-    await this._unwind(event);
-    this._notifyIdle();
+    return runAsync(shutdownSteps(this, event));
   }
 
   /** Resolves once no dispatch or shutdown is in progress. */
@@ -115,27 +112,12 @@ export class FsmProcess extends FsmBaseClass {
     return new Promise((resolve) => this._idleWaiters.push(resolve));
   }
 
-  private _notifyIdle() {
+  /** @internal Release the `whenIdle` waiters once nothing is in progress. */
+  _notifyIdle() {
     if (this.running || this._unwinding) return;
     const waiters = this._idleWaiters;
     this._idleWaiters = [];
     for (const resolve of waiters) resolve();
-  }
-
-  private async _unwind(event?: string) {
-    this._unwinding = true;
-    try {
-      this.status = STATUS_FINISHED;
-      this.nextEvents.length = 0;
-      while (this.state) {
-        const state = this.state;
-        this.event = event;
-        await state._runHandler("onExit", state);
-        this.state = state.parent;
-      }
-    } finally {
-      this._unwinding = false;
-    }
   }
 
   /**
@@ -150,53 +132,7 @@ export class FsmProcess extends FsmBaseClass {
    * otherwise.
    */
   async dispatch(event: string): Promise<boolean> {
-    if (this.status & STATUS_FINISHED || this._pendingShutdown) return false;
-    // Queue the event. Re-entrant dispatches (from handlers running mid-settle)
-    // append here and are drained in order — so no earlier event is overwritten.
-    this.nextEvents.push(event);
-    if (this.running) return true;
-    this.running = true;
-    try {
-      run: while (this.nextEvents.length > 0 && !(this.status & STATUS_FINISHED)) {
-        const event = this.nextEvents.shift() as string;
-        if (this.eventFilter && !this.eventFilter(event)) continue;
-        this.event = event;
-        while (true) {
-          if (this.status & STATUS_EXIT) {
-            const exited = this.state;
-            await exited?._runHandler("onExit", exited);
-            if (this._pendingShutdown) {
-              // `exited` is done; unwind from its parent.
-              this.state = exited?.parent;
-              break run;
-            }
-          }
-          if (!(await this._update())) break;
-          if (this._pendingShutdown) break run;
-          if (this.status & STATUS_ENTER) {
-            await this.state?._runHandler("onEnter", this.state);
-            if (this._pendingShutdown) break run;
-          }
-          if (this.status & this.mask) break;
-        }
-      }
-    } finally {
-      this.running = false;
-      // Applied even if something escaped the loop (e.g. a throwing error sink),
-      // so a requested shutdown is never left stuck and idle waiters are released.
-      try {
-        // Handlers may have requested a shutdown during the loop (TS cannot see that).
-        const pending = this._pendingShutdown as { event?: string } | undefined;
-        if (pending) {
-          this._pendingShutdown = undefined;
-          await this._unwind(pending.event);
-        }
-      } finally {
-        if (this.status & STATUS_FINISHED) this.nextEvents.length = 0;
-        this._notifyIdle();
-      }
-    }
-    return !(this.status & STATUS_FINISHED);
+    return runAsync(dispatchSteps(this, event));
   }
 
   /**
@@ -204,15 +140,7 @@ export class FsmProcess extends FsmBaseClass {
    * stack is root→leaf, each entry carrying whatever its `dump` hooks recorded.
    */
   async dump(...args: unknown[]): Promise<FsmProcessDump> {
-    const states: FsmState[] = [];
-    for (let state = this.state; state; state = state.parent) states.unshift(state);
-    const stack: FsmStateDump[] = [];
-    for (const state of states) {
-      const stateDump: FsmStateDump = { key: state.key, data: {} };
-      await state._runHandler("dump", state, stateDump.data, ...args);
-      stack.push(stateDump);
-    }
-    return { status: this.status, event: this.event, stack };
+    return runAsync(dumpSteps(this, args));
   }
 
   /**
@@ -222,21 +150,7 @@ export class FsmProcess extends FsmBaseClass {
    * `onExit` handlers do not run — call `shutdown()` first to unwind it).
    */
   async restore(dump: FsmProcessDump, ...args: unknown[]) {
-    if (this.running || this._unwinding) {
-      throw new Error("FsmProcess.restore() called while a dispatch or shutdown is running");
-    }
-    assertDumpRootKey("FsmProcess", dump, this.config.key);
-    this._pendingShutdown = undefined;
-    this.status = dump.status || 0;
-    this.event = dump.event;
-    this.nextEvents.length = 0;
-    this.state = undefined;
-    for (const stateDump of dump.stack) {
-      this.state = this.state
-        ? await this._newSubstate(this.state, stateDump.key)
-        : await this._newState(undefined, stateDump.key, this.rootDescriptor);
-      await this.state._runHandler("restore", this.state, stateDump.data, ...args);
-    }
+    await runAsync(restoreSteps(this, "FsmProcess", dump, args));
     return this;
   }
 
@@ -280,23 +194,6 @@ export class FsmProcess extends FsmBaseClass {
    * any, and update `state` / `status`. Returns `false` when finished.
    */
   async _update() {
-    if (this.status & STATUS_FINISHED) return false;
-    const target = getNextStateTarget(
-      this.status,
-      this.state,
-      this.event,
-      this.config.key,
-      this.rootDescriptor,
-    );
-    const nextState =
-      target && (await this._newState(target.parent, target.key, target.descriptor));
-    if (this._pendingShutdown) {
-      // A shutdown was requested while the state was being created: drop it. If
-      // the current state has just exited, the unwinding starts from its parent.
-      if (this.status & STATUS_EXIT) this.state = this.state?.parent;
-      return true;
-    }
-    [this.state, this.status] = settleStep(this.status, this.state, nextState);
-    return !(this.status & STATUS_FINISHED);
+    return runAsync(updateSteps(this));
   }
 }

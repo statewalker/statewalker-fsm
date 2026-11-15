@@ -1,19 +1,18 @@
 import { bindMethods, FsmBaseClassSync } from "./fsm-base-class.ts";
+import {
+  dispatchSteps,
+  dumpSteps,
+  type FsmEngine,
+  restoreSteps,
+  runSync,
+  shutdownSteps,
+  updateSteps,
+} from "./fsm-controller.ts";
 import type { FsmProcessDump } from "./fsm-process.ts";
-import type { FsmStateDump } from "./fsm-state.ts";
 import type { FsmStateConfig } from "./fsm-state-config.ts";
 import { FsmStateDescriptor } from "./fsm-state-descriptor.ts";
 import { FsmStateSync } from "./fsm-state-sync.ts";
-import {
-  assertDumpRootKey,
-  getNextStateTarget,
-  getSubstateTarget,
-  STATUS_ENTER,
-  STATUS_EXIT,
-  STATUS_FINISHED,
-  STATUS_LEAF,
-  settleStep,
-} from "./fsm-traversal.ts";
+import { STATUS_LEAF } from "./fsm-traversal.ts";
 
 /** A process-level synchronous handler (`onStateCreate`). */
 export type FsmProcessSyncStateHandler = (state: FsmStateSync) => void;
@@ -23,15 +22,16 @@ export type FsmProcessSyncStateHandler = (state: FsmStateSync) => void;
  *
  * Use it when every handler is synchronous (UI reducers, parsers, game loops,
  * tests, server-side rendering…) and you want the machine to have moved by the
- * time `dispatch` returns. The algorithm is shared with `FsmProcess` (see
- * `fsm-traversal.ts`), so both engines visit states in exactly the same order,
- * and dumps are interchangeable between them.
+ * time `dispatch` returns. The controller is shared with `FsmProcess` (see
+ * `fsm-controller.ts`; this engine calls each of its steps directly), so both
+ * engines visit states in exactly the same order, and dumps are
+ * interchangeable between them.
  *
  * Differences from `FsmProcess`: `dispatch` / `shutdown` / `dump` / `restore`
  * return their results directly; handlers must not return promises (that is
  * reported as a `TypeError` via `onStateError`).
  */
-export class FsmProcessSync extends FsmBaseClassSync {
+export class FsmProcessSync extends FsmBaseClassSync implements FsmEngine<FsmStateSync> {
   state?: FsmStateSync;
   event?: string;
   nextEvents: string[] = [];
@@ -47,9 +47,12 @@ export class FsmProcessSync extends FsmBaseClassSync {
    * machine was busy is checked where it lands, not where it was queued.
    */
   eventFilter?: (event: string) => boolean;
-  /** A shutdown requested while busy; applied by the dispatch loop. */
-  private _pendingShutdown?: { event?: string };
-  private _unwinding = false;
+  /** @internal A shutdown requested while busy; applied by the dispatch loop. */
+  _pendingShutdown?: { event?: string };
+  /** @internal `true` while the stack is being unwound. */
+  _unwinding = false;
+  /** @internal See `FsmEngine._sync`. */
+  readonly _sync = true;
 
   constructor(config: FsmStateConfig) {
     super();
@@ -69,30 +72,11 @@ export class FsmProcessSync extends FsmBaseClassSync {
    * already unwinding is a no-op. Same semantics as `FsmProcess.shutdown`.
    */
   shutdown(event?: string): void {
-    if (this._unwinding) return;
-    if (this.running) {
-      this._pendingShutdown ??= { event };
-      this.nextEvents.length = 0;
-      return;
-    }
-    this._unwind(event);
+    runSync(shutdownSteps(this, event));
   }
 
-  private _unwind(event?: string) {
-    this._unwinding = true;
-    try {
-      this.status = STATUS_FINISHED;
-      this.nextEvents.length = 0;
-      while (this.state) {
-        const state = this.state;
-        this.event = event;
-        state._runHandler("onExit", state);
-        this.state = state.parent;
-      }
-    } finally {
-      this._unwinding = false;
-    }
-  }
+  /** @internal The sync engine has no idle waiters. */
+  _notifyIdle(): void {}
 
   /**
    * Feed an event and run the enter/exit cycle until the machine rests on a leaf
@@ -101,60 +85,12 @@ export class FsmProcessSync extends FsmBaseClassSync {
    * Returns `false` once finished.
    */
   dispatch(event: string): boolean {
-    if (this.status & STATUS_FINISHED || this._pendingShutdown) return false;
-    this.nextEvents.push(event);
-    if (this.running) return true;
-    this.running = true;
-    try {
-      run: while (this.nextEvents.length > 0 && !(this.status & STATUS_FINISHED)) {
-        const event = this.nextEvents.shift() as string;
-        if (this.eventFilter && !this.eventFilter(event)) continue;
-        this.event = event;
-        while (true) {
-          if (this.status & STATUS_EXIT) {
-            const exited = this.state;
-            exited?._runHandler("onExit", exited);
-            if (this._pendingShutdown) {
-              this.state = exited?.parent;
-              break run;
-            }
-          }
-          if (!this._update()) break;
-          if (this._pendingShutdown) break run;
-          if (this.status & STATUS_ENTER) {
-            this.state?._runHandler("onEnter", this.state);
-            if (this._pendingShutdown) break run;
-          }
-          if (this.status & this.mask) break;
-        }
-      }
-    } finally {
-      this.running = false;
-      try {
-        // Handlers may have requested a shutdown during the loop (TS cannot see that).
-        const pending = this._pendingShutdown as { event?: string } | undefined;
-        if (pending) {
-          this._pendingShutdown = undefined;
-          this._unwind(pending.event);
-        }
-      } finally {
-        if (this.status & STATUS_FINISHED) this.nextEvents.length = 0;
-      }
-    }
-    return !(this.status & STATUS_FINISHED);
+    return runSync(dispatchSteps(this, event));
   }
 
   /** Snapshot the machine: `{ status, event, stack }` (stack root→leaf). */
   dump(...args: unknown[]): FsmProcessDump {
-    const states: FsmStateSync[] = [];
-    for (let state = this.state; state; state = state.parent) states.unshift(state);
-    const stack: FsmStateDump[] = [];
-    for (const state of states) {
-      const stateDump: FsmStateDump = { key: state.key, data: {} };
-      state._runHandler("dump", state, stateDump.data, ...args);
-      stack.push(stateDump);
-    }
-    return { status: this.status, event: this.event, stack };
+    return runSync(dumpSteps(this, args));
   }
 
   /**
@@ -163,22 +99,7 @@ export class FsmProcessSync extends FsmBaseClassSync {
    * replaced as-is — call `shutdown()` first to run its `onExit` handlers.
    */
   restore(dump: FsmProcessDump, ...args: unknown[]): this {
-    if (this.running || this._unwinding) {
-      throw new Error("FsmProcessSync.restore() called while a dispatch or shutdown is running");
-    }
-    assertDumpRootKey("FsmProcessSync", dump, this.config.key);
-    this._pendingShutdown = undefined;
-    this.status = dump.status || 0;
-    this.event = dump.event;
-    this.nextEvents.length = 0;
-    this.state = undefined;
-    for (const stateDump of dump.stack) {
-      const target = this.state
-        ? getSubstateTarget(this.state, stateDump.key)
-        : { parent: undefined, key: stateDump.key, descriptor: this.rootDescriptor };
-      this.state = this._newState(target.parent, target.key, target.descriptor);
-      this.state._runHandler("restore", this.state, stateDump.data, ...args);
-    }
+    runSync(restoreSteps(this, "FsmProcessSync", dump, args));
     return this;
   }
 
@@ -208,21 +129,6 @@ export class FsmProcessSync extends FsmBaseClassSync {
 
   /** One traversal step (see `fsm-traversal.ts`). Returns `false` when finished. */
   _update(): boolean {
-    if (this.status & STATUS_FINISHED) return false;
-    const target = getNextStateTarget(
-      this.status,
-      this.state,
-      this.event,
-      this.config.key,
-      this.rootDescriptor,
-    );
-    const nextState = target && this._newState(target.parent, target.key, target.descriptor);
-    if (this._pendingShutdown) {
-      // See FsmProcess._update: drop the state created after a shutdown request.
-      if (this.status & STATUS_EXIT) this.state = this.state?.parent;
-      return true;
-    }
-    [this.state, this.status] = settleStep(this.status, this.state, nextState);
-    return !(this.status & STATUS_FINISHED);
+    return runSync(updateSteps(this));
   }
 }

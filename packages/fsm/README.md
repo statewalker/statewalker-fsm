@@ -483,10 +483,16 @@ which strips TypeScript types natively). Each one is executed by `test/examples.
 
 ## Internals: traversal, transition lookup and serialization
 
-- **One algorithm, two drivers.** Each traversal step is split into pure functions in
+- **One controller, two drivers.** Each traversal step is split into pure functions in
   `fsm-traversal.ts`: `getNextStateTarget` decides which state to create next, `settleStep` computes
-  the resulting `[state, status]`. `FsmProcess` and `FsmProcessSync` only differ in whether they
-  `await` handlers between those steps.
+  the resulting `[state, status]`. The loop around them (the dispatch loop with its re-entrancy
+  queue, pending shutdown, unwinding, discarding a state created after a shutdown request, dump and
+  restore) is written once, in `fsm-controller.ts`, as generators that yield steps such as "run
+  `onExit` of S" or "create state K under P" without running them. `FsmProcess` drives them with
+  `runAsync`, awaiting each step; `FsmProcessSync` with `runSync`, calling each directly (and
+  skipping a handler step with no handlers, which is invisible there). A fix to that loop lands in
+  both engines at once. The cost is a generator per call: on the sync CSV example a dispatch takes
+  about 0.66 µs instead of 0.53 µs.
 - **Traversal & the `status` bitmask.** `dispatch` pumps an enter/exit cycle over the state stack until
   it rests on a leaf (`STATUS_LEAF`, the default `mask`) or the machine finishes (`STATUS_FINISHED`).
   The `STATUS_*` bits encode where in that cycle the process is: `FIRST`/`NEXT` while entering
