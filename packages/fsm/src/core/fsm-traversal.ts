@@ -139,3 +139,21 @@ export function settleStep<S extends FsmStateNode>(
   }
   return [state, state ? STATUS_LEAF : STATUS_FINISHED];
 }
+
+/**
+ * Throw unless `dump` was taken from a machine with the root key `rootKey`. An empty
+ * stack passes. Shared by both engines' `restore` and by the runners, which check
+ * before unwinding the live machine.
+ */
+export function assertDumpRootKey(
+  owner: string,
+  dump: { stack: { key: string }[] },
+  rootKey: string,
+): void {
+  const dumpKey = dump.stack[0]?.key;
+  if (dumpKey !== undefined && dumpKey !== rootKey) {
+    throw new Error(
+      `${owner}.restore(): the dump's root key "${dumpKey}" does not match this machine's root key "${rootKey}"`,
+    );
+  }
+}

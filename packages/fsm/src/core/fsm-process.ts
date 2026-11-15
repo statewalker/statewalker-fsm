@@ -3,6 +3,7 @@ import { FsmState, type FsmStateDump, type FsmStateHandler } from "./fsm-state.t
 import type { FsmStateConfig } from "./fsm-state-config.ts";
 import { FsmStateDescriptor } from "./fsm-state-descriptor.ts";
 import {
+  assertDumpRootKey,
   getNextStateTarget,
   getSubstateTarget,
   resolveTargetStateKey,
@@ -224,12 +225,7 @@ export class FsmProcess extends FsmBaseClass {
     if (this.running || this._unwinding) {
       throw new Error("FsmProcess.restore() called while a dispatch or shutdown is running");
     }
-    const rootKey = dump.stack[0]?.key;
-    if (rootKey !== undefined && rootKey !== this.config.key) {
-      throw new Error(
-        `FsmProcess.restore(): the dump's root key "${rootKey}" does not match this machine's root key "${this.config.key}"`,
-      );
-    }
+    assertDumpRootKey("FsmProcess", dump, this.config.key);
     this._pendingShutdown = undefined;
     this.status = dump.status || 0;
     this.event = dump.event;

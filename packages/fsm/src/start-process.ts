@@ -2,6 +2,7 @@ import { FsmProcess, type FsmProcessDump } from "./core/fsm-process.ts";
 import type { FsmState } from "./core/fsm-state.ts";
 import type { FsmStateConfig } from "./core/fsm-state-config.ts";
 import { isStateTransitionEnabled } from "./core/fsm-transitions.ts";
+import { assertDumpRootKey } from "./core/fsm-traversal.ts";
 
 /**
  * Per-state behaviour contract used by `startProcess`. One function shape expresses
@@ -202,6 +203,8 @@ export async function startProcess<C = unknown>(
     // External API: let an in-flight dispatch settle first (do not await this
     // from a handler).
     await process.whenIdle();
+    // Reject a foreign dump before the live machine is unwound.
+    assertDumpRootKey("FsmProcess", dumpData, config.key);
     if (process.state) await process.shutdown();
     statesStack.length = 0;
     terminated = false;

@@ -1,6 +1,13 @@
 // Regression test for statewalker/statewalker-fsm#36: restore must refuse a dump
 // taken from a machine with a different root key.
-import { FsmProcess, FsmProcessSync, type FsmStateConfig } from "../src/index.ts";
+import {
+  FsmProcess,
+  FsmProcessSync,
+  type FsmStateConfig,
+  KEY_STATES,
+  startProcess,
+  startProcessSync,
+} from "../src/index.ts";
 import { describe, expect, it } from "./deps.ts";
 
 const a: FsmStateConfig = { key: "A", transitions: [["", "*", "X"]] };
@@ -34,5 +41,27 @@ describe("restore checks the dump's root key (#36)", () => {
     expect(target.state?.key).toBe("X");
     const empty = new FsmProcessSync(a).restore({ status: 0, stack: [] });
     expect(empty.state).toBeUndefined();
+  });
+});
+
+describe("the runners reject a foreign dump before unwinding the live machine (#36)", () => {
+  it("async runner: the machine keeps running after a rejected restore", async () => {
+    let cleaned = 0;
+    const ctx: Record<string, unknown> = {};
+    const h = await startProcess(ctx, a, () => [() => () => void cleaned++]);
+    const other = await startProcess({}, b, () => []);
+    await expect(h.restore(await other.dump())).rejects.toThrow(/root key "B".*"A"/);
+    expect(cleaned).toBe(0);
+    expect(ctx[KEY_STATES]).toEqual(["A", "X"]);
+  });
+
+  it("sync runner: the machine keeps running after a rejected restore", () => {
+    let cleaned = 0;
+    const ctx: Record<string, unknown> = {};
+    const h = startProcessSync(ctx, a, () => [() => () => void cleaned++]);
+    const other = startProcessSync({}, b, () => []);
+    expect(() => h.restore(other.dump())).toThrow(/root key "B".*"A"/);
+    expect(cleaned).toBe(0);
+    expect(ctx[KEY_STATES]).toEqual(["A", "X"]);
   });
 });

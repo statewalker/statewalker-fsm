@@ -4,6 +4,7 @@ import { FsmProcessSync } from "./core/fsm-process-sync.ts";
 import type { FsmStateConfig } from "./core/fsm-state-config.ts";
 import type { FsmStateSync } from "./core/fsm-state-sync.ts";
 import { isStateTransitionEnabled } from "./core/fsm-transitions.ts";
+import { assertDumpRootKey } from "./core/fsm-traversal.ts";
 import { KEY_DISPATCH, KEY_EVENT, KEY_STATES, KEY_TERMINATE } from "./start-process.ts";
 
 /**
@@ -202,6 +203,8 @@ export function startProcessSync<C = unknown>(
   }
 
   function restore(dump: FsmProcessDump, ...args: unknown[]): void {
+    // Reject a foreign dump before the live machine is unwound.
+    assertDumpRootKey("FsmProcessSync", dump, config.key);
     // Unwind the live stack first: cleanups run and generators are closed.
     if (process.state) process.shutdown();
     for (const runner of [...runners]) close(runner);
