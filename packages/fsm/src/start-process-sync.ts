@@ -183,10 +183,11 @@ export function startProcessSync<C = unknown>(
     });
   });
 
+  // The guard runs when the engine takes the event off its queue, so an event
+  // dispatched while the machine is busy is checked against the state it lands in.
+  process.eventFilter = (event) => !process.state || isStateTransitionEnabled(process, event);
   function guardedDispatch(event: string) {
-    if (event !== undefined && isStateTransitionEnabled(process, event)) {
-      process.dispatch(event);
-    }
+    if (event !== undefined) process.dispatch(event);
   }
 
   function dispatch(event: string): void {

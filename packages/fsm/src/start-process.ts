@@ -12,8 +12,9 @@ import { isStateTransitionEnabled } from "./core/fsm-transitions.ts";
  * - a cleanup `function` — registered as this state's `onExit`;
  * - an async/sync generator — run concurrently, each yielded string dispatched back
  *   into the machine (self-driving/reactive states), auto-`return()`ed on exit. A
- *   yielded event is applied once the machine has settled, and the next value is
- *   pulled after it has been processed (as with `startProcessSync`).
+ *   yielded event is applied once the machine has settled, in order. If the machine
+ *   is idle, the next value is pulled after the event has been processed; while it is
+ *   busy, the event is queued and the generator keeps being pulled.
  */
 export type StageHandler<C = Record<string, unknown>> = (
   context: C,
@@ -171,10 +172,11 @@ export async function startProcess<C = unknown>(
     });
   });
 
+  // The guard runs when the engine takes the event off its queue, so an event
+  // dispatched while the machine is busy is checked against the state it lands in.
+  process.eventFilter = (event) => !process.state || isStateTransitionEnabled(process, event);
   async function dispatch(event: string): Promise<void> {
-    if (event !== undefined && isStateTransitionEnabled(process, event)) {
-      await process.dispatch(event);
-    }
+    if (event !== undefined) await process.dispatch(event);
   }
   // Bound under KEY_TERMINATE and called from handlers: must not wait for the
   // unwinding (that would wait for the calling handler itself).
