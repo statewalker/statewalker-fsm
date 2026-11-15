@@ -75,7 +75,7 @@ export const ruleDefinitions: RuleDefinition[] = [
     rule: "Transition keys resolve",
     severity: "error",
     constraint:
-      'Every non-special ("", "*") state key in `transitions[]` MUST resolve: it is looked up in the declaring state\'s `states[]`, then in each ancestor\'s in turn, and the first definition found wins. A key no ancestor defines is an error — the engine reports nothing, creates an empty state and silently stalls in it. This constrains where a key may be DEFINED, not which states a transition may CONNECT: topology stays local (see S3)',
+      'Every non-special ("", "*") state key in `transitions[]` MUST resolve: it is looked up in the declaring state\'s `states[]`, then in each ancestor\'s in turn, and the first definition found wins. The ancestors are the RUNNING ones: a shared definition resolves its keys through the scope that enters it, so each key must resolve in every place the definition is entered. A key no ancestor defines is an error — the engine reports nothing, creates an empty state and silently stalls in it. This constrains where a key may be DEFINED, not which states a transition may CONNECT: topology stays local (see S3)',
   },
   {
     category: "structural",

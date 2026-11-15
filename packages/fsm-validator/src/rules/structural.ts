@@ -1,5 +1,18 @@
-import type { RuleContext, RuleFunction, RuleId, ValidationIssue } from "../types.ts";
-import { handlesEvent, isPseudoKey, referencingScopes, resolveDefinition } from "./resolution.ts";
+import type {
+  FsmStateConfig,
+  RuleContext,
+  RuleFunction,
+  RuleId,
+  ValidationIssue,
+} from "../types.ts";
+import {
+  handlesEvent,
+  instancesOf,
+  isPseudoKey,
+  referencingScopes,
+  resolutionContexts,
+  resolveDefinition,
+} from "./resolution.ts";
 
 export function initialTransitionRequired(ctx: RuleContext): ValidationIssue[] {
   const { config, path } = ctx;
@@ -18,12 +31,16 @@ export function initialTransitionRequired(ctx: RuleContext): ValidationIssue[] {
   }
 
   // The initial target need not be declared here: like any other transition
-  // key it resolves up the ancestor chain, so a composite state may enter a
-  // shared definition as its initial sub-state. S2 reports it if it resolves
-  // nowhere.
+  // key it resolves up the live ancestor chain, so a composite state may enter
+  // a shared definition as its initial sub-state. It counts when it resolves
+  // where this state is entered; S2 reports each place it does not.
+  const contexts = resolutionContexts(ctx);
   const initials = transitions.filter(
     ([from, , to]) =>
-      from === "" && to !== "" && to !== "*" && !!resolveDefinition(to, config, ctx.ancestors),
+      from === "" &&
+      to !== "" &&
+      to !== "*" &&
+      contexts.some((c) => !!resolveDefinition(to, config, c.ancestors)),
   );
   // The runtime picks the initial sub-state by the event that ENTERED this
   // state: ["", "start", X] fires only when the state is entered by "start".
@@ -61,39 +78,48 @@ export function initialTransitionRequired(ctx: RuleContext): ValidationIssue[] {
  * S2 — every state key a transition names must RESOLVE.
  *
  * Not "must be a direct sub-state": the engine looks the key up in this
- * state's `states:` and then in each ancestor's, taking the first hit, so a
- * scope may legitimately reference a definition several levels above it.
- * What is never legitimate is a key no ancestor defines — the engine reports
- * nothing there, creates an empty state and stalls in it.
+ * state's `states:` and then in each RUNNING ancestor's, taking the first hit,
+ * so a scope may legitimately reference a definition several levels above it,
+ * or one that only the scope entering it defines. The key must resolve in
+ * every place the state is entered: where no ancestor on that live chain
+ * defines it, the engine reports nothing, creates an empty state and stalls.
+ * Reported at the live path of each such place.
  */
 export function transitionKeysResolve(ctx: RuleContext): ValidationIssue[] {
-  const { config, path, ancestors } = ctx;
+  const { config } = ctx;
   const transitions = config.transitions;
   if (!transitions || transitions.length === 0) return [];
 
   const issues: ValidationIssue[] = [];
-  const unresolved = (key: string) =>
-    !isPseudoKey(key) && !resolveDefinition(key, config, ancestors);
+  for (const context of resolutionContexts(ctx)) {
+    const unresolved = (key: string) =>
+      !isPseudoKey(key) && !resolveDefinition(key, config, context.ancestors);
+    const path = [...context.path, config.key];
+    const where =
+      context.ancestors.length > 0
+        ? `nor in any ancestor's when entered at "${path.join("/")}"`
+        : "nor in any ancestor's";
 
-  for (const t of transitions) {
-    if (!Array.isArray(t) || t.length !== 3) continue;
-    const [from, , to] = t;
+    for (const t of transitions) {
+      if (!Array.isArray(t) || t.length !== 3) continue;
+      const [from, , to] = t;
 
-    if (unresolved(from)) {
-      issues.push({
-        rule: "S2",
-        severity: "error",
-        message: `Transition source "${from}" does not resolve — "${from}" is defined neither in "${config.key}"'s states: nor in any ancestor's`,
-        path: [...path, config.key],
-      });
-    }
-    if (unresolved(to)) {
-      issues.push({
-        rule: "S2",
-        severity: "error",
-        message: `Transition target "${to}" does not resolve — "${to}" is defined neither in "${config.key}"'s states: nor in any ancestor's`,
-        path: [...path, config.key],
-      });
+      if (unresolved(from)) {
+        issues.push({
+          rule: "S2",
+          severity: "error",
+          message: `Transition source "${from}" does not resolve — "${from}" is defined neither in "${config.key}"'s states: ${where}`,
+          path,
+        });
+      }
+      if (unresolved(to)) {
+        issues.push({
+          rule: "S2",
+          severity: "error",
+          message: `Transition target "${to}" does not resolve — "${to}" is defined neither in "${config.key}"'s states: ${where}`,
+          path,
+        });
+      }
     }
   }
   return issues;
@@ -101,7 +127,7 @@ export function transitionKeysResolve(ctx: RuleContext): ValidationIssue[] {
 
 /**
  * S9 — a key defined at more than one depth shadows the outer definition for
- * that subtree, exactly as a lexically scoped variable does. Legal, and
+ * that subtree, much as a scoped variable does. Legal, and
  * occasionally what you want, but a reader now has to walk the ancestor chain
  * to know which definition applies.
  */
@@ -141,8 +167,7 @@ export function deliberateShadowing(ctx: RuleContext): ValidationIssue[] {
  * way the engine offers to share a sub-machine.
  */
 export function siblingTransitionsAtParent(ctx: RuleContext): ValidationIssue[] {
-  const { config, path, parent } = ctx;
-  if (!parent?.states) return [];
+  const { config } = ctx;
   if (!config.transitions || config.transitions.length === 0) return [];
 
   const ownKeys = new Set((config.states ?? []).map((s) => s.key));
@@ -151,6 +176,26 @@ export function siblingTransitionsAtParent(ctx: RuleContext): ValidationIssue[] 
   );
   if (instantiatesSharedDefinition) return [];
 
+  // Siblings are the sub-states of the scope that ENTERS this state at
+  // runtime: its lexical parent for an ordinary state, each caller for a
+  // shared one. Reported once per entering scope.
+  const issues: ValidationIssue[] = [];
+  const checked = new Set<FsmStateConfig>();
+  for (const context of resolutionContexts(ctx)) {
+    const parent = context.ancestors[0];
+    if (!parent?.states || checked.has(parent)) continue;
+    checked.add(parent);
+    issues.push(...siblingReferences(config, parent, [...context.path, config.key]));
+  }
+  return issues;
+}
+
+function siblingReferences(
+  config: FsmStateConfig,
+  parent: FsmStateConfig,
+  path: string[],
+): ValidationIssue[] {
+  if (!parent.states || !config.transitions) return [];
   // Collect sibling keys from parent's states (excluding this state itself)
   const siblingKeys = new Set(parent.states.map((s) => s.key).filter((k) => k !== config.key));
   if (siblingKeys.size === 0) return [];
@@ -167,7 +212,7 @@ export function siblingTransitionsAtParent(ctx: RuleContext): ValidationIssue[] 
         rule: "S3",
         severity: "error",
         message: `Child "${config.key}" has a transition referencing sibling "${from}" — sibling transitions must be declared at the parent level`,
-        path: [...path, config.key],
+        path,
       });
     }
     if (to !== "" && to !== "*" && siblingKeys.has(to)) {
@@ -175,7 +220,7 @@ export function siblingTransitionsAtParent(ctx: RuleContext): ValidationIssue[] 
         rule: "S3",
         severity: "error",
         message: `Child "${config.key}" has a transition targeting sibling "${to}" — sibling transitions must be declared at the parent level`,
-        path: [...path, config.key],
+        path,
       });
     }
   }
@@ -232,18 +277,18 @@ export function reachabilityFromInitial(ctx: RuleContext): ValidationIssue[] {
 
   // A definition no local transition targets is not automatically an error:
   // it may be a SHARED definition, instantiated by a descendant scope that
-  // resolves the key up the ancestor chain. Reachability is a property of the
-  // instantiation site, not of the definition site. Only a definition nothing
-  // references anywhere is genuinely dead.
+  // resolves the key up its live ancestor chain. Reachability is a property of
+  // the instantiation site, not of the definition site. Only a definition the
+  // runtime enters from nowhere else is genuinely dead.
   const issues: ValidationIssue[] = [];
   for (const key of allKeys) {
     if (reachable.has(key)) continue;
     const definition = config.states.find((s) => s.key === key);
     // This scope's own references do not rescue it — reachability here was
-    // just computed from them. Only ANOTHER scope resolving the key upward
-    // makes the definition a shared one.
+    // just computed from them. Only ANOTHER running scope whose lookup lands
+    // on this definition makes it a shared one.
     const elsewhere = definition
-      ? referencingScopes(ctx.root, key, definition).filter((s) => s.config !== config)
+      ? instancesOf(ctx.root, definition).filter((i) => i.ancestors[0] !== config)
       : [];
     if (elsewhere.length > 0) continue;
     issues.push({
@@ -322,7 +367,7 @@ export function exitEventPropagation(ctx: RuleContext): ValidationIssue[] {
     if (exitEvents.size === 0) continue;
 
     // Check that every scope entering this child handles these events
-    for (const scope of referencingScopes(root, child.key, child)) {
+    for (const scope of referencingScopes(root, child)) {
       for (const exitEvent of exitEvents) {
         if (handlesEvent(scope.config, child.key, exitEvent)) continue;
         issues.push({

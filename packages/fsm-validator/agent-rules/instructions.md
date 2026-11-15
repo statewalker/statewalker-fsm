@@ -125,7 +125,7 @@ Severity levels: **error** — must fix; **warning** — should fix; **info** �
 * **S2** — Transition keys resolve [error]
   Every non-special (`""`, `"*"`) state key in `transitions[]` MUST **resolve**: the engine looks it up in the declaring state's `states[]`, then in each ancestor's in turn, and the first definition found wins. A key no ancestor defines is an error — the engine reports nothing there, creates an empty state and silently stalls in it.
 
-  This constrains where a key may be *defined*, not which states a transition may *connect*. Topology stays local (S3); resolution is lexical, which is what lets one sub-machine definition be shared by several scopes.
+  This constrains where a key may be *defined*, not which states a transition may *connect*. Topology stays local (S3). Resolution is dynamic: the ancestors are the *running* ones, the scopes that entered the state, which is what lets one sub-machine definition be shared by several scopes. A shared definition resolves its own keys through the scope that enters it, so each key must resolve in every place the definition is entered.
 
 * **S3** — Sibling transitions at parent level [error]
   Transitions between sibling states are declared ONLY in the parent's `transitions[]`, never inside a child state.
@@ -148,7 +148,7 @@ Severity levels: **error** — must fix; **warning** — should fix; **info** �
   Leaf states MUST declare an `events` field. A state is a leaf only when it drives nothing — no `states[]` **and** no `transitions[]`. A state that declares transitions is composite even with no `states[]` of its own, because the sub-states it drives resolve to definitions further up the chain.
 
 * **S9** — Deliberate shadowing [warning]
-  Where the same key is defined at more than one depth the nearest definition wins, shadowing the outer one for that subtree only — exactly as with lexically scoped variables. Prefer distinct keys unless the shadowing is intentional and documented, since a reader must otherwise walk the ancestor chain to know which definition applies.
+  Where the same key is defined at more than one depth the nearest definition wins, shadowing the outer one for that subtree only — much as with scoped variables (the scope being the running ancestor chain, see S2). Prefer distinct keys unless the shadowing is intentional and documented, since a reader must otherwise walk the ancestor chain to know which definition applies.
 
 ### Semantic rules (M1–M9)
 

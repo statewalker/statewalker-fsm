@@ -5,7 +5,7 @@ import type {
   RuleId,
   ValidationIssue,
 } from "../types.ts";
-import { handlesEvent, referencingScopes } from "./resolution.ts";
+import { handlesEvent, referencingScopes, resolutionContexts } from "./resolution.ts";
 
 /**
  * M1 — every event a state declares must be handled by a transition.
@@ -29,7 +29,7 @@ export function forwardEventCoverage(ctx: RuleContext): ValidationIssue[] {
 
   // The scopes that actually instantiate THIS definition. For an ordinary
   // state that is just its parent; for a shared one it is every caller.
-  const scopes = referencingScopes(root, config.key, config).filter(
+  const scopes = referencingScopes(root, config).filter(
     (s) => s.config.transitions && s.config.transitions.length > 0,
   );
   if (scopes.length === 0) return [];
@@ -95,10 +95,14 @@ export function reverseEventCoverage(ctx: RuleContext): ValidationIssue[] {
   if (!anyChildHasEvents) return [];
 
   // An event declared at a shared ancestor level — this scope or any above
-  // it, all ancestors of the source — satisfies the rule too.
+  // it on the live chain, all ancestors of the source — satisfies the rule
+  // too. A shared scope must have it declared wherever it is entered.
+  const contexts = resolutionContexts(ctx);
   const declaredAbove = (event: string) =>
-    [config, ...ctx.ancestors].some(
-      (a) => !!a.events && Object.prototype.hasOwnProperty.call(a.events, event),
+    contexts.every((c) =>
+      [config, ...c.ancestors].some(
+        (a) => !!a.events && Object.prototype.hasOwnProperty.call(a.events, event),
+      ),
     );
 
   for (const [from, event] of transitions) {
@@ -137,7 +141,7 @@ export function hierarchicalEventDeclaration(ctx: RuleContext): ValidationIssue[
   }
   if (exitEvents.size === 0) return [];
 
-  const scopes = referencingScopes(root, config.key, config);
+  const scopes = referencingScopes(root, config);
   const issues: ValidationIssue[] = [];
   for (const event of exitEvents) {
     const handledBy = scopes.filter((s) => handlesEvent(s.config, config.key, event));
