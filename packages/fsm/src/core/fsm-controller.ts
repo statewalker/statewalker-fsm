@@ -32,6 +32,7 @@ import {
 const OP_HANDLER = 0;
 const OP_HANDLER_ARGS = 1;
 const OP_CREATE = 2;
+const OP_CALL = 3;
 
 /**
  * One step of the controller: a handler run or a state creation. A program
@@ -48,6 +49,7 @@ export class FsmStep {
   parent?: FsmEngineState;
   key = "";
   descriptor?: FsmStateDescriptor;
+  fn?: () => unknown;
 
   /** Run the `type` handlers of `target`, passing `target` itself. */
   handler(target: FsmEngineState | undefined, type: string): this {
@@ -81,9 +83,18 @@ export class FsmStep {
     return this;
   }
 
-  /** Carry the step out; returns the handler run's or the creation's result. */
+  /** Call `fn` (any other awaitable step, such as a runner's `load`). */
+  call(fn: () => unknown): this {
+    this.op = OP_CALL;
+    this.fn = fn;
+    return this;
+  }
+
+  /** Carry the step out; returns the handler run's, the creation's or the call's result. */
   run(): unknown {
     switch (this.op) {
+      case OP_CALL:
+        return this.fn?.();
       case OP_HANDLER:
         return this.target?._runHandler(this.type, this.target);
       case OP_HANDLER_ARGS:

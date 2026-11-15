@@ -1,11 +1,10 @@
 import { isThenable } from "./core/fsm-base-class.ts";
+import { runSync } from "./core/fsm-controller.ts";
 import type { FsmProcessDump } from "./core/fsm-process.ts";
 import { FsmProcessSync } from "./core/fsm-process-sync.ts";
 import type { FsmStateConfig } from "./core/fsm-state-config.ts";
 import type { FsmStateSync } from "./core/fsm-state-sync.ts";
-import { isStateTransitionEnabled } from "./core/fsm-transitions.ts";
-import { assertDumpRootKey } from "./core/fsm-traversal.ts";
-import { KEY_DISPATCH, KEY_EVENT, KEY_STATES, KEY_TERMINATE } from "./start-process.ts";
+import { createRunnerCore, type RunnerCore } from "./runner-core.ts";
 
 /**
  * Synchronous per-state behaviour for `startProcessSync`. Runs on entry with the
@@ -46,14 +45,6 @@ function asyncMisuse(what: string) {
   );
 }
 
-function isIterator(value: unknown): value is Generator<string, void, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as { next?: unknown }).next === "function"
-  );
-}
-
 /**
  * Synchronous twin of `startProcess`: build an `FsmProcessSync`, install the
  * handlers returned by `load(stateKey, event)` on each state entry, bind
@@ -72,17 +63,42 @@ export function startProcessSync<C = unknown>(
   load: (state: string, event: string | undefined) => StageHandlerSync<C>[],
   startEvent = "",
 ): ProcessHandleSync {
-  let terminated = false;
   let pumping = false;
-  const ctx = context as Record<string, unknown>;
   const process = new FsmProcessSync(config);
-  const statesStack: string[] = [];
   const runners = new Set<GeneratorRunner>();
-
-  const syncContext = () => {
-    ctx[KEY_STATES] = [...statesStack];
-    ctx[KEY_EVENT] = process.event;
-  };
+  // The context wiring, guard, handler installation, terminate and restore are
+  // the shared runner core's; this runner supplies how to step a sync
+  // generator: pull one value, and pump the pending values round-robin.
+  const core: RunnerCore = createRunnerCore<C, FsmStateSync>({
+    context,
+    config,
+    process,
+    load,
+    dispatch,
+    flavour: {
+      owner: "FsmProcessSync",
+      run: runSync,
+      rejectThenable: (state, result, what) => {
+        // An async result cannot be honoured synchronously.
+        result.then(undefined, (error) => state._handleError(error));
+        state._handleError(asyncMisuse(what));
+      },
+      startGenerator: (state, generator) => {
+        const runner: GeneratorRunner = {
+          state,
+          generator: generator as Generator<string, void, unknown>,
+          closed: false,
+        };
+        runners.add(runner);
+        state.onExit(() => close(runner));
+        pull(runner);
+      },
+      stopGenerators: () => {
+        for (const runner of [...runners]) close(runner);
+      },
+      whenIdle: () => undefined,
+    },
+  });
 
   /** Pull the next event of a generator into `pending` (or close it). */
   function pull(runner: GeneratorRunner) {
@@ -135,21 +151,22 @@ export function startProcessSync<C = unknown>(
 
   /**
    * Feed pending generator events into the machine, round-robin, one event per
-   * generator per pass, until no generator has anything left to say.
+   * generator per pass, until no generator has anything left to say. Runs only
+   * once the machine has settled (the core's event-timing rule).
    */
   function pump() {
     if (pumping || process.running) return;
     pumping = true;
     try {
       let progressed = true;
-      while (progressed && !terminated) {
+      while (progressed && !core.terminated) {
         progressed = false;
         for (const runner of [...runners]) {
-          if (runner.closed || runner.pending === undefined || terminated) continue;
+          if (runner.closed || runner.pending === undefined || core.terminated) continue;
           const event = runner.pending;
           runner.pending = undefined;
           progressed = true;
-          guardedDispatch(event);
+          core.dispatch(event);
           if (!runner.closed) pull(runner);
         }
       }
@@ -158,73 +175,21 @@ export function startProcessSync<C = unknown>(
     }
   }
 
-  process.onStateCreate((state) => {
-    state.onEnter(() => {
-      statesStack.push(state.key);
-      syncContext();
-      for (const module of load(state.key, process.event) ?? []) {
-        const result = module?.(context) as unknown;
-        if (isThenable(result)) {
-          // An async stage handler: its result cannot be honoured synchronously.
-          result.then(undefined, (error) => state._handleError(error));
-          state._handleError(asyncMisuse("async stage handler"));
-        } else if (isIterator(result)) {
-          const runner: GeneratorRunner = { state, generator: result, closed: false };
-          runners.add(runner);
-          state.onExit(() => close(runner));
-          pull(runner);
-        } else if (typeof result === "function") {
-          state.onExit(result as () => void);
-        }
-      }
-    });
-    state.onExit(() => {
-      statesStack.pop();
-      syncContext();
-    });
-  });
-
-  // The guard runs when the engine takes the event off its queue, so an event
-  // dispatched while the machine is busy is checked against the state it lands in.
-  process.eventFilter = (event) => !process.state || isStateTransitionEnabled(process, event);
-  function guardedDispatch(event: string) {
-    if (event !== undefined) process.dispatch(event);
-  }
-
   function dispatch(event: string): void {
-    guardedDispatch(event);
+    core.dispatch(event);
     pump();
   }
 
-  function terminate(): void {
-    terminated = true;
-    process.shutdown();
-    for (const runner of [...runners]) close(runner);
-  }
-
-  function restore(dump: FsmProcessDump, ...args: unknown[]): void {
-    // Reject a foreign dump before the live machine is unwound.
-    assertDumpRootKey("FsmProcessSync", dump, config.key);
-    // Unwind the live stack first: cleanups run and generators are closed.
-    if (process.state) process.shutdown();
-    for (const runner of [...runners]) close(runner);
-    statesStack.length = 0;
-    terminated = false;
-    process.restore(dump, ...args);
-    for (let state = process.state; state; state = state.parent) {
-      statesStack.unshift(state.key);
-    }
-    syncContext();
-  }
-
-  ctx[KEY_DISPATCH] = dispatch;
-  ctx[KEY_TERMINATE] = terminate;
   process.dispatch(startEvent);
   pump();
   return {
     dispatch,
-    shutdown: terminate,
+    shutdown: () => {
+      core.terminate();
+    },
     dump: (...args: unknown[]) => process.dump(...args),
-    restore,
+    restore: (dump: FsmProcessDump, ...args: unknown[]) => {
+      core.restore(dump, args);
+    },
   };
 }

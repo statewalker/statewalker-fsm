@@ -493,6 +493,13 @@ which strips TypeScript types natively). Each one is executed by `test/examples.
   skipping a handler step with no handlers, which is invisible there). A fix to that loop lands in
   both engines at once. The cost is a generator per call: on the sync CSV example a dispatch takes
   about 0.66 µs instead of 0.53 µs.
+- **One runner core.** `startProcess` and `startProcessSync` share `runner-core.ts`: the context
+  binding (`KEY_*`, the state-key stack), the guard, installing what `load` returns on entry
+  (cleanups, generators), terminate and restore are step programs driven by the same two drivers.
+  Each runner supplies only how to step a generator: the async runner drains each generator's
+  events once the machine is idle; the sync runner pulls one value at a time and pumps them
+  round-robin. The rule they share: a dispatched or yielded event is checked by the guard where it
+  lands and applied once the machine has settled, in order.
 - **Traversal & the `status` bitmask.** `dispatch` pumps an enter/exit cycle over the state stack until
   it rests on a leaf (`STATUS_LEAF`, the default `mask`) or the machine finishes (`STATUS_FINISHED`).
   The `STATUS_*` bits encode where in that cycle the process is: `FIRST`/`NEXT` while entering
