@@ -1,6 +1,6 @@
 {
   "name": "@statewalker/fsm-viewer",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Interactive statechart viewer for @statewalker/fsm processes",
   "bugs": {
     "url": "https://github.com/statewalker/statewalker-fsm/issues"
