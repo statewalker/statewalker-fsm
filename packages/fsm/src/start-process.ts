@@ -1,8 +1,10 @@
+import { runAsync } from "./core/fsm-controller.ts";
 import { FsmProcess, type FsmProcessDump } from "./core/fsm-process.ts";
 import type { FsmState } from "./core/fsm-state.ts";
 import type { FsmStateConfig } from "./core/fsm-state-config.ts";
-import { isStateTransitionEnabled } from "./core/fsm-transitions.ts";
-import { assertDumpRootKey } from "./core/fsm-traversal.ts";
+import { createRunnerCore, type RunnerCore } from "./runner-core.ts";
+
+export { KEY_DISPATCH, KEY_EVENT, KEY_STATES, KEY_TERMINATE } from "./runner-core.ts";
 
 /**
  * Per-state behaviour contract used by `startProcess`. One function shape expresses
@@ -41,36 +43,6 @@ export interface ProcessHandle {
   restore(dump: FsmProcessDump, ...args: unknown[]): Promise<void>;
 }
 
-// Context keys under which `startProcess` binds the machine into the shared context
-// object. Why via context (not closures): handlers reach the running machine
-// uniformly — `(ctx[KEY_DISPATCH])(event)` — regardless of where they are defined.
-/**
- * Context key: the guarded dispatch fn — `(event) => Promise<void>` from `startProcess`,
- * `(event) => void` from `startProcessSync`. Ignores events with no transition.
- */
-export const KEY_DISPATCH = "fsm:dispatch";
-/** Context key: shuts the machine down — `() => Promise<void>` (async runner) or `() => void` (sync). */
-export const KEY_TERMINATE = "fsm:terminate";
-/** Context key: the current state-key stack (root→leaf), refreshed on every transition. */
-export const KEY_STATES = "fsm:states";
-/** Context key: the last dispatched event. */
-export const KEY_EVENT = "fsm:event";
-
-// ---------------------------------------------------------------------------
-// Generator detection
-// ---------------------------------------------------------------------------
-
-function isGenerator(
-  value: unknown,
-): value is Generator<string, void, unknown> | AsyncGenerator<string, void, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "next" in value &&
-    typeof (value as { next: unknown }).next === "function"
-  );
-}
-
 // ---------------------------------------------------------------------------
 // startProcess (also exported as startFsmProcess for backward compat)
 // ---------------------------------------------------------------------------
@@ -102,128 +74,101 @@ export async function startProcess<C = unknown>(
   ) => StageHandler<C>[] | Promise<StageHandler<C>[]>,
   startEvent = "",
 ): Promise<ProcessHandle> {
-  let terminated = false;
-  const ctx = context as Record<string, unknown>;
   const process = new FsmProcess(config);
-  const statesStack: string[] = [];
-
-  process.onStateCreate((state: FsmState) => {
-    state.onEnter(async () => {
-      statesStack.push(state.key);
-      ctx[KEY_STATES] = [...statesStack];
-      ctx[KEY_EVENT] = process.event;
-
-      const modules = (await load(state.key, process.event)) ?? [];
-      for (const module of Array.isArray(modules) ? modules : [modules]) {
-        const result = await module?.(context);
-        if (isGenerator(result)) {
-          let stateExited = false;
-          state.onExit(() => {
-            stateExited = true;
-            result.return?.(undefined as never);
-          });
-          // Events are applied only once the machine has settled (the transition
-          // that created this state may still be descending), in order — the
-          // same rule as `startProcessSync`. The generator itself is never held
-          // at a `yield`: a handler may await something it does after yielding.
-          const pending: string[] = [];
-          let draining: Promise<void> | undefined;
-          const drain = () => {
-            draining ??= (async () => {
-              try {
-                while (pending.length > 0 && !stateExited && !terminated) {
-                  while (process.running) await process.whenIdle();
-                  if (stateExited || terminated) break;
-                  await dispatch(pending.shift() as string);
-                }
-              } finally {
-                draining = undefined;
-              }
-            })();
-            return draining;
-          };
-          (async () => {
-            try {
-              for await (const event of result) {
-                if (stateExited || terminated) break;
-                pending.push(event);
-                // Idle: process the event before pulling the next value. Busy
-                // (e.g. still inside the entering transition): queue it and go on.
-                if (process.running) void drain();
-                else await drain();
-                if (stateExited || terminated) break;
-              }
-            } catch (error) {
-              // A generator `return()` during state exit / termination throws an
-              // abort we intentionally swallow; a genuine error thrown by the
-              // generator body must surface through the state's error handling
-              // rather than vanish.
-              if (!stateExited && !terminated) await state._handleError(error);
-            }
-          })();
-        } else if (typeof result === "function") {
-          state.onExit(result as () => void | Promise<void>);
-        }
-      }
-    });
-    state.onExit(() => {
-      statesStack.pop();
-      ctx[KEY_STATES] = [...statesStack];
-      ctx[KEY_EVENT] = process.event;
-    });
+  // The context wiring, guard, handler installation, terminate and restore are
+  // the shared runner core's; this runner supplies how to step an async
+  // generator.
+  const core: RunnerCore = createRunnerCore<C, FsmState>({
+    context,
+    config,
+    process,
+    load,
+    dispatch,
+    flavour: {
+      owner: "FsmProcess",
+      run: runAsync,
+      rejectThenable: (state, result) => {
+        // Never reached (this runner awaits every result); kept for the contract.
+        result.then(undefined, (error) => state._handleError(error));
+      },
+      startGenerator: (state, generator) =>
+        runGenerator(state, generator as AsyncGenerator<string, void, unknown>),
+      stopGenerators: () => {
+        // Each generator is `return()`ed by its state's onExit while unwinding.
+      },
+      whenIdle: () => process.whenIdle(),
+    },
   });
 
-  // The guard runs when the engine takes the event off its queue, so an event
-  // dispatched while the machine is busy is checked against the state it lands in.
-  process.eventFilter = (event) => !process.state || isStateTransitionEnabled(process, event);
-  async function dispatch(event: string): Promise<void> {
-    if (event !== undefined) await process.dispatch(event);
+  /**
+   * Step a generator returned for `state`. Its events are applied only once the
+   * machine has settled (the transition that created the state may still be
+   * descending), in order — the core's rule. The generator itself is never held
+   * at a `yield`: a handler may await something it does after yielding.
+   */
+  function runGenerator(state: FsmState, generator: AsyncGenerator<string, void, unknown>) {
+    let stateExited = false;
+    const stopped = () => stateExited || core.terminated;
+    state.onExit(() => {
+      stateExited = true;
+      generator.return?.(undefined as never);
+    });
+    const pending: string[] = [];
+    let draining: Promise<void> | undefined;
+    const drain = () => {
+      draining ??= (async () => {
+        try {
+          while (pending.length > 0 && !stopped()) {
+            while (process.running) await process.whenIdle();
+            if (stopped()) break;
+            await dispatch(pending.shift() as string);
+          }
+        } finally {
+          draining = undefined;
+        }
+      })();
+      return draining;
+    };
+    (async () => {
+      try {
+        for await (const event of generator) {
+          if (stopped()) break;
+          pending.push(event);
+          // Idle: process the event before pulling the next value. Busy
+          // (e.g. still inside the entering transition): queue it and go on.
+          if (process.running) void drain();
+          else await drain();
+          if (stopped()) break;
+        }
+      } catch (error) {
+        // A generator `return()` during state exit / termination throws an
+        // abort we intentionally swallow; a genuine error thrown by the
+        // generator body must surface through the state's error handling
+        // rather than vanish.
+        if (!stopped()) await state._handleError(error);
+      }
+    })();
   }
-  // Bound under KEY_TERMINATE and called from handlers: must not wait for the
-  // unwinding (that would wait for the calling handler itself).
-  async function terminate(): Promise<void> {
-    terminated = true;
-    await process.shutdown();
+
+  async function dispatch(event: string): Promise<void> {
+    await core.dispatch(event);
   }
 
   // The handle's shutdown — external API: resolves once the stack is unwound,
   // even when a dispatch was in flight. Do not await it from a handler.
   async function shutdownHandle(): Promise<void> {
-    await terminate();
+    await core.terminate();
     await process.whenIdle();
   }
 
-  async function dumpProcess(...args: unknown[]): Promise<FsmProcessDump> {
-    return process.dump(...args);
-  }
-
-  async function restoreProcess(dumpData: FsmProcessDump, ...args: unknown[]): Promise<void> {
-    // Unwind the live stack first: its cleanups run and its generators stop,
-    // so nothing from the replaced states leaks into the restored machine.
-    // External API: let an in-flight dispatch settle first (do not await this
-    // from a handler).
-    await process.whenIdle();
-    // Reject a foreign dump before the live machine is unwound.
-    assertDumpRootKey("FsmProcess", dumpData, config.key);
-    if (process.state) await process.shutdown();
-    statesStack.length = 0;
-    terminated = false;
-    await process.restore(dumpData, ...args);
-    for (let state: FsmState | undefined = process.state; state; state = state.parent) {
-      statesStack.unshift(state.key);
-    }
-    ctx[KEY_STATES] = [...statesStack];
-    ctx[KEY_EVENT] = process.event;
-  }
-
-  ctx[KEY_DISPATCH] = dispatch;
-  ctx[KEY_TERMINATE] = terminate;
   await process.dispatch(startEvent);
   return {
     dispatch,
     shutdown: shutdownHandle,
-    dump: dumpProcess,
-    restore: restoreProcess,
+    dump: async (...args: unknown[]) => process.dump(...args),
+    restore: async (dump: FsmProcessDump, ...args: unknown[]) => {
+      await core.restore(dump, args);
+    },
   };
 }
 
