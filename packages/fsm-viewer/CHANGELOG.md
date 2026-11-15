@@ -1,5 +1,13 @@
 # @statewalker/fsm-viewer
 
+## 0.6.2
+
+### Patch Changes
+
+- Release of the changes since the last published version:
+  
+  - @statewalker/fsm ^0.39.2 -> ^0.39.3
+
 ## 0.6.1
 
 ### Patch Changes
