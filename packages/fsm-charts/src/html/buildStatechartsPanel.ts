@@ -1,4 +1,5 @@
 import type { StateChart } from "../types/StateChart.js";
+import { escapeHtml } from "../utils/escapeHtml.js";
 import { buildStatechartSvg } from "./buildStatechartSvg.js";
 
 export function buildStatechartsPanel({
@@ -17,9 +18,9 @@ export function buildStatechartsPanel({
   render(statechart, println);
 
   function render(statechart: StateChart, println: (str: string) => void) {
-    println(`  <details class="state-details" data-state-id="${statechart.id}">`);
+    println(`  <details class="state-details" data-state-id="${escapeHtml(statechart.id)}">`);
     println(
-      `    <summary class="state-details__label">${statechart.text ?? statechart.state}</summary>`,
+      `    <summary class="state-details__label">${escapeHtml(statechart.text ?? statechart.state)}</summary>`,
     );
     println(`    <div class="state-details__content">`);
     const printChildren = (str: string) => println(`    ${str}`);

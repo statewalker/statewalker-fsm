@@ -57,7 +57,7 @@ type ValidationIssue = {
 };
 ```
 
-- **Errors** — will break at runtime (missing keys, malformed transitions, dangling references)
+- **Errors** — the config is broken or will not run as written (missing keys, malformed transitions, dangling references, exit events no parent handles, leaf states without `events`)
 - **Warnings** — likely bugs or bad practice (dead ends, naming violations, missing event coverage)
 - **Info** — advisory hints (sub-state count, M7)
 - **Review** — conditions that require human judgment to verify (event-state consistency, goal alignment, convergent transitions)
@@ -258,7 +258,7 @@ Graph topology validation — checks the transition graph is well-formed.
 | S3 | error | Sibling transitions must be at parent level — unless the child is instantiating a shared definition |
 | S4 | error | All sub-states reachable from the initial transition, or referenced by a descendant scope (a shared definition) |
 | S5 | warning | Composite sub-states must have at least one outgoing transition (leaf sub-states count as final; a `"*"` source covers all) |
-| S6 | error | Exit events from sub-states must be handled at parent level |
+| S6 | error | Exit events from sub-states must be handled by every scope that enters the state (an unhandled one makes that scope exit too) |
 | S7 | warning | No `[from, event]` pair may lead to more than one target (overlaps between a wildcard and a specific rule are not checked) |
 | S8 | error | Leaf states — driving no `states[]` and no `transitions[]` — must declare `events` |
 | S9 | warning | A key defined at several depths shadows the outer definition — keep it deliberate |
@@ -270,12 +270,12 @@ Consistency, completeness, and semantic review rules.
 | Rule | Severity | Check |
 |------|----------|-------|
 | M1 | warning | Every event in `events` handled by some referencing scope, and every referencing scope handling some event |
-| M2 | warning | Every transition event must exist in the source state's `events` (checked only when the source declares `events`) |
-| M3 | warning | Hierarchical event declaration — exit events of a state's sub-machine (`[X, e, ""]`) must be handled by its parent; checked only for states that declare `events` |
+| M2 | warning | Every transition event must exist in the source state's `events` or an ancestor's (checked only when the source declares `events`) |
+| M3 | warning | Hierarchical event declaration — an exit event of a state's sub-machine (`[X, e, ""]`) that a referencing scope handles must be listed in the state's `events`; checked only for states that declare `events` |
 | M4 | **review** | Reports convergent transitions (same source, different events, same target) for human review |
 | M5 | warning | Every cycle in the transition graph must have an exit (not checked at the root) |
 | M6 | warning | Decision points should have exhaustive outgoing events |
-| M7 | info | Manageable complexity: reports a level with 1 or more than 7 sub-states (recommended 3–7) |
+| M7 | info | Manageable complexity: reports a level with 1 or more than 7 sub-states (recommended 2–7) |
 | M8 | **review** | Event descriptions must not contradict state goals/outcomes — reports for human review |
 | M9 | **review** | Child state goals should align with parent goals (or ancestor goals) — reports for human review |
 

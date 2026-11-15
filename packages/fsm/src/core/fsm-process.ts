@@ -3,6 +3,7 @@ import { FsmState, type FsmStateDump, type FsmStateHandler } from "./fsm-state.t
 import type { FsmStateConfig } from "./fsm-state-config.ts";
 import { FsmStateDescriptor } from "./fsm-state-descriptor.ts";
 import {
+  assertDumpRootKey,
   getNextStateTarget,
   getSubstateTarget,
   resolveTargetStateKey,
@@ -65,6 +66,13 @@ export class FsmProcess extends FsmBaseClass {
   status: number = 0;
   config: FsmStateConfig;
   rootDescriptor: FsmStateDescriptor;
+  /**
+   * Optional filter checked as each event is taken off the queue, against the state
+   * the machine is in at that moment. An event it rejects is dropped without effect.
+   * The runners set it to `isStateTransitionEnabled`, so an event queued while the
+   * machine was busy is checked where it lands, not where it was queued.
+   */
+  eventFilter?: (event: string) => boolean;
   /** A shutdown requested while busy; applied by the dispatch loop. */
   private _pendingShutdown?: { event?: string };
   private _unwinding = false;
@@ -150,7 +158,9 @@ export class FsmProcess extends FsmBaseClass {
     this.running = true;
     try {
       run: while (this.nextEvents.length > 0 && !(this.status & STATUS_FINISHED)) {
-        this.event = this.nextEvents.shift();
+        const event = this.nextEvents.shift() as string;
+        if (this.eventFilter && !this.eventFilter(event)) continue;
+        this.event = event;
         while (true) {
           if (this.status & STATUS_EXIT) {
             const exited = this.state;
@@ -215,6 +225,7 @@ export class FsmProcess extends FsmBaseClass {
     if (this.running || this._unwinding) {
       throw new Error("FsmProcess.restore() called while a dispatch or shutdown is running");
     }
+    assertDumpRootKey("FsmProcess", dump, this.config.key);
     this._pendingShutdown = undefined;
     this.status = dump.status || 0;
     this.event = dump.event;

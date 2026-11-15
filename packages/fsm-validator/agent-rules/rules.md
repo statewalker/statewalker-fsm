@@ -73,7 +73,7 @@ The `events` field is a key/value record where:
 | S3 | Sibling transitions declared at parent level   | error | Transitions between sibling states MUST be declared ONLY in the parent's `transitions[]`, never inside a child state. Not applied to a state that enters, as its own initial sub-state, a key it does not define — that state is instantiating a shared definition, and its transitions describe that borrowed sub-machine |
 | S4 | Reachability                                   | error | Every sub-state must be reachable from the initial transition via some chain of transitions in the parent's `transitions[]`. Checked at the **instantiation site**: a definition no local transition targets is not an error when another scope resolves the key up to it — that is a shared definition. A definition referenced from nowhere is dead and is reported |
 | S5 | No dead-ends (unless final)                    | warning | Every non-final sub-state must have at least one outgoing transition. A state is "final" only if it has an exit transition `[Key, event, ""]` |
-| S6 | Exit event propagation                         | error | If a composite state's `transitions[]` contains an exit `[X, event, ""]`, the composite state's own parent MUST have a transition `[CompositeKey, event, Y]` consuming that event. This rule does not apply when the composite state is the root process |
+| S6 | Exit event propagation                         | error | If a composite state's `transitions[]` contains an exit `[X, event, ""]`, the composite state's own parent MUST have a transition `[CompositeKey, event, Y]` consuming that event. This rule does not apply when the composite state is the root process. For a shared definition, the parent is every scope that instantiates it |
 | S7 | Determinism with wildcards                     | warning | Wildcard transitions must not create ambiguity. Specific transitions take priority over wildcards, but two wildcards covering the same (state, event) pair are invalid |
 | S8 | Events mandatory for leaf states               | error | Leaf states MUST declare an `events` field. A state is a leaf only when it drives nothing — no `states[]` **and** no `transitions[]`; one that declares transitions is composite even with no `states[]` of its own |
 | S9 | Deliberate shadowing                          | warning | Where the same key is defined at more than one depth the nearest definition wins, shadowing the outer one for that subtree. Prefer distinct keys unless the shadowing is intentional and documented |
@@ -90,7 +90,7 @@ The `events` field is a key/value record where:
 | M4 | Convergent transition compatibility               | **review** | When multiple transitions from the same source target the same state via different events, source outcomes must be semantically compatible. Reports convergent patterns for review |
 | M5 | Cycle break requirement                           | warning | Every cycle in the transition graph MUST have at least one exit event/transition to prevent infinite loops |
 | M6 | Decision point exhaustiveness                     | warning | Branching states should have mutually exclusive and collectively exhaustive outgoing events (all possible outcomes represented) |
-| M7 | Manageable complexity                             | info | Each hierarchical level should contain 3–7 sub-states. Longer linear sequences should be decomposed into composite phases |
+| M7 | Manageable complexity                             | info | Each hierarchical level should contain 2–7 sub-states. Longer linear sequences should be decomposed into composite phases |
 | M8 | Event-state semantic consistency                  | **review** | All event descriptions (when and how they occur) MUST NOT contradict the goals and outcomes of the state declaring them. Reports each event description alongside state goals for review |
 | M9 | Parent-child goal alignment                       | **review** | Child goals SHOULD align with parent goals. If a child's goals necessarily differ from its immediate parent, they MUST align with an ancestor's goals. Reports parent-child pairs for review |
 
@@ -201,7 +201,7 @@ VALIDATE(P):
 - [ ] Decision points are mutually exclusive and exhaustive
 
 ### Complex Process Checklist
-- [ ] Long processes decomposed into 3-7 states per level
+- [ ] Long processes decomposed into 2-7 states per level
 - [ ] Sub-processes have clear entry/exit boundaries
 
 ### Field Completeness Checklist

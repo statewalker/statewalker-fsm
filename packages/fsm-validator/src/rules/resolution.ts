@@ -96,3 +96,13 @@ export function referencingScopes(
       resolveDefinition(key, scope.config, scope.ancestors) === definition,
   );
 }
+
+/**
+ * Whether `scope` has a transition taking `event` out of its sub-state `key`
+ * (wildcards included). An unhandled event makes `scope` itself exit.
+ */
+export function handlesEvent(scope: FsmStateConfig, key: FsmStateKey, event: string): boolean {
+  return (scope.transitions ?? []).some(
+    ([from, evt]) => (from === key || from === "*") && (evt === event || evt === "*"),
+  );
+}

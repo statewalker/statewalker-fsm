@@ -385,7 +385,7 @@ export const tests: {
       x: 0,
       y: 0,
       width: 210,
-      height: 76,
+      height: 86,
       nodes: [
         {
           id: "s_0",
@@ -397,7 +397,7 @@ export const tests: {
           padding: [3, 3, 3, 3],
           fontSize: 14,
           x: 5,
-          y: 29,
+          y: 39,
         },
         {
           id: "s_1",
@@ -409,7 +409,7 @@ export const tests: {
           padding: [3, 3, 3, 3],
           fontSize: 14,
           x: 67,
-          y: 29,
+          y: 39,
         },
         {
           id: "s_3",
@@ -421,7 +421,7 @@ export const tests: {
           padding: [3, 3, 3, 3],
           fontSize: 14,
           x: 190,
-          y: 29,
+          y: 39,
         },
       ],
       edges: [
@@ -438,19 +438,19 @@ export const tests: {
           points: [
             {
               x: 11,
-              y: 19,
+              y: 29,
             },
             {
               x: 39,
-              y: 19,
+              y: 29,
             },
             {
               x: 67,
-              y: 19,
+              y: 29,
             },
           ],
           x: 36,
-          y: 47,
+          y: 57,
         },
         {
           id: "t_4",
@@ -465,19 +465,19 @@ export const tests: {
           points: [
             {
               x: 82,
-              y: 16,
+              y: 26,
             },
             {
               x: 136,
-              y: -5,
+              y: 5,
             },
             {
               x: 190,
-              y: 16,
+              y: 26,
             },
           ],
           x: 107,
-          y: 23,
+          y: 33,
         },
         {
           id: "t_5",
@@ -492,19 +492,19 @@ export const tests: {
           points: [
             {
               x: 190,
-              y: 22,
+              y: 32,
             },
             {
               x: 136,
-              y: 43,
+              y: 53,
             },
             {
               x: 82,
-              y: 22,
+              y: 32,
             },
           ],
           x: 118,
-          y: 71,
+          y: 81,
         },
       ],
     },
@@ -521,7 +521,7 @@ export const tests: {
       x: 0,
       y: 0,
       width: 165,
-      height: 124,
+      height: 134,
       nodes: [
         {
           id: "s_0",
@@ -533,7 +533,7 @@ export const tests: {
           padding: [3, 3, 3, 3],
           fontSize: 14,
           x: 5,
-          y: 53,
+          y: 63,
         },
         {
           id: "s_1",
@@ -545,7 +545,7 @@ export const tests: {
           padding: [3, 3, 3, 3],
           fontSize: 14,
           x: 67,
-          y: 53,
+          y: 63,
         },
         {
           id: "s_3",
@@ -557,7 +557,7 @@ export const tests: {
           padding: [3, 3, 3, 3],
           fontSize: 14,
           x: 145,
-          y: 53,
+          y: 63,
         },
       ],
       edges: [
@@ -574,19 +574,19 @@ export const tests: {
           points: [
             {
               x: 11,
-              y: 43,
+              y: 53,
             },
             {
               x: 39,
-              y: 43,
+              y: 53,
             },
             {
               x: 67,
-              y: 43,
+              y: 53,
             },
           ],
           x: 36,
-          y: 71,
+          y: 81,
         },
         {
           id: "t_4",
@@ -601,19 +601,19 @@ export const tests: {
           points: [
             {
               x: 82,
-              y: 34,
+              y: 44,
             },
             {
               x: 114,
-              y: -5,
+              y: 5,
             },
             {
               x: 145,
-              y: 34,
+              y: 44,
             },
           ],
           x: 107,
-          y: 23,
+          y: 33,
         },
         {
           id: "t_5",
@@ -628,19 +628,19 @@ export const tests: {
           points: [
             {
               x: 82,
-              y: 43,
+              y: 53,
             },
             {
               x: 114,
-              y: 43,
+              y: 53,
             },
             {
               x: 145,
-              y: 43,
+              y: 53,
             },
           ],
           x: 107,
-          y: 71,
+          y: 81,
         },
         {
           id: "t_6",
@@ -655,19 +655,19 @@ export const tests: {
           points: [
             {
               x: 82,
-              y: 52,
+              y: 62,
             },
             {
               x: 114,
-              y: 91,
+              y: 101,
             },
             {
               x: 145,
-              y: 52,
+              y: 62,
             },
           ],
           x: 107,
-          y: 119,
+          y: 129,
         },
       ],
     },

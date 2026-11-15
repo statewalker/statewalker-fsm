@@ -1,6 +1,6 @@
 import { parse } from "yaml";
 import { ruleDefinitions } from "../src/agent-rules.ts";
-import { buildReport, formatReport } from "../src/report.ts";
+import { buildReport, formatReport, formatReportCompact } from "../src/report.ts";
 import type { FsmStateConfig, ValidationIssue, ValidationResult } from "../src/types.ts";
 import { validate } from "../src/validate.ts";
 import { describe, expect, it } from "./deps.ts";
@@ -1230,6 +1230,31 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       // Formatted output should contain all this
       expect(text).toContain("Escalate");
       expect(text).toContain("notResolved");
+    });
+  });
+  describe("formatReportCompact", () => {
+    const tableRows = (text: string) => text.split("\n").filter((l) => l.startsWith("|"));
+    // A row of a 3-column table splits on unescaped "|" into 5 parts.
+    const cellCount = (row: string) => row.split(/(?<!\\)\|/).length - 2;
+
+    it("escapes '|' and newlines in table cells", () => {
+      const result = makeResult([
+        {
+          rule: "L2",
+          severity: "warning",
+          message: 'State key "A|B" is bad',
+          path: ["Root", "A|B"],
+        },
+        { rule: "S6", severity: "error", message: "line one\nline two", path: ["Root"] },
+        { rule: "M8", severity: "review", message: 'event "x|y" from state', path: ["Root"] },
+      ]);
+      const text = formatReportCompact(buildReport(result, ruleDefinitions));
+      const rows = tableRows(text);
+      expect(rows.length).toBeGreaterThan(0);
+      for (const row of rows) expect(cellCount(row)).toBe(3);
+      expect(text).toContain("A\\|B");
+      expect(text).toContain("x\\|y");
+      expect(text).not.toContain("line one\nline two");
     });
   });
 });
