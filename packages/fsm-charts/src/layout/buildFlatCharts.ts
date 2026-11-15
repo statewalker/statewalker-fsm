@@ -99,36 +99,38 @@ export function buildFlatCharts({
       return e;
     });
 
-    // Get the bounding box of the graph
-    let x = 0;
-    let y = 0;
-    let width = 0;
-    let height = 0;
-    const addCoords = (node: StateGraphNode | StateGraphEdge) => {
-      x = Math.min(x, node.x);
-      y = Math.min(y, node.y);
-      width = Math.max(width, node.x + node.width);
-      height = Math.max(height, node.y + node.height);
+    // Get the bounding box of the graph (boxes and every edge point)
+    let minX = 0;
+    let minY = 0;
+    let maxX = 0;
+    let maxY = 0;
+    const addPoint = (px: number, py: number) => {
+      minX = Math.min(minX, px);
+      minY = Math.min(minY, py);
+      maxX = Math.max(maxX, px);
+      maxY = Math.max(maxY, py);
     };
-    nodes.forEach(addCoords);
-    edges.forEach(addCoords);
+    const addBox = (node: StateGraphNode | StateGraphEdge) => {
+      addPoint(node.x, node.y);
+      addPoint(node.x + node.width, node.y + node.height);
+    };
+    nodes.forEach(addBox);
+    edges.forEach(addBox);
     edges.forEach((edge) => {
       for (const point of edge.points) {
-        x = Math.min(x, edge.x);
-        y = Math.min(y, edge.y);
-        width = Math.max(width, point.x);
-        height = Math.max(height, point.y);
+        addPoint(point.x, point.y);
       }
     });
 
     // Shift the graph to the origin taking into account the padding
-    // Invert coordinates.
-    width += left + right;
-    height += bottom + top;
+    // (the top-left corner of the bounding box moves to the padding).
+    const x = 0;
+    const y = 0;
+    const width = maxX - minX + left + right;
+    const height = maxY - minY + bottom + top;
     const updateCoords = (node: Position) => {
-      node.x = Math.round(node.x + left);
-      node.y = Math.round(node.y + bottom);
-      // node.y = node.y + bottom;
+      node.x = Math.round(node.x - minX + left);
+      node.y = Math.round(node.y - minY + bottom);
     };
     const updateBox = (node: Position & Dimensions) => {
       updateCoords(node);
