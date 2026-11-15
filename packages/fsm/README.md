@@ -491,8 +491,15 @@ which strips TypeScript types natively). Each one is executed by `test/examples.
   `onExit` of S" or "create state K under P" without running them. `FsmProcess` drives them with
   `runAsync`, awaiting each step; `FsmProcessSync` with `runSync`, calling each directly (and
   skipping a handler step with no handlers, which is invisible there). A fix to that loop lands in
-  both engines at once. The cost is a generator per call: on the sync CSV example a dispatch takes
-  about 0.66 µs instead of 0.53 µs.
+  both engines at once. Each engine reuses one step record, so a sync dispatch allocates only its
+  generator.
+- **What the single controller costs.** The trade is one generator per call: the sync engine pays
+  for resuming it at every step, while the async engine already paid more per step for its awaits.
+  On `examples/03-csv-parser.ts` (1000 parses of a 200-field line, about 1.29 million dispatches;
+  median of 7 interleaved runs, Node 22) the sync engine takes 677 ms, about 0.52 µs per dispatch,
+  against 560 ms (0.43 µs) with the former hand-copied sync loop: about +21%. The async engine is
+  unchanged within noise (122 to 129 ms for 100 parses). Accepted in exchange for one copy of the
+  dispatch, shutdown and restore logic (statewalker-fsm#60).
 - **One runner core.** `startProcess` and `startProcessSync` share `runner-core.ts`: the context
   binding (`KEY_*`, the state-key stack), the guard, installing what `load` returns on entry
   (cleanups, generators), terminate and restore are step programs driven by the same two drivers.

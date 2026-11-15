@@ -3,6 +3,7 @@ import {
   dispatchSteps,
   dumpSteps,
   type FsmEngine,
+  FsmStep,
   restoreSteps,
   runSync,
   shutdownSteps,
@@ -51,6 +52,8 @@ export class FsmProcessSync extends FsmBaseClassSync implements FsmEngine<FsmSta
   _pendingShutdown?: { event?: string };
   /** @internal `true` while the stack is being unwound. */
   _unwinding = false;
+  /** @internal The one step record its controller programs refill (see `FsmStep`). */
+  readonly _step = new FsmStep();
   /** @internal See `FsmEngine._sync`. */
   readonly _sync = true;
 

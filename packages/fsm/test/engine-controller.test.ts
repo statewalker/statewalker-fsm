@@ -237,3 +237,56 @@ describe("both engines run one controller: same transcript", () => {
     expect(String(errorS)).toContain(message("FsmProcessSync"));
   });
 });
+
+describe("one reused step per engine (#60)", () => {
+  function engines() {
+    return [new FsmProcess(player), new FsmProcessSync(player)] as const;
+  }
+
+  it("keeps no state, handler arguments or callbacks between dispatches", async () => {
+    for (const engine of engines()) {
+      instrument(engine, []);
+      for (const e of ["", "play", "pause"]) await engine.dispatch(e);
+      await engine.dump("extra-arg");
+      await engine.shutdown("bye");
+      const step = (engine as unknown as { _step: Record<string, unknown> })._step;
+      expect(step).toBeDefined();
+      for (const field of ["target", "engine", "parent", "descriptor", "fn"]) {
+        expect(step[field]).toBeUndefined();
+      }
+      expect(step.args).toEqual([]);
+    }
+  });
+
+  it("is reused: the same record serves every dispatch", async () => {
+    for (const engine of engines()) {
+      const before = (engine as unknown as { _step: unknown })._step;
+      expect(before).toBeDefined();
+      for (const e of ["", "play", "pause"]) await engine.dispatch(e);
+      expect((engine as unknown as { _step: unknown })._step).toBe(before);
+    }
+  });
+
+  it("stays correct when a handler dumps and dispatches while a step is running", async () => {
+    const run = async (engine: Engine) => {
+      const log: string[] = [];
+      instrument(engine, log);
+      (engine as FsmProcessSync).onStateCreate((s) => {
+        if (s.key === "Playing")
+          s.onEnter(async () => {
+            const dump = await engine.dump();
+            log.push(`dumped ${dump.stack.map((d) => d.key).join("/")}`);
+            void engine.dispatch("pause");
+          });
+      });
+      for (const e of ["", "play"]) await engine.dispatch(e);
+      if (engine instanceof FsmProcess) await engine.whenIdle();
+      return { log, stack: stackOf(engine) };
+    };
+    const a = await run(new FsmProcess(player));
+    const s = await run(new FsmProcessSync(player));
+    expect(a.stack).toEqual(["Player", "Active", "Paused"]);
+    expect(a.log).toContain("dumped Player/Active/Playing");
+    expect(s.stack).toEqual(a.stack);
+  });
+});

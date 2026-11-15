@@ -3,6 +3,7 @@ import {
   dispatchSteps,
   dumpSteps,
   type FsmEngine,
+  FsmStep,
   restoreSteps,
   runAsync,
   shutdownSteps,
@@ -78,6 +79,8 @@ export class FsmProcess extends FsmBaseClass implements FsmEngine<FsmState> {
   _pendingShutdown?: { event?: string };
   /** @internal `true` while the stack is being unwound. */
   _unwinding = false;
+  /** @internal The one step record its controller programs refill (see `FsmStep`). */
+  readonly _step = new FsmStep();
   /** @internal See `FsmEngine._sync`. */
   readonly _sync = false;
   private _idleWaiters: (() => void)[] = [];
