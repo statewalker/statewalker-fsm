@@ -1,5 +1,18 @@
 # @statewalker/fsm-charts
 
+## 0.2.8
+
+### Patch Changes
+
+- ea31027: Escape state labels, transition labels, ids and panel summaries written into the generated SVG/HTML (fixes markup injection from configs). Write valid `stroke-width` and `viewBox` attributes, and keep edge points with negative coordinates inside the chart canvas. Clicks inside a state's description panel (links, checkboxes) are no longer swallowed by the state click handler. `concatTransitionsToString` now quotes events containing `-`, `>`, edge whitespace or a leading quote, and `splitTransitionString` strips those quotes, so the two round-trip.
+- 84ff762: fsm-viewer: keep `@statewalker/fsm` and `@statewalker/fsm-charts` external, so the
+  types accept an `FsmProcess` from `@statewalker/fsm` and the bundle no longer carries
+  a copy of them; highlight exactly the engine's enabled transitions (wildcard sources
+  included) and dispatch an edge click only for one of them; the `renderer` option takes
+  key stacks (the renderer of `prepareStateDescriptions`) and runs once per state; the
+  returned element has `dispose()`, also called on `invalidation`, which releases the
+  listeners and the process subscription. fsm-charts: `StateChartIndex.findTransition`.
+
 ## 0.2.7
 
 ### Patch Changes
