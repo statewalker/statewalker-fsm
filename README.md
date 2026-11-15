@@ -64,8 +64,9 @@ One package only: `pnpm --filter @statewalker/fsm test`.
   ```
 
   Use `pnpm build`.
-- **Subpath imports fail.** `fsm-charts` and `fsm-validator` export only the package
-  root. See the package READMEs for the exact errors.
+- **`fsm-validator` has no subpath imports.** It exports only the package root; see its
+  README for the exact error. `fsm-charts` exports the root and `./config`, `./dom`,
+  `./html`, `./layout` and `./runtime`.
 
 ## Releases
 

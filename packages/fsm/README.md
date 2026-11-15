@@ -124,7 +124,8 @@ the whole machine (the runners guard against that; see "Constraints" below).
   - `whenIdle()` resolves once no dispatch or shutdown is in progress — use it to wait for an
     unwinding that `shutdown()` only requested (a second `shutdown()` during an unwinding also
     resolves at once). Do not await it inside a handler: the dispatch waits for that handler.
-  - `dump(...args)` / `restore(dump, ...args)` serialize and rehydrate the stack.
+  - `dump(...args)` / `restore(dump, ...args)` serialize and rehydrate the stack. `restore` throws
+    when the dump's root key differs from the config's `key` (a dump from another machine).
   - `onStateCreate(handler)` is the primary extension point (fires once per state instance —
     attach that state's hooks there); `onStateError(handler)` receives every error thrown by a
     state's handlers (`onEnter`, `onExit`, `dump`, `restore`). Errors thrown by process-level
@@ -521,8 +522,10 @@ which strips TypeScript types natively). Each one is executed by `test/examples.
     bubbling — if no ancestor handles it, the whole machine finishes. Guard with
     `isStateTransitionEnabled` (the runners do).
   - The runners' dispatch (`handle.dispatch`, `KEY_DISPATCH`) drops events for which
-    `isStateTransitionEnabled` is `false`, without an error. Call `isStateTransitionEnabled`
-    yourself when you need to know.
+    `isStateTransitionEnabled` is `false`, without an error. The check runs when the event is
+    applied, against the state the machine is in then: an event dispatched while the machine is
+    busy is queued and checked once it is taken off the queue (the runners set the engine's
+    `eventFilter`). Call `isStateTransitionEnabled` yourself when you need to know.
   - A re-entrant `dispatch` (from inside a handler) only queues: it returns `true` before the
     event has been applied.
   - An error thrown by a state's handler does not reject/throw from `dispatch`. It goes to the
