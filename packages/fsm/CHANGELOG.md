@@ -1,5 +1,12 @@
 # @statewalker/fsm
 
+## 0.39.2
+
+### Patch Changes
+
+- a15dd3f: `FsmProcess` and `FsmProcessSync` are now thin shells over one engine controller (#21): the dispatch loop, re-entrancy queue, pending shutdown, unwinding, dump and restore are written once as step generators, driven by awaiting each step (async) or calling it directly (sync). Behaviour and public API are unchanged; the controller is internal.
+- 568b851: `startProcess` and `startProcessSync` share one runner core (#23): the context binding, guard, handler installation, terminate and restore are written once on the engine controller; each runner supplies only how to step a generator. A sync `load` that returns a promise is now reported as an "async load" misuse through `onStateError` instead of a "not iterable" `TypeError`. Public API unchanged.
+
 ## 0.39.1
 
 ### Patch Changes

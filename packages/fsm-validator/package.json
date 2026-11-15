@@ -1,6 +1,6 @@
 {
   "name": "@statewalker/fsm-validator",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Validation library for Hierarchical Finite State Machine configurations",
   "repository": {
     "type": "git",
