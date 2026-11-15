@@ -55,6 +55,7 @@
     "check": "biome check .",
     "fix": "pnpm format && biome check . --fix --unsafe",
     "test": "vitest --run",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest",
     "prepublish": "pnpm dist"
   },

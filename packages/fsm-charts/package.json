@@ -81,6 +81,7 @@
     "watch": "tsdown --watch",
     "clean": "rm -rf dist",
     "test": "vitest --run",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest",
     "prepublish": "pnpm build"
   },
