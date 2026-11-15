@@ -1,7 +1,7 @@
 import { StateChartIndex } from "../../src/runtime/index.js";
 import { process } from "../data/process.checkout.js";
 import { describe, expect, it } from "../deps.js";
-import { toStatechartsPanels } from "../html/toStatechartsPanels.js";
+import { toStatechart, toStatechartsPanels } from "../html/toStatechartsPanels.js";
 
 describe("StateChartIndex", () => {
   const { statechart } = toStatechartsPanels(process);
@@ -75,5 +75,41 @@ describe("StateChartIndex", () => {
     expect(transitions[0].to).toEqual("B");
     expect(transitions[1].from).toEqual("A");
     expect(transitions[1].to).toEqual("C");
+  });
+
+  describe("findTransition", () => {
+    const { statechart } = toStatechart({
+      key: "App",
+      transitions: [
+        ["", "*", "A"],
+        ["A", "go", "B"],
+        ["*", "go", "C"],
+        ["*", "stop", "A"],
+        ["B", "end", ""],
+      ],
+    });
+    const index = new StateChartIndex({ statechart });
+    const [, a] = index.getStatesIds("App", "A");
+    const [, b] = index.getStatesIds("App", "B");
+
+    it("returns the edge leaving the state itself", () => {
+      const edge = index.findTransition(a, "go", "B");
+      expect([edge?.from, edge?.event, edge?.to]).toEqual(["A", "go", "B"]);
+    });
+
+    it("prefers the state's own edge but falls back to a wildcard-source edge", () => {
+      expect(index.findTransition(a, "go", "C")?.from).toBe("*");
+      const stop = index.findTransition(b, "stop", "A");
+      expect([stop?.from, stop?.event, stop?.to]).toEqual(["*", "stop", "A"]);
+    });
+
+    it("maps an empty target to the final pseudo-state", () => {
+      expect(index.findTransition(b, "end", "")?.to).toBe("<final>");
+    });
+
+    it("returns nothing for a transition that is not on the chart", () => {
+      expect(index.findTransition(a, "end", "")).toBe(undefined);
+      expect(index.findTransition(a, "*", "A")).toBe(undefined);
+    });
   });
 });

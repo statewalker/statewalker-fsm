@@ -141,6 +141,32 @@ export class StateChartIndex {
   }
 
   /**
+   * Returns the edge drawn for the engine transition `[state.key, event, to]` from
+   * the specified state: the edge leaving the state itself or, failing that, the
+   * edge of a wildcard (`"*"`) source rule. An empty `to` is the final state.
+   * @param stateId identifier of the source state
+   * @param event an event triggering the transition
+   * @param to the key of the target state
+   * @returns graph edge
+   */
+  findTransition(
+    stateId: string | undefined,
+    event: string,
+    to: string,
+  ): StateGraphEdge | undefined {
+    const stack = this.getStackByStateId(stateId);
+    const state = stack.pop();
+    if (!state || !stack.length) return;
+    const parent = stack[stack.length - 1];
+    const target = to || this.finalStateKey;
+    const find = (from: string) =>
+      parent.edges.find(
+        (t: StateGraphEdge) => t.from === from && t.event === event && t.to === target,
+      );
+    return find(state.key) || find("*");
+  }
+
+  /**
    * Returns a graph node corresponding to the specified state id.
    * @param stateId identifier of the state
    * @returns graph node
