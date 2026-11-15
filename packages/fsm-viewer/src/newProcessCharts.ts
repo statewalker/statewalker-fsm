@@ -115,26 +115,13 @@ export function newProcessCharts({
   }
 
   // The edges drawn for the transitions enabled in `stack` (by default, those the
-  // engine reports for it): each `[from, event, to]` is matched in the chart of
-  // the level where `from` is the active state, by the state's own edge or a `"*"` one.
+  // engine reports for it). The engine decides which transitions are enabled; the
+  // charts index only maps them to edges.
   function getTransitionEdges(
     stack: string[],
     transitions: FsmTransition[] = getEnabledTransitions(stack),
   ): StateGraphEdge[] {
-    const idsStack = chartsIndex.getStatesIds(...stack);
-    const pending = new Set(transitions);
-    const edges: StateGraphEdge[] = [];
-    for (let i = idsStack.length - 1; i > 0; i--) {
-      for (const t of pending) {
-        const [from, event, to] = t;
-        if (from !== stack[i]) continue;
-        const edge = chartsIndex.findTransition(idsStack[i], event, to);
-        if (!edge) continue;
-        edges.push(edge);
-        pending.delete(t);
-      }
-    }
-    return edges;
+    return chartsIndex.getTransitionEdges(stack, transitions);
   }
 
   function selectState(stack: string[], transitions?: FsmTransition[]) {

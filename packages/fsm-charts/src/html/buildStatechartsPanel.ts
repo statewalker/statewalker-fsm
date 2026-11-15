@@ -6,13 +6,15 @@ export function buildStatechartsPanel({
   statechart,
   newId,
   println,
-  initialStateKey = "<initial>",
-  finalStateKey = "<final>",
+  initialStateKey,
+  finalStateKey,
 }: {
   statechart: StateChart;
   newId: (prefix: string) => string;
   println: (str: string) => void;
+  /** @deprecated The key recorded on the chart when it was built is used. */
   initialStateKey?: string;
+  /** @deprecated The key recorded on the chart when it was built is used. */
   finalStateKey?: string;
 }): void {
   render(statechart, println);

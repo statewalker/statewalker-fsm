@@ -1,4 +1,8 @@
 import type { StateChart, StateGraphEdge, StateGraphNode } from "../types/index.js";
+import { getPseudoStateKeys } from "../utils/pseudoStateKeys.js";
+
+/** An engine transition `[from, event, to]`; an empty `to` leaves the parent. */
+export type StateTransition = [from: string, event: string, to: string];
 
 export class StateChartIndex {
   statechart: StateChart;
@@ -12,14 +16,16 @@ export class StateChartIndex {
 
   constructor({
     statechart,
-    initialStateKey = "<initial>",
-    finalStateKey = "<final>",
+    ...override
   }: {
     statechart: StateChart;
+    /** @deprecated The key recorded on `statechart` when it was built is used. */
     initialStateKey?: string;
+    /** @deprecated The key recorded on `statechart` when it was built is used. */
     finalStateKey?: string;
   }) {
     this.statechart = statechart;
+    const { initialStateKey, finalStateKey } = getPseudoStateKeys(statechart, override);
     this.initialStateKey = initialStateKey;
     this.finalStateKey = finalStateKey;
 
@@ -164,6 +170,35 @@ export class StateChartIndex {
         (t: StateGraphEdge) => t.from === from && t.event === event && t.to === target,
       );
     return find(state.key) || find("*");
+  }
+
+  /**
+   * Maps engine transitions to the edges drawn for them, for the active stack of
+   * state keys `stack` (root first). Each `[from, event, to]` — as listed by
+   * `getStateTransitions` of `@statewalker/fsm` — is matched in the chart of the
+   * level where `from` is the active state, by the state's own edge or by the
+   * edge of a wildcard (`"*"`) source rule; an empty `to` is the final state.
+   * Tuples that match no drawn edge are skipped, so the result never holds more
+   * edges than the engine reports.
+   * @param stack the active stack of state keys, root first
+   * @param transitions the enabled transitions, as the engine reports them
+   * @returns the matching graph edges
+   */
+  getTransitionEdges(stack: string[], transitions: StateTransition[]): StateGraphEdge[] {
+    const idsStack = this.getStatesIds(...stack);
+    const pending = new Set(transitions);
+    const edges: StateGraphEdge[] = [];
+    for (let i = idsStack.length - 1; i > 0; i--) {
+      for (const t of pending) {
+        const [from, event, to] = t;
+        if (from !== stack[i]) continue;
+        const edge = this.findTransition(idsStack[i], event, to);
+        if (!edge) continue;
+        edges.push(edge);
+        pending.delete(t);
+      }
+    }
+    return edges;
   }
 
   /**

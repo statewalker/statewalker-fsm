@@ -71,9 +71,11 @@ export type RuleContext = {
   root: FsmStateConfig;
   parent?: FsmStateConfig;
   /**
-   * Ancestors nearest first, excluding `config` itself — the chain the engine
-   * walks when it resolves a transition's state key. `ancestors[0]` is
-   * `parent`; the last entry is the root.
+   * Ancestors nearest first in the config tree, excluding `config` itself.
+   * `ancestors[0]` is `parent`; the last entry is the root. This is where
+   * `config` is DEFINED; the engine resolves keys through the live chain of
+   * each place it is ENTERED, which differs for a shared definition
+   * (statewalker-fsm#25).
    */
   ancestors: FsmStateConfig[];
 };

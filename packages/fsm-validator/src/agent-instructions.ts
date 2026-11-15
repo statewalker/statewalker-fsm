@@ -71,7 +71,7 @@ export const structureRules = `\
 3. Every transition MUST be a 3-element array [from, event, to] [L3]
 4. Sibling transitions at parent level — all transitions between siblings go in the parent's transitions, never inside a child [S3]
 5. Initial transition required — every composite state (has states) must have ["", "*", X] [S1]
-6. References must resolve — a transition's state key is looked up in the declaring state's states[], then in each ancestor's in turn, first definition wins. A key no ancestor defines is an error: the engine reports nothing, creates an empty state and silently stalls in it. This is about where a key may be DEFINED, not which states a transition may CONNECT — topology stays local (see 4) [S2]
+6. References must resolve — a transition's state key is looked up in the declaring state's states[], then in each running ancestor's in turn (a shared definition resolves its keys through the scope that enters it), first definition wins. A key no ancestor defines is an error: the engine reports nothing, creates an empty state and silently stalls in it. This is about where a key may be DEFINED, not which states a transition may CONNECT — topology stays local (see 4) [S2]
 7. Reachability — every state must be reachable from the initial transition, unless another scope resolves its key up to it, which makes it a shared definition rather than an unreachable state [S4]
 8. No dead-ends — every non-final state needs at least one outgoing transition [S5]
 9. Exit propagation — when a sub-state exits with [X, evt, ""], the parent must have a transition [CompositeParent, evt, Y] consuming that event [S6]
