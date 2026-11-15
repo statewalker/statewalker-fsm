@@ -207,4 +207,81 @@ describe("validate() integration", () => {
       expect(result.errors).toHaveLength(0);
     });
   });
+  // ── Malformed input (#28) ─────────────────────────────────────────────
+
+  describe("malformed input", () => {
+    const withBadTransition = (bad: unknown): FsmStateConfig =>
+      ({
+        key: "Root",
+        transitions: [["", "*", "A"], bad],
+        states: [{ key: "A", events: {} }],
+      }) as unknown as FsmStateConfig;
+
+    for (const [label, bad] of [
+      ["null", null],
+      ["a number", 5],
+      ["an object", {}],
+      ["a short tuple", ["A", "x"]],
+    ] as const) {
+      it(`should report L3 instead of throwing for a transition that is ${label}`, () => {
+        const result = validate(withBadTransition(bad));
+        expect(result.valid).toBe(false);
+        expect(result.errors.filter((i) => i.rule === "L3")).toHaveLength(1);
+      });
+    }
+
+    it("should report a malformed transition in a nested state", () => {
+      const config = {
+        key: "Root",
+        transitions: [
+          ["", "*", "A"],
+          ["A", "done", ""],
+        ],
+        states: [
+          {
+            key: "A",
+            transitions: [["", "*", "B"], null, ["B", "done", ""]],
+            states: [{ key: "B", events: { done: "When done" } }],
+          },
+        ],
+      } as unknown as FsmStateConfig;
+      const result = validate(config);
+      expect(result.errors.map((i) => i.rule)).toEqual(["L3"]);
+      expect(result.errors[0].path).toEqual(["Root", "A"]);
+    });
+
+    it("should report L3 instead of throwing when transitions is not an array", () => {
+      const config = {
+        key: "Root",
+        transitions: {},
+        states: [{ key: "A", events: {} }],
+      } as unknown as FsmStateConfig;
+      const result = validate(config);
+      expect(result.errors.some((i) => i.rule === "L3")).toBe(true);
+    });
+
+    it("should report L1 instead of throwing when states is not an array", () => {
+      const config = {
+        key: "Root",
+        transitions: [["", "*", "A"]],
+        states: {},
+      } as unknown as FsmStateConfig;
+      const result = validate(config);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((i) => i.rule === "L1")).toBe(true);
+    });
+
+    it("should report L1 instead of throwing for a state that is not an object", () => {
+      const config = {
+        key: "Root",
+        transitions: [
+          ["", "*", "A"],
+          ["A", "done", ""],
+        ],
+        states: [{ key: "A", events: { done: "When done" } }, null],
+      } as unknown as FsmStateConfig;
+      const result = validate(config);
+      expect(result.errors.map((i) => i.rule)).toEqual(["L1"]);
+    });
+  });
 });

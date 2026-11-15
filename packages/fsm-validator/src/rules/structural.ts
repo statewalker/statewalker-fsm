@@ -1,5 +1,5 @@
 import type { RuleContext, RuleFunction, RuleId, ValidationIssue } from "../types.ts";
-import { isPseudoKey, referencingScopes, resolveDefinition } from "./resolution.ts";
+import { handlesEvent, isPseudoKey, referencingScopes, resolveDefinition } from "./resolution.ts";
 
 export function initialTransitionRequired(ctx: RuleContext): ValidationIssue[] {
   const { config, path } = ctx;
@@ -21,17 +21,35 @@ export function initialTransitionRequired(ctx: RuleContext): ValidationIssue[] {
   // key it resolves up the ancestor chain, so a composite state may enter a
   // shared definition as its initial sub-state. S2 reports it if it resolves
   // nowhere.
-  const hasInitial = transitions.some(
+  const initials = transitions.filter(
     ([from, , to]) =>
       from === "" && to !== "" && to !== "*" && !!resolveDefinition(to, config, ctx.ancestors),
   );
+  // The runtime picks the initial sub-state by the event that ENTERED this
+  // state: ["", "start", X] fires only when the state is entered by "start".
+  // Only a ["", "*", X] entry guarantees the state is ever entered at all.
+  const defaults = initials.filter(([, event]) => event === "*");
 
-  if (!hasInitial) {
+  if (defaults.length === 0) {
+    const specific = initials.map(([, event]) => `"${event}"`);
     return [
       {
         rule: "S1",
         severity: "error",
-        message: `Composite state "${config.key}" must have an initial transition ["", "*", <ChildState>]`,
+        message:
+          specific.length > 0
+            ? `Composite state "${config.key}" must have an initial transition ["", "*", <ChildState>] — its initial transitions only fire when it is entered by ${specific.join(", ")}`
+            : `Composite state "${config.key}" must have an initial transition ["", "*", <ChildState>]`,
+        path: [...path, config.key],
+      },
+    ];
+  }
+  if (defaults.length > 1) {
+    return [
+      {
+        rule: "S1",
+        severity: "error",
+        message: `Composite state "${config.key}" has ${defaults.length} initial transitions ["", "*", X] — exactly one is allowed (targets: ${defaults.map(([, , to]) => `"${to}"`).join(", ")})`,
         path: [...path, config.key],
       },
     ];
@@ -169,7 +187,10 @@ export function reachabilityFromInitial(ctx: RuleContext): ValidationIssue[] {
   if (!config.states || config.states.length === 0) return [];
   if (!config.transitions || config.transitions.length === 0) return [];
 
-  const allKeys = new Set(config.states.map((s) => s.key));
+  // A child without a string key is L1's error; it has nothing to reach.
+  const allKeys = new Set(
+    config.states.map((s) => s.key).filter((k): k is string => typeof k === "string"),
+  );
   const reachable = new Set<string>();
 
   // Find initial targets (transitions from "")
@@ -274,10 +295,16 @@ export function noDeadEnds(ctx: RuleContext): ValidationIssue[] {
   return issues;
 }
 
+/**
+ * S6 — an event a child's sub-machine exits with (`[X, e, ""]`) must be
+ * handled where the child is ENTERED. For an ordinary child that is the parent
+ * defining it; a shared definition is checked against every scope that
+ * instantiates it (as S4 and M1 do), not against the scope that holds the
+ * definition and may never enter it.
+ */
 export function exitEventPropagation(ctx: RuleContext): ValidationIssue[] {
-  const { config, path } = ctx;
+  const { config, root } = ctx;
   if (!config.states || config.states.length === 0) return [];
-  if (!config.transitions) return [];
 
   const issues: ValidationIssue[] = [];
 
@@ -294,18 +321,15 @@ export function exitEventPropagation(ctx: RuleContext): ValidationIssue[] {
 
     if (exitEvents.size === 0) continue;
 
-    // Check if parent handles these events for this child
-    for (const exitEvent of exitEvents) {
-      const handled = config.transitions.some(
-        ([from, event]) =>
-          (from === child.key || from === "*") && (event === exitEvent || event === "*"),
-      );
-      if (!handled) {
+    // Check that every scope entering this child handles these events
+    for (const scope of referencingScopes(root, child.key, child)) {
+      for (const exitEvent of exitEvents) {
+        if (handlesEvent(scope.config, child.key, exitEvent)) continue;
         issues.push({
           rule: "S6",
           severity: "error",
-          message: `Child "${child.key}" exits with event "${exitEvent}" but parent "${config.key}" has no transition handling it`,
-          path: [...path, config.key],
+          message: `Child "${child.key}" exits with event "${exitEvent}" but parent "${scope.config.key}" has no transition handling it`,
+          path: [...scope.path, scope.config.key],
         });
       }
     }

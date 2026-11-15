@@ -37,7 +37,17 @@ export function stateKeyFormat(ctx: RuleContext): ValidationIssue[] {
 
 export function transitionTupleLength(ctx: RuleContext): ValidationIssue[] {
   const transitions = ctx.config.transitions;
-  if (!transitions) return [];
+  if (transitions === undefined) return [];
+  if (!Array.isArray(transitions)) {
+    return [
+      {
+        rule: "L3",
+        severity: "error",
+        message: `'transitions' must be an array of [from, event, to] tuples, got ${transitions === null ? "null" : typeof transitions}`,
+        path: [...ctx.path, ctx.config.key],
+      },
+    ];
+  }
   const issues: ValidationIssue[] = [];
   for (let i = 0; i < transitions.length; i++) {
     const t = transitions[i];
@@ -55,7 +65,7 @@ export function transitionTupleLength(ctx: RuleContext): ValidationIssue[] {
 
 export function stateRefFormat(ctx: RuleContext): ValidationIssue[] {
   const transitions = ctx.config.transitions;
-  if (!transitions) return [];
+  if (!Array.isArray(transitions)) return [];
   const issues: ValidationIssue[] = [];
   for (const t of transitions) {
     if (!Array.isArray(t) || t.length !== 3) continue;
@@ -77,7 +87,7 @@ export function stateRefFormat(ctx: RuleContext): ValidationIssue[] {
 
 export function eventRefFormat(ctx: RuleContext): ValidationIssue[] {
   const transitions = ctx.config.transitions;
-  if (!transitions) return [];
+  if (!Array.isArray(transitions)) return [];
   const issues: ValidationIssue[] = [];
   for (const t of transitions) {
     if (!Array.isArray(t) || t.length !== 3) continue;

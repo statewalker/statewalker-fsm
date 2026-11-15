@@ -107,7 +107,7 @@ export const ruleDefinitions: RuleDefinition[] = [
     rule: "Exit event propagation",
     severity: "error",
     constraint:
-      'If a sub-state has an exit transition [X, event, ""], the parent MUST have a transition [CompositeParent, event, Y] that consumes that event. Root-level composite states are exempt',
+      'If a sub-state has an exit transition [X, event, ""], the parent MUST have a transition [CompositeParent, event, Y] that consumes that event. Root-level composite states are exempt. For a shared definition, the parent is every scope that instantiates it',
   },
   {
     category: "structural",
@@ -186,7 +186,7 @@ export const ruleDefinitions: RuleDefinition[] = [
     rule: "Manageable complexity",
     severity: "info",
     constraint:
-      "Each hierarchical level should contain 3-7 sub-states. Longer linear sequences should be decomposed into composite phases",
+      "Each hierarchical level should contain 2-7 sub-states. Longer linear sequences should be decomposed into composite phases",
   },
   {
     category: "semantic",

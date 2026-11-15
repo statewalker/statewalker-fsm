@@ -314,6 +314,110 @@ describe("State definition resolution", () => {
       const result = validate(config, { rules: ["M1"] });
       expect(result.warnings.length).toBeGreaterThanOrEqual(1);
       expect(result.warnings.map((w) => w.message).join(" ")).toContain("PhaseB");
+      // An unmatched event does not trap the process: it makes PhaseB exit.
+      expect(result.warnings.map((w) => w.message).join(" ")).not.toContain("cannot leave");
+    });
+  });
+  describe("S6 and M3: a shared composite is checked where it is instantiated", () => {
+    // #26: Root never enters Shared; A does, and A handles its exit event.
+    const sharedComposite: FsmStateConfig = {
+      key: "Root",
+      transitions: [
+        ["", "*", "A"],
+        ["A", "done", ""],
+      ],
+      states: [
+        {
+          key: "A",
+          events: { done: "When the shared work completes" },
+          transitions: [
+            ["", "*", "Shared"],
+            ["Shared", "done", ""],
+          ],
+        },
+        {
+          key: "Shared",
+          events: { done: "When its only step completes" },
+          transitions: [
+            ["", "*", "Step"],
+            ["Step", "done", ""],
+          ],
+          states: [{ key: "Step", events: { done: "When the step completes" } }],
+        },
+      ],
+    };
+
+    it("validates the shared composite with all rules", () => {
+      const result = validate(sharedComposite);
+      expect(result.errors).toEqual([]);
+      expect(result.valid).toBe(true);
+      expect(result.issues.filter((i) => i.rule === "S6" || i.rule === "M3")).toEqual([]);
+    });
+
+    it("reports S6 at the referencing scope that does not handle the exit event", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [
+          ["", "*", "PhaseA"],
+          ["PhaseA", "done", "PhaseB"],
+          ["PhaseB", "cancelled", ""],
+        ],
+        states: [
+          {
+            key: "PhaseA",
+            transitions: [
+              ["", "*", "Shared"],
+              ["Shared", "done", ""],
+            ],
+          },
+          {
+            key: "PhaseB",
+            transitions: [
+              ["", "*", "Shared"],
+              ["Shared", "cancelled", ""],
+            ],
+          },
+          {
+            key: "Shared",
+            events: { done: "When it completes", cancelled: "When it is cancelled" },
+            transitions: [
+              ["", "*", "Step"],
+              ["Step", "done", ""],
+              ["Step", "cancelled", ""],
+            ],
+            states: [{ key: "Step", events: { done: "Done", cancelled: "Cancelled" } }],
+          },
+        ],
+      };
+      const result = validate(config, { rules: ["S6"] });
+      expect(result.errors.map((e) => [e.path, e.message])).toEqual([
+        [
+          ["Root", "PhaseA"],
+          'Child "Shared" exits with event "cancelled" but parent "PhaseA" has no transition handling it',
+        ],
+        [
+          ["Root", "PhaseB"],
+          'Child "Shared" exits with event "done" but parent "PhaseB" has no transition handling it',
+        ],
+      ]);
+    });
+
+    it("reports M3 when a shared composite omits an exit event a referencing scope handles", () => {
+      const config: FsmStateConfig = {
+        ...sharedComposite,
+        states: [
+          sharedComposite.states?.[0] as FsmStateConfig,
+          {
+            ...(sharedComposite.states?.[1] as FsmStateConfig),
+            events: { other: "Something else" },
+          },
+        ],
+      };
+      const result = validate(config, { rules: ["M3"] });
+      expect(result.warnings).toHaveLength(1);
+      expect(result.warnings[0].path).toEqual(["Root", "Shared"]);
+      expect(result.warnings[0].message).toContain('"done"');
+      expect(result.warnings[0].message).toContain('"A"');
     });
   });
 });
