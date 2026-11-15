@@ -10,4 +10,14 @@ export type TransitionsGraph = Position &
   Dimensions & {
     nodes: StateGraphNode[];
     edges: StateGraphEdge[];
+    /**
+     * Key of the pseudo-state node drawn for an empty transition source,
+     * recorded when the graph is built (`"<initial>"` unless overridden).
+     */
+    initialStateKey?: string;
+    /**
+     * Key of the pseudo-state node drawn for an empty transition target,
+     * recorded when the graph is built (`"<final>"` unless overridden).
+     */
+    finalStateKey?: string;
   };

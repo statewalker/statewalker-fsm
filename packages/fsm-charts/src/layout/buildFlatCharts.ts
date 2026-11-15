@@ -10,6 +10,7 @@ import type { StateGraphNode } from "../types/StateGraphNode.js";
 import type { Transition } from "../types/Transition.js";
 import type { TransitionsGraph } from "../types/TransitionsGraph.js";
 import { getPadding } from "../utils/getPadding.js";
+import { DEFAULT_FINAL_STATE_KEY, DEFAULT_INITIAL_STATE_KEY } from "../utils/pseudoStateKeys.js";
 
 /**
  * Build graphs corresponding to the specified transitions.
@@ -17,8 +18,8 @@ import { getPadding } from "../utils/getPadding.js";
  * @param newId - A function that generates unique ids for nodes and edges.
  * @param getStateParams - A function that returns the dimensions of a state node.
  * @param getTransitionParams - A function that returns the dimensions of a transition edge.
- * @param initialStateKey - The key for the initial state.
- * @param finalStateKey - The key for the final state.
+ * @param initialStateKey - The key for the initial state; recorded on the result.
+ * @param finalStateKey - The key for the final state; recorded on the result.
  * @param vertical - Whether the graph should be vertical.
  * @returns {TransitionsGraph} - The graph with nodes and edges.
  */
@@ -30,8 +31,8 @@ export function buildFlatCharts({
   getStateParams,
   getTransitionParams,
   padding = [5, 5],
-  initialStateKey = "<initial>",
-  finalStateKey = "<final>",
+  initialStateKey = DEFAULT_INITIAL_STATE_KEY,
+  finalStateKey = DEFAULT_FINAL_STATE_KEY,
   vertical = false,
   direction,
 }: {
@@ -142,7 +143,7 @@ export function buildFlatCharts({
       edge.points.forEach(updateCoords);
     });
 
-    return { x, y, width, height, nodes, edges };
+    return { x, y, width, height, nodes, edges, initialStateKey, finalStateKey };
   } finally {
     setLodash(prevLodash);
   }
