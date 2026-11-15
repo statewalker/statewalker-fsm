@@ -1,5 +1,21 @@
 # @statewalker/fsm-viewer
 
+## 0.5.0
+
+### Minor Changes
+
+- ab7e6d2: `renderStateCharts`, `renderStateDescription` and the state renderer accept either
+  `FsmProcess` or `FsmProcessSync` (the viewer's handlers are now synchronous, so the sync
+  engine no longer reports them as errors). `renderStateDescription` takes an optional
+  `invalidation` promise to stop following the process.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [4484089]
+  - @statewalker/fsm-charts@0.2.7
+  - @statewalker/fsm@0.39.0
+
 ## 0.4.4
 
 ### Patch Changes

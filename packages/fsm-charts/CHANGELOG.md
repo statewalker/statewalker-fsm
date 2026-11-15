@@ -1,5 +1,13 @@
 # @statewalker/fsm-charts
 
+## 0.2.7
+
+### Patch Changes
+
+- Release of the changes since the last published version:
+  
+  - files changed: README.md, dist/buildStatechartsPanel-BX7e0GzA.js, dist/buildStatechartsPanel-BX7e0GzA.js.map, dist/buildStatechartsPanel-CxQlIwTh.js, dist/buildStatechartsPanel-CxQlIwTh.js.map, 5 more
+
 ## 0.2.6
 
 ### Patch Changes
