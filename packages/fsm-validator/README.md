@@ -36,7 +36,7 @@ browsers, Node.js and workers.
 |--------|---------------|
 | `@statewalker/fsm-validator` | Everything: `validate`, `allRules`, the report helpers, the rule definitions and the agent prompt texts, plus the types. Built to `dist/index.js` with `.d.ts` types; sources are published in `src/`. |
 
-Subpath imports fail; see [Internals](#internals-a-per-state-walk-with-lexical-key-resolution).
+Subpath imports fail; see [Internals](#internals-a-per-state-walk-with-dynamic-key-resolution).
 
 ### `validate(config, options?)` returns a `ValidationResult`
 
@@ -281,15 +281,21 @@ Consistency, completeness, and semantic review rules.
 
 See [rules.md](./agent-rules/rules.md) for the full specification with examples, pseudocode, and checklists.
 
-## Internals: a per-state walk with lexical key resolution
+## Internals: a per-state walk with dynamic key resolution
 
 - **Walk.** `validate` visits every state depth-first. Each active rule is a function of a
   `RuleContext` (`config`, `path`, `root`, `parent`, `ancestors`) and returns issues for
   that state. `allRules` maps rule ids to these functions in L, S, M order.
-- **Key resolution is lexical, as in the engine.** A transition target resolves to the
-  nearest definition in the declaring state's `states` or in an ancestor's. That is the
-  only way to share a sub-machine between scopes, so S2, S3 and S4 accept a key that is
-  defined by an ancestor instead of flagging it.
+- **Key resolution is dynamic, as in the engine.** A transition key resolves to the
+  nearest definition in the declaring state's `states` or in a *running* ancestor's: the
+  engine walks the live parent chain, not the config tree. That is the only way to share a
+  sub-machine between scopes, so S2, S3 and S4 accept a key that is defined by an ancestor
+  instead of flagging it. A definition shared from an ancestor and entered inside scope A
+  resolves its own keys through A and A's running ancestors, so the same definition may
+  resolve a key differently in each place it is entered. The validator enumerates every
+  instantiation path (each place the runtime enters a definition, with its live chain) and
+  checks S1–S4, S6, M1–M3 against those; S2 reports a key at the live path where it fails
+  to resolve.
 - **Only errors make a configuration invalid.** `valid` is `errors.length === 0`;
   warnings, info and review items never change it.
 - **One entry point.** Everything is exported from the package root; an import such as

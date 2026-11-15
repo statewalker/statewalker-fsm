@@ -4,9 +4,10 @@ import { describe, expect, it } from "./deps.ts";
 import { sharedSubMachine } from "./fixtures.ts";
 
 /**
- * State definition resolution is LEXICAL: the engine's `_newSubstate` walks
- * `state.parent` upward and takes the first `states[key]` it finds. A state
- * may therefore be referenced in a scope that does not define it.
+ * State definition resolution walks UP: the engine's `findStateDescriptor`
+ * walks the running `state.parent` chain and takes the first `states[key]` it
+ * finds. A state may therefore be referenced in a scope that does not define
+ * it. (The chain is the live one; see dynamic-resolution.test.ts.)
  *
  * That is orthogonal to transition topology, which stays strictly local: a
  * transition may only connect direct sub-states of the state declaring it.
