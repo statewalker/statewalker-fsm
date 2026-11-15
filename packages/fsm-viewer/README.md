@@ -32,7 +32,7 @@ DOM implementation such as jsdom.
 
 | Export | Purpose |
 | --- | --- |
-| `newProcessCharts(options)` | Build the interactive chart for a configuration. Returns the element with `selectState(stack)`. Default direction `"lr"`. |
+| `newProcessCharts(options)` | Build the interactive chart for a configuration. Returns the element with `selectState(stack)`, `getTransitionEdges(stack)` and `dispose()`. Default direction `"lr"`. |
 | `renderStateCharts(options)` | Same chart, bound to a live process (`options.process`: `FsmProcess` or `FsmProcessSync`). Default direction `"tb"`. |
 | `renderStateDescription({ process, renderer, invalidation? })` | Returns a `<div>` that shows `renderer(stack)` for the current state of a process (either engine) and replaces it on every transition. |
 | `prepareStateDescriptions({ element, rootStateKey, titleElementName })` | Read per-state descriptions from a document section whose headings are written `[StateKey] Title` and return a `renderer` for the functions above. |
@@ -41,9 +41,11 @@ DOM implementation such as jsdom.
 | `FsmStateChartsConfig` | Type of the configuration accepted by `newProcessCharts`. |
 
 `newProcessCharts` and `renderStateCharts` also take `onStateClick(statesStack)`,
-`onEventClick(edge)`, `renderer` (returns a DOM node with a description for a state
-stack, shown in that state's panel) and `invalidation` (a promise; when it resolves, the
-click listeners are removed).
+`onEventClick(edge)`, `renderer` (takes a stack of state keys and returns a DOM node
+with a description, shown in that state's panel; the renderer of
+`prepareStateDescriptions` fits) and `invalidation` (a promise; when it resolves, the
+chart is disposed). `dispose()` on the returned element removes the click listeners
+and, for `renderStateCharts`, the process subscription.
 
 ## Examples
 
@@ -70,8 +72,9 @@ const reset = chart.selectState(["Player", "Active", "Playing"]);
 
 ### Follow a running process
 
-The highlight follows the process. Clicking a transition dispatches its event when
-`isStateTransitionEnabled(process, event)` allows it.
+The highlight follows the process. Clicking a transition dispatches its event when the
+transition is one of those `getStateTransitions(process.state)` reports as enabled in
+the current state; other edges with the same event, and initial edges, do nothing.
 
 ```js
 import * as lodash from "lodash-es";
@@ -118,23 +121,24 @@ document.body.append(renderStateDescription({ process, renderer }));
   (12 for states, 6 for transitions), renders the panel HTML into a `<div>` with a fresh
   id, appends `renderCss("#<id>")`, and wires a `RuntimeStatechartApi` and
   `StateChartIndex` to it.
-- **Two highlight modifiers.** `selectState` marks the active stack and its outgoing
-  transitions with the `active` modifier and opens their panels. A click on a state marks
+- **Two highlight modifiers.** `selectState` marks the active stack and its enabled
+  transitions (the engine's `getStateTransitions` for that stack, wildcard `"*"`
+  sources included) with the `active` modifier and opens their panels. A click on a state marks
   the clicked stack with `selected`, so a user's selection and the running state do not
   overwrite each other.
 - **Following a process.** `renderStateCharts` and `renderStateDescription` render the
   current state, then register an `onStateCreate` handler on the process and update on
   every state entry; the cleanup runs on that state's exit. The handlers are synchronous,
   so they work with `FsmProcess` and `FsmProcessSync` alike.
-- **Constraint: listeners stay until `invalidation` resolves.** Without an
-  `invalidation` promise, the click listeners and the process subscription of
-  `newProcessCharts` / `renderStateCharts` / `renderStateDescription` are never removed,
-  even after the element leaves the page. After `invalidation` resolves, states entered
-  later are no longer rendered.
+- **Constraint: listeners stay until disposed.** The click listeners and the process
+  subscription of `newProcessCharts` / `renderStateCharts` stay until `dispose()` is
+  called or `invalidation` resolves, even after the element leaves the page;
+  `renderStateDescription` has only `invalidation`. Afterwards, states entered later
+  are no longer rendered.
 - **Constraint: headings are read with `innerText`.** `prepareStateDescriptions` reads
   heading text through `HTMLElement.innerText`, which jsdom does not implement. Under jsdom
   it throws `TypeError: Cannot read properties of undefined (reading 'trim')`.
-- **Dependencies.** `@statewalker/fsm` (process types and `isStateTransitionEnabled`) and
+- **Dependencies.** `@statewalker/fsm` (process types and `getStateTransitions`) and
   `@statewalker/fsm-charts` (layout, rendering, runtime API). lodash is injected by the
   caller.
 

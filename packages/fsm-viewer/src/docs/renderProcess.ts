@@ -32,10 +32,7 @@ export function renderProcess(
   // const description = renderStateDescription({ process, renderer });
   const charts = renderStateCharts({
     process,
-    renderer: (nodesStack) => {
-      const statesStack = nodesStack.map((node) => node.key);
-      return renderer(statesStack);
-    },
+    renderer,
     direction,
     lodash: _,
     invalidation,

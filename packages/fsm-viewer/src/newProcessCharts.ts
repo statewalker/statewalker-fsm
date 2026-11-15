@@ -1,4 +1,11 @@
 import {
+  type FsmStateConfig,
+  FsmStateDescriptor,
+  type FsmStateNode,
+  getStateTransitions,
+  getSubstateTarget,
+} from "@statewalker/fsm";
+import {
   buildCharts,
   buildStatechartsPanel,
   getGraphParamsProvider,
@@ -16,6 +23,8 @@ export type FsmStateChartsConfig = {
   states?: FsmStateChartsConfig[];
 } & Record<string, unknown>;
 
+type FsmTransition = [from: string, event: string, to: string];
+
 export function newProcessCharts({
   config,
   direction = "lr",
@@ -30,10 +39,15 @@ export function newProcessCharts({
   config: FsmStateChartsConfig;
   onStateClick?: (statesStack: StateGraphNode[]) => void;
   onEventClick?: (edge: StateGraphEdge) => void;
-  renderer?: (statesStack: StateGraphNode[]) => undefined | Node;
+  // Takes a stack of state keys, as the renderer of `prepareStateDescriptions`.
+  renderer?: (statesStack: string[]) => undefined | Node;
   invalidation?: Promise<void>;
   lodash: unknown;
-}): HTMLElement & { selectState: (stack: string[]) => () => void } {
+}): HTMLElement & {
+  selectState: (stack: string[], transitions?: FsmTransition[]) => () => void;
+  getTransitionEdges: (stack: string[], transitions?: FsmTransition[]) => StateGraphEdge[];
+  dispose: () => void;
+} {
   // ====================================================
   // Stage 1: create a static statechart index
 
@@ -80,33 +94,60 @@ export function newProcessCharts({
   });
   const chartsIndex = new StateChartIndex({ statechart });
   if (renderer) {
-    const allNodes = chartsIndex.getStateNodes();
-    for (const node of allNodes) {
-      const stack = chartsIndex.getStackByStateId(node.id);
+    // A composite state is both a chart and a node of its parent, with one id.
+    const ids = new Set(chartsIndex.getStateNodes().map((node) => node.id));
+    for (const id of ids) {
+      const stack = chartsIndex.getStackByStateId(id).map((node) => node.key);
       const description = renderer(stack);
-      api.setStateDescription(node.id, description);
+      api.setStateDescription(id, description);
     }
   }
 
-  function selectState(stack: string[]) {
+  // The engine's enabled transitions for a stack of state keys, resolved with the
+  // engine's own descriptors (as a process in that stack would).
+  const rootDescriptor = FsmStateDescriptor.build(config as FsmStateConfig);
+  function getEnabledTransitions(stack: string[]): FsmTransition[] {
+    let state: FsmStateNode | undefined;
+    for (const key of stack) {
+      state = state ? getSubstateTarget(state, key) : { key, descriptor: rootDescriptor };
+    }
+    return getStateTransitions(state);
+  }
+
+  // The edges drawn for the transitions enabled in `stack` (by default, those the
+  // engine reports for it): each `[from, event, to]` is matched in the chart of
+  // the level where `from` is the active state, by the state's own edge or a `"*"` one.
+  function getTransitionEdges(
+    stack: string[],
+    transitions: FsmTransition[] = getEnabledTransitions(stack),
+  ): StateGraphEdge[] {
     const idsStack = chartsIndex.getStatesIds(...stack);
-    const eventsIndex: Record<string, boolean> = {};
+    const pending = new Set(transitions);
+    const edges: StateGraphEdge[] = [];
+    for (let i = idsStack.length - 1; i > 0; i--) {
+      for (const t of pending) {
+        const [from, event, to] = t;
+        if (from !== stack[i]) continue;
+        const edge = chartsIndex.findTransition(idsStack[i], event, to);
+        if (!edge) continue;
+        edges.push(edge);
+        pending.delete(t);
+      }
+    }
+    return edges;
+  }
+
+  function selectState(stack: string[], transitions?: FsmTransition[]) {
+    const idsStack = chartsIndex.getStatesIds(...stack);
     api.deselectTransitions("active");
     api.deselectStates("active");
     api.closeStatePanels();
-    for (let i = idsStack.length - 1; i >= 0; i--) {
-      const stateId = idsStack[i];
+    for (const stateId of idsStack) {
       api.selectState(stateId, "active");
       api.openStatePanel(stateId);
-      const transitions = chartsIndex.getTransitions(stateId);
-      transitions.forEach((t) => {
-        if (!eventsIndex[t.event]) {
-          if (t.to !== "<final>") {
-            eventsIndex[t.event] = true;
-          }
-          api.selectTransition(t.id, "active");
-        }
-      });
+    }
+    for (const edge of getTransitionEdges(stack, transitions)) {
+      api.selectTransition(edge.id, "active");
     }
     // api.focusStates(...idsStack);
     return () => {
@@ -116,7 +157,7 @@ export function newProcessCharts({
     };
   }
 
-  const unregisterStateListeners = api.onStateClick((stateId: string) => {
+  api.onStateClick((stateId: string) => {
     const nodes = chartsIndex.getStackByStateId(stateId);
     const nodeIds = nodes.map((n) => n.id);
     const selected = api.isStateSelected(stateId, "selected");
@@ -149,16 +190,20 @@ export function newProcessCharts({
   //     console.log(">> transition", transitionId);
   //   }
   // );
-  invalidation?.then(unregisterStateListeners);
   // invalidation.then(unregisterTransitionsListeners);
 
   if (onEventClick) {
-    const unregisterClickListener = api.onTransitionClick((transitionId: string) => {
+    api.onTransitionClick((transitionId: string) => {
       const edge = chartsIndex.getEdgeById(transitionId);
       edge && onEventClick(edge);
     });
-    invalidation && unregisterClickListener && invalidation.then(unregisterClickListener);
   }
+
+  // Removes the DOM listeners and the click registrations.
+  function dispose() {
+    api.close();
+  }
+  invalidation?.then(dispose);
   // initRuntimeApi({ statechart, element: element });
-  return Object.assign(element, { selectState });
+  return Object.assign(element, { selectState, getTransitionEdges, dispose });
 }
