@@ -1,6 +1,6 @@
 {
   "name": "@statewalker/fsm",
-  "version": "0.39.2",
+  "version": "0.39.3",
   "description": "HFSM Implementation",
   "bugs": {
     "url": "https://github.com/statewalker/statewalker-fsm/issues"
