@@ -33,18 +33,22 @@ const OP_HANDLER = 0;
 const OP_HANDLER_ARGS = 1;
 const OP_CREATE = 2;
 const OP_CALL = 3;
+const NO_ARGS: unknown[] = [];
 
 /**
- * One step of the controller: a handler run or a state creation. A program
- * allocates one record and refills it for every step it yields (the driver
- * runs it before the program resumes), which keeps the sync hot path free of
- * per-step allocations.
+ * One step of the controller: a handler run, a state creation or a call. Each
+ * engine owns one record (`_step`) that its programs refill for every step they
+ * yield, which keeps the sync hot path free of allocations. That is safe
+ * because a driver runs a step as soon as it is yielded, and `run()` copies the
+ * fields and clears the record before carrying the step out: a program a
+ * handler starts meanwhile (a `dump`, a re-entrant `dispatch`) may refill it,
+ * and nothing stays referenced once the step has run.
  */
 export class FsmStep {
   op = OP_HANDLER;
   target?: FsmEngineState;
   type = "";
-  args: unknown[] = [];
+  args: unknown[] = NO_ARGS;
   engine?: FsmEngine<FsmEngineState>;
   parent?: FsmEngineState;
   key = "";
@@ -90,17 +94,37 @@ export class FsmStep {
     return this;
   }
 
-  /** Carry the step out; returns the handler run's, the creation's or the call's result. */
+  /**
+   * Carry the step out; returns the handler run's, the creation's or the call's
+   * result. The fields it reads are cleared first, so the record references
+   * nothing once the step has run (and may be refilled while it runs).
+   */
   run(): unknown {
     switch (this.op) {
-      case OP_CALL:
-        return this.fn?.();
-      case OP_HANDLER:
-        return this.target?._runHandler(this.type, this.target);
-      case OP_HANDLER_ARGS:
-        return this.target?._runHandler(this.type, ...this.args);
-      default:
-        return this.engine?._newState(this.parent, this.key, this.descriptor);
+      case OP_HANDLER: {
+        const target = this.target;
+        this.target = undefined;
+        return target?._runHandler(this.type, target);
+      }
+      case OP_HANDLER_ARGS: {
+        const target = this.target;
+        const args = this.args;
+        this.target = undefined;
+        this.args = NO_ARGS;
+        return target?._runHandler(this.type, ...args);
+      }
+      case OP_CALL: {
+        const fn = this.fn;
+        this.fn = undefined;
+        return fn?.();
+      }
+      default: {
+        const { engine, parent, descriptor } = this;
+        this.engine = undefined;
+        this.parent = undefined;
+        this.descriptor = undefined;
+        return engine?._newState(parent, this.key, descriptor);
+      }
     }
   }
 }
@@ -142,6 +166,8 @@ export interface FsmEngine<S extends FsmEngineState> {
   ): unknown;
   /** Called whenever the engine may have become idle. */
   _notifyIdle(): void;
+  /** @internal The engine's one step record, refilled for every step (see `FsmStep`). */
+  readonly _step: FsmStep;
   /**
    * @internal `true` for an engine that runs steps synchronously. Such an
    * engine skips a handler step with no handlers registered, which has no
@@ -220,7 +246,7 @@ export function* unwindSteps<S extends FsmEngineState>(
   engine: FsmEngine<S>,
   event?: string,
 ): FsmSteps<void> {
-  const step = new FsmStep();
+  const step = engine._step;
   engine._unwinding = true;
   try {
     engine.status = STATUS_FINISHED;
@@ -253,7 +279,7 @@ export function* dispatchSteps<S extends FsmEngineState>(
   engine.nextEvents.push(event);
   if (engine.running) return true;
   engine.running = true;
-  const step = new FsmStep();
+  const step = engine._step;
   try {
     run: while (engine.nextEvents.length > 0 && !(engine.status & STATUS_FINISHED)) {
       const event = engine.nextEvents.shift() as string;
@@ -314,7 +340,7 @@ export function* updateSteps<S extends FsmEngineState>(engine: FsmEngine<S>): Fs
   if (engine.status & STATUS_FINISHED) return false;
   const target = nextStateTarget(engine);
   const created = target
-    ? ((yield new FsmStep().create(engine, target.parent, target.key, target.descriptor)) as S)
+    ? ((yield engine._step.create(engine, target.parent, target.key, target.descriptor)) as S)
     : undefined;
   return settleUpdate(engine, created);
 }
@@ -357,7 +383,7 @@ export function* dumpSteps<S extends FsmEngineState>(
   for (let state = engine.state; state; state = state.parent as S | undefined) {
     states.unshift(state);
   }
-  const step = new FsmStep();
+  const step = engine._step;
   const stack: FsmStateDump[] = [];
   for (const state of states) {
     const stateDump: FsmStateDump = { key: state.key, data: {} };
@@ -387,7 +413,7 @@ export function* restoreSteps<S extends FsmEngineState>(
   engine.event = dump.event;
   engine.nextEvents.length = 0;
   engine.state = undefined;
-  const step = new FsmStep();
+  const step = engine._step;
   for (const stateDump of dump.stack) {
     const target = engine.state
       ? getSubstateTarget(engine.state, stateDump.key)
