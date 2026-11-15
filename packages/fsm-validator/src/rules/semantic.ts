@@ -5,7 +5,7 @@ import type {
   RuleId,
   ValidationIssue,
 } from "../types.ts";
-import { referencingScopes } from "./resolution.ts";
+import { handlesEvent, referencingScopes } from "./resolution.ts";
 
 /**
  * M1 — every event a state declares must be handled by a transition.
@@ -18,7 +18,8 @@ import { referencingScopes } from "./resolution.ts";
  *
  * So: every event must be handled by at least one scope that references the
  * state, and every referencing scope must handle at least one event — a scope
- * that enters a state and handles nothing it emits can never leave it.
+ * that enters a state and handles nothing it emits never routes on it: every
+ * event goes unmatched and makes the scope itself exit.
  */
 export function forwardEventCoverage(ctx: RuleContext): ValidationIssue[] {
   const { config, path, parent, root } = ctx;
@@ -62,7 +63,7 @@ export function forwardEventCoverage(ctx: RuleContext): ValidationIssue[] {
         issues.push({
           rule: "M1",
           severity: "warning",
-          message: `Scope "${scope.config.key}" references "${config.key}" but handles none of its events — the process cannot leave that state`,
+          message: `Scope "${scope.config.key}" references "${config.key}" but handles none of its events — any event "${config.key}" emits there goes unmatched and makes "${scope.config.key}" exit`,
           path: [...scope.path, scope.config.key],
         });
       }
@@ -93,16 +94,23 @@ export function reverseEventCoverage(ctx: RuleContext): ValidationIssue[] {
   // Only validate if at least one child declares events
   if (!anyChildHasEvents) return [];
 
+  // An event declared at a shared ancestor level — this scope or any above
+  // it, all ancestors of the source — satisfies the rule too.
+  const declaredAbove = (event: string) =>
+    [config, ...ctx.ancestors].some(
+      (a) => !!a.events && Object.prototype.hasOwnProperty.call(a.events, event),
+    );
+
   for (const [from, event] of transitions) {
     if (from === "" || from === "*") continue;
     if (event === "*") continue;
 
     const childEvents = childEventsMap.get(from);
-    if (childEvents && !childEvents.has(event)) {
+    if (childEvents && !childEvents.has(event) && !declaredAbove(event)) {
       issues.push({
         rule: "M2",
         severity: "warning",
-        message: `Transition event "${event}" from "${from}" is not declared in "${from}"'s events`,
+        message: `Transition event "${event}" from "${from}" is not declared in "${from}"'s events nor in any ancestor's`,
         path: [...path, config.key],
       });
     }
@@ -110,35 +118,36 @@ export function reverseEventCoverage(ctx: RuleContext): ValidationIssue[] {
   return issues;
 }
 
+/**
+ * M3 — an event a state's sub-machine exits with (`[X, e, ""]`) reaches the
+ * scope that entered the state; when that scope handles it, the state emits
+ * it, so it belongs in the state's own `events`. Checked per referencing
+ * scope, and only for states that declare `events`. An exit event no scope
+ * handles is S6's error, not repeated here.
+ */
 export function hierarchicalEventDeclaration(ctx: RuleContext): ValidationIssue[] {
-  const { config, path, parent } = ctx;
-  if (!parent || !config.events) return [];
+  const { config, path, parent, root } = ctx;
+  if (!parent || !config.events || !config.transitions) return [];
 
-  // Check if any of this state's events are handled by a grandparent (or higher)
-  // rather than the direct parent. This is informational.
-  const parentTransitions = parent.transitions;
-  if (!parentTransitions) return [];
-
-  const issues: ValidationIssue[] = [];
-
-  // Find events from child's sub-states that exit to parent level
-  if (config.transitions && config.states) {
-    for (const [, event, to] of config.transitions) {
-      if (to === "" && event !== "*") {
-        // This event exits to parent scope — check if parent handles it
-        const handled = parentTransitions.some(
-          ([from, evt]) => (from === config.key || from === "*") && (evt === event || evt === "*"),
-        );
-        if (!handled) {
-          issues.push({
-            rule: "M3",
-            severity: "warning",
-            message: `Exit event "${event}" from "${config.key}" sub-states is not handled by parent "${parent.key}"`,
-            path: [...path, config.key],
-          });
-        }
-      }
+  const exitEvents = new Set<string>();
+  for (const [, event, to] of config.transitions) {
+    if (to === "" && event !== "*" && !Object.prototype.hasOwnProperty.call(config.events, event)) {
+      exitEvents.add(event);
     }
+  }
+  if (exitEvents.size === 0) return [];
+
+  const scopes = referencingScopes(root, config.key, config);
+  const issues: ValidationIssue[] = [];
+  for (const event of exitEvents) {
+    const handledBy = scopes.filter((s) => handlesEvent(s.config, config.key, event));
+    if (handledBy.length === 0) continue;
+    issues.push({
+      rule: "M3",
+      severity: "warning",
+      message: `Exit event "${event}" of "${config.key}" is handled by ${handledBy.map((s) => `"${s.config.key}"`).join(", ")} but is not listed in "${config.key}"'s events`,
+      path: [...path, config.key],
+    });
   }
   return issues;
 }
@@ -357,7 +366,7 @@ export function manageableComplexity(ctx: RuleContext): ValidationIssue[] {
       {
         rule: "M7",
         severity: "info",
-        message: `State "${config.key}" has ${count} sub-states (recommended: 3-7). Consider decomposing into composite phases`,
+        message: `State "${config.key}" has ${count} sub-states (recommended: 2-7). Consider decomposing into composite phases`,
         path: [...path, config.key],
       },
     ];

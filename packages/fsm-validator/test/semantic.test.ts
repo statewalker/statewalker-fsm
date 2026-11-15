@@ -203,6 +203,34 @@ describe("Semantic rules", () => {
       const result = validate(config, { rules: ["M2"] });
       expect(result.warnings).toHaveLength(1);
     });
+
+    it("should accept an event declared on an ancestor of the source", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        events: { cancel: "When the user cancels anywhere" },
+        transitions: [
+          ["", "*", "Work"],
+          ["Work", "cancel", ""],
+        ],
+        states: [
+          {
+            key: "Work",
+            events: { cancel: "When the user cancels" },
+            transitions: [
+              ["", "*", "A"],
+              ["A", "go", "B"],
+              ["A", "cancel", ""],
+            ],
+            states: [
+              { key: "A", events: { go: "When ready" } },
+              { key: "B", events: {} },
+            ],
+          },
+        ],
+      };
+      const result = validate(config, { rules: ["M2"] });
+      expect(result.warnings).toHaveLength(0);
+    });
   });
 
   // ── M3: hierarchical event declaration ────────────────────────────────
@@ -220,6 +248,48 @@ describe("Semantic rules", () => {
       };
       const result = validate(config, { rules: ["M3"] });
       expect(result.issues.filter((i) => i.rule === "M3")).toHaveLength(0);
+    });
+
+    const composite = (events: Record<string, string>, parentHandles: boolean): FsmStateConfig => ({
+      key: "Root",
+      transitions: [
+        ["", "*", "Child"],
+        ...(parentHandles ? ([["Child", "done", "Next"]] as [string, string, string][]) : []),
+      ],
+      states: [
+        {
+          key: "Child",
+          events,
+          transitions: [
+            ["", "*", "Sub"],
+            ["Sub", "done", ""],
+          ],
+          states: [{ key: "Sub", events: { done: "When the sub-task is done" } }],
+        },
+        { key: "Next", events: {} },
+      ],
+    });
+
+    it("should warn when an exit event the parent handles is missing from the child's events", () => {
+      const result = validate(composite({ other: "Something else" }, true), { rules: ["M3"] });
+      expect(result.warnings).toHaveLength(1);
+      expect(result.warnings[0].rule).toBe("M3");
+      expect(result.warnings[0].path).toEqual(["Root", "Child"]);
+      expect(result.warnings[0].message).toContain('"done"');
+    });
+
+    it("should pass when the child lists the exit event in its events", () => {
+      const result = validate(composite({ done: "When the work is done" }, true), {
+        rules: ["M3"],
+      });
+      expect(result.issues).toHaveLength(0);
+    });
+
+    it("should not duplicate S6 when no ancestor handles the exit event", () => {
+      const result = validate(composite({ other: "Something else" }, false), {
+        rules: ["S6", "M3"],
+      });
+      expect(result.issues.map((i) => i.rule)).toEqual(["S6"]);
     });
   });
 
@@ -559,6 +629,7 @@ describe("Semantic rules", () => {
       const m7Issues = result.issues.filter((i) => i.rule === "M7");
       expect(m7Issues).toHaveLength(1);
       expect(m7Issues[0].message).toContain("8 sub-states");
+      expect(m7Issues[0].message).toContain("recommended: 2-7");
       expect(m7Issues[0].message).toContain("decomposing");
     });
 

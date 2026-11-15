@@ -38,7 +38,7 @@ Post-generation checklist for verifying HFSM definitions. Each item references a
 
 ## Complexity Checks
 
-- [ ] 3-7 sub-states per hierarchical level [M7]
+- [ ] 2-7 sub-states per hierarchical level [M7]
 - [ ] Long sequential processes decomposed into composite phases [M7]
 
 ## Semantic Review (requires human judgment)

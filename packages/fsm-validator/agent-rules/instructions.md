@@ -139,7 +139,7 @@ Severity levels: **error** — must fix; **warning** — should fix; **info** �
   Every non-final sub-state must have at least one outgoing transition. A state is "final" if the parent's `transitions[]` contains an exit transition `[Key, event, ""]` for it.
 
 * **S6** — Exit event propagation [error]
-  If a composite state's `transitions[]` contains an exit `[X, event, ""]`, the composite state's own parent MUST have a transition `[CompositeKey, event, Y]` consuming that event. This rule does not apply when the composite state is the root process.
+  If a composite state's `transitions[]` contains an exit `[X, event, ""]`, the composite state's own parent MUST have a transition `[CompositeKey, event, Y]` consuming that event. This rule does not apply when the composite state is the root process. For a shared definition, the parent is every scope that instantiates it.
 
 * **S7** — Determinism with wildcards [warning]
   Wildcard transitions must not create ambiguity. Specific transitions take priority over wildcards, but two wildcards covering the same (state, event) pair are invalid.
@@ -155,7 +155,7 @@ Severity levels: **error** — must fix; **warning** — should fix; **info** �
 * **M1** — Forward event coverage [warning]
   Every event in a state's `events` MUST have a corresponding transition `[S, e, _]` in the parent's `transitions[]`, or be covered by a wildcard `[S, "*", _]` or `["*", e, _]` at the parent or ancestor level.
 
-  Satisfied **per referencing scope**. A shared definition's `events` is the union across all its callers and no single scope handles all of them, so: each event must be handled by at least one scope that references the state, and every referencing scope must handle at least one — a scope that enters a state and handles nothing it emits can never leave it.
+  Satisfied **per referencing scope**. A shared definition's `events` is the union across all its callers and no single scope handles all of them, so: each event must be handled by at least one scope that references the state, and every referencing scope must handle at least one — a scope that enters a state and handles nothing it emits never routes on it: every event goes unmatched and makes that scope exit too.
 
 * **M2** — Reverse event coverage [warning]
   Every non-wildcard event in transition `[S, e, T]` MUST appear in state S's or one of its ancestor's `events` keys (unless S is `""` or `"*"`). The ancestor fallback applies when an event is declared at a shared ancestor level for reuse across multiple descendants, and no M3 override applies.
@@ -173,7 +173,7 @@ Severity levels: **error** — must fix; **warning** — should fix; **info** �
   Branching states should have mutually exclusive and collectively exhaustive outgoing events (all possible outcomes represented).
 
 * **M7** — Manageable complexity [info]
-  Each hierarchical level should contain 3–7 sub-states. Longer linear sequences should be decomposed into composite phases.
+  Each hierarchical level should contain 2–7 sub-states. Longer linear sequences should be decomposed into composite phases.
 
 * **M8** — Event-state semantic consistency [review]
   All event descriptions (when and how they occur) MUST NOT contradict the goals and outcomes of the state declaring them. Reports each event description alongside state goals for review.
@@ -202,7 +202,7 @@ Use sequential indicators in the text ("first", "then", "after", "finally") to d
 
 Group related steps into logical phases. Each phase becomes a composite state with sub-states.
 
-- Aim for 3–7 sub-states per level [M7]
+- Aim for 2–7 sub-states per level [M7]
 - If a sequence has more than 7 steps at one level, decompose into composite phases
 - Each composite state needs its own transitions and states
 

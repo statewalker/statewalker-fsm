@@ -156,7 +156,9 @@ export function formatReportCompact(report: ValidationReport): string {
     lines.push("|------|------|-------|");
     for (const rg of actionable) {
       for (const entry of rg.entries) {
-        lines.push(`| ${rg.rule} (${rg.severity}) | ${entry.path} | ${entry.message} |`);
+        lines.push(
+          `| ${rg.rule} (${rg.severity}) | ${escapeCell(entry.path)} | ${escapeCell(entry.message)} |`,
+        );
       }
     }
     lines.push("");
@@ -173,7 +175,7 @@ export function formatReportCompact(report: ValidationReport): string {
         if (rg.severity !== "review") continue;
         for (const entry of rg.entries) {
           const short = compactReviewMessage(rg.rule, entry.message);
-          lines.push(`| ${rg.rule} | ${entry.path} | ${short} |`);
+          lines.push(`| ${rg.rule} | ${escapeCell(entry.path)} | ${escapeCell(short)} |`);
         }
       }
     }
@@ -183,6 +185,11 @@ export function formatReportCompact(report: ValidationReport): string {
   }
 
   return lines.join("\n");
+}
+
+/** Keys and descriptions are user text: a "|" or a newline would break the row. */
+function escapeCell(text: string): string {
+  return text.replace(/\|/g, "\\|").replace(/\r?\n/g, "<br>");
 }
 
 function compactReviewMessage(rule: RuleId, message: string): string {

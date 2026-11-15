@@ -65,14 +65,74 @@ describe("Structural rules", () => {
       expect(result.valid).toBe(true);
     });
 
-    it("should accept initial with specific event (not just '*')", () => {
+    it("should report an error when the only initial transitions have specific events", () => {
+      // The runtime takes ["", "start", "A"] only when Root is entered BY
+      // "start"; entered any other way, Root rests as a leaf.
       const config: FsmStateConfig = {
         key: "Root",
         transitions: [["", "start", "A"]],
         states: [{ key: "A" } as FsmStateConfig],
       };
       const result = validate(config, { rules: ["S1"] });
+      expect(result.valid).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].rule).toBe("S1");
+      expect(result.errors[0].message).toContain("start");
+    });
+
+    it("should report the repro of #27: a nested initial with a specific event", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [
+          ["", "*", "P"],
+          ["P", "go", "Q"],
+          ["Q", "done", ""],
+        ],
+        states: [
+          { key: "P", events: { go: "When ready" } },
+          {
+            key: "Q",
+            events: { done: "When done" },
+            transitions: [
+              ["", "start", "Q1"],
+              ["Q1", "done", ""],
+            ],
+            states: [{ key: "Q1", events: { done: "When done" } }],
+          },
+        ],
+      };
+      const result = validate(config);
+      expect(result.valid).toBe(false);
+      expect(result.errors.map((e) => [e.rule, e.path])).toEqual([["S1", ["Root", "Q"]]]);
+    });
+
+    it("should accept a specific-event initial beside the '*' one", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [
+          ["", "*", "A"],
+          ["", "resume", "B"],
+        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "B" } as FsmStateConfig],
+      };
+      const result = validate(config, { rules: ["S1"] });
       expect(result.valid).toBe(true);
+    });
+
+    it("should report a second '*' initial transition", () => {
+      const config: FsmStateConfig = {
+        key: "Root",
+        transitions: [
+          ["", "*", "A"],
+          ["", "*", "B"],
+        ],
+        states: [{ key: "A" } as FsmStateConfig, { key: "B" } as FsmStateConfig],
+      };
+      const result = validate(config, { rules: ["S1"] });
+      expect(result.valid).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].rule).toBe("S1");
+      expect(result.errors[0].message).toContain("exactly one");
     });
   });
 
@@ -409,6 +469,18 @@ describe("Structural rules", () => {
       };
       const result = validate(config, { rules: ["S5"] });
       expect(result.warnings).toHaveLength(0);
+    });
+  });
+
+  describe("S4: a child without a string key", () => {
+    it("should leave a missing key to L1 instead of reporting it unreachable", () => {
+      const config = {
+        key: "Root",
+        transitions: [["", "*", "A"]],
+        states: [{ key: "A", events: {} }, { events: {} }],
+      } as unknown as FsmStateConfig;
+      const result = validate(config, { rules: ["L1", "S4"] });
+      expect(result.errors.map((e) => e.rule)).toEqual(["L1"]);
     });
   });
 

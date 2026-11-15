@@ -102,7 +102,7 @@ Use sequential indicators in the text ("first", "then", "after", "finally") to d
 
 Step 2: Build hierarchy
 Group related steps into logical phases. Each phase becomes a composite state with sub-states.
-- Aim for 3-7 sub-states per level
+- Aim for 2-7 sub-states per level
 - If a sequence has more than 7 steps at one level, decompose into composite phases
 - Each composite state needs its own transitions and states
 
