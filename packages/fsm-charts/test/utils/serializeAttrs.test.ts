@@ -8,3 +8,13 @@ describe("serializeAttrs (adversarial-review #10)", () => {
     expect(out).not.toContain("&qout;");
   });
 });
+
+describe("serializeAttrs escaping (#29)", () => {
+  it("escapes `&` so a value cannot smuggle an entity", () => {
+    expect(serializeAttrs({ title: "a&b" })).toBe('title="a&amp;b"');
+    expect(serializeAttrs({ title: "&quot;" })).toBe('title="&amp;quot;"');
+  });
+  it("escapes `<`, `>`, quotes in values", () => {
+    expect(serializeAttrs({ title: `<"'>` })).toBe('title="&lt;&quot;&#39;&gt;"');
+  });
+});

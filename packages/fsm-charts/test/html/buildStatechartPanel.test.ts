@@ -1,8 +1,8 @@
-import fs from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { process } from "../data/process.checkout.js";
-import { describe, expect, it } from "../deps.js";
+import { describe, it } from "../deps.js";
+import { expectControlFile } from "./expectControlFile.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -16,13 +16,6 @@ describe("buildStatechartsPanel", () => {
       __dirname,
       "./buildStatechartPanel.control.html",
     );
-
-    let control = "";
-    try {
-      control = await fs.readFile(controlFileName, "utf-8");
-    } catch (_error) {
-      control = "";
-    }
 
     const { html } = toStatechartsPanels(process);
     const prefix = ".main";
@@ -41,11 +34,6 @@ ${html}
 </div>
 </body>
 </html>`;
-    try {
-      expect(result).toEqual(control);
-    } catch (error) {
-      await fs.writeFile(controlFileName, result, "utf-8");
-      throw error;
-    }
+    await expectControlFile(controlFileName, result);
   });
 });
