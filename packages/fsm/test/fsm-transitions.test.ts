@@ -9,8 +9,8 @@ import { describe, expect, it } from "./deps.ts";
 // Root > Parent > Child. Both Root and Parent define a rule for "go":
 // - Parent (inner): ["Child", "go", ""]  → exit-to-final (a FALSY target)
 // - Root  (outer): ["Parent", "go", "Other"]
-// The inner rule must mask the outer one — even though its target is "" — so the
-// query agrees with what `dispatch` actually resolves.
+// An exit-to-final rule does not mask the outer one: Child exits, the event bubbles,
+// and Root's rule moves Parent to Other. The query must agree with `dispatch`.
 const config: FsmStateConfig = {
   key: "Root",
   transitions: [
@@ -39,11 +39,67 @@ async function atChild() {
 }
 
 describe("getStateTransitions", () => {
-  it("inner exit-to-final rule masks the outer rule for the same event", async () => {
+  it("an inner exit-to-final rule does not mask the outer rule: the event bubbles (#35)", async () => {
     const process = await atChild();
     const go = getStateTransitions(process.state).filter(([, e]) => e === "go");
-    // exactly one "go" — the inner exit — not the outer Parent→Other as well
-    expect(go).toEqual([["Child", "go", ""]]);
+    expect(go).toEqual([
+      ["Parent", "go", "Other"],
+      ["Child", "go", ""],
+    ]);
+    await process.dispatch("go");
+    expect(process.state?.key).toBe("Other");
+  });
+
+  it("an inner wildcard-event rule hides every outer rule (#35)", async () => {
+    const process = new FsmProcess({
+      key: "Player",
+      transitions: [
+        ["", "*", "Active"],
+        ["*", "stop", "Idle"],
+      ],
+      states: [
+        {
+          key: "Active",
+          transitions: [
+            ["", "*", "Playing"],
+            ["Playing", "*", "Paused"],
+          ],
+        },
+        { key: "Idle" },
+      ],
+    });
+    await process.dispatch("");
+    expect(process.state?.key).toBe("Playing");
+    expect(getStateTransitions(process.state)).toEqual([["Playing", "*", "Paused"]]);
+    await process.dispatch("stop");
+    expect(process.state?.key).toBe("Paused");
+  });
+
+  it("an inner wildcard-event exit-to-final rule hides nothing (#35)", async () => {
+    const process = new FsmProcess({
+      key: "Player",
+      transitions: [
+        ["", "*", "Active"],
+        ["*", "stop", "Idle"],
+      ],
+      states: [
+        {
+          key: "Active",
+          transitions: [
+            ["", "*", "Playing"],
+            ["Playing", "*", ""],
+          ],
+        },
+        { key: "Idle" },
+      ],
+    });
+    await process.dispatch("");
+    expect(getStateTransitions(process.state)).toEqual([
+      ["Active", "stop", "Idle"],
+      ["Playing", "*", ""],
+    ]);
+    await process.dispatch("stop");
+    expect(process.state?.key).toBe("Idle");
   });
 
   it("surfaces an event only an outer state handles (bubbles up the chain)", async () => {
