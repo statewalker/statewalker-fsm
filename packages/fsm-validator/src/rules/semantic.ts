@@ -100,7 +100,9 @@ export function reverseEventCoverage(ctx: RuleContext): ValidationIssue[] {
   const contexts = resolutionContexts(ctx);
   const declaredAbove = (event: string) =>
     contexts.every((c) =>
-      [config, ...c.ancestors].some((a) => !!a.events && Object.hasOwn(a.events, event)),
+      [config, ...c.ancestors].some(
+        (a) => !!a.events && Object.prototype.hasOwnProperty.call(a.events, event),
+      ),
     );
 
   for (const [from, event] of transitions) {
@@ -133,7 +135,7 @@ export function hierarchicalEventDeclaration(ctx: RuleContext): ValidationIssue[
 
   const exitEvents = new Set<string>();
   for (const [, event, to] of config.transitions) {
-    if (to === "" && event !== "*" && !Object.hasOwn(config.events, event)) {
+    if (to === "" && event !== "*" && !Object.prototype.hasOwnProperty.call(config.events, event)) {
       exitEvents.add(event);
     }
   }
