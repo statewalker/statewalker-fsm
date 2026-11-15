@@ -1045,7 +1045,7 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       expect(m9).toBeDefined();
       expect(m9?.severity).toBe("review");
       // Should mention the nested states by name
-      const messages = m9?.entries.map((e) => e.message);
+      const messages = m9?.entries.map((e) => e.message) ?? [];
       expect(messages.some((m) => m.includes("Handle"))).toBe(true);
       expect(messages.some((m) => m.includes("Diagnose"))).toBe(true);
       expect(messages.some((m) => m.includes("Escalate"))).toBe(true);
@@ -1059,7 +1059,7 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       const m8 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "M8");
       expect(m8).toBeDefined();
       // M8 reports each event alongside state descriptions
-      const messages = m8?.entries.map((e) => e.message);
+      const messages = m8?.entries.map((e) => e.message) ?? [];
       // Events from Handle, Diagnose, Escalate, Closed
       expect(messages.some((m) => m.includes("resolved"))).toBe(true);
       expect(messages.some((m) => m.includes("done"))).toBe(true);
@@ -1110,7 +1110,7 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
       // M8 entries should include the event description text
       const m8 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "M8");
       expect(m8).toBeDefined();
-      const messages = m8?.entries.map((e) => e.message);
+      const messages = m8?.entries.map((e) => e.message) ?? [];
       // Event descriptions from the config
       expect(messages.some((m) => m.includes("When the issue has been fully resolved"))).toBe(true);
       expect(messages.some((m) => m.includes("When closing procedures are complete"))).toBe(true);
@@ -1122,7 +1122,7 @@ describe("end-to-end: validate → buildReport → formatReport", () => {
 
       const m9 = report.categories.flatMap((c) => c.rules).find((r) => r.rule === "M9");
       expect(m9).toBeDefined();
-      const messages = m9?.entries.map((e) => e.message);
+      const messages = m9?.entries.map((e) => e.message) ?? [];
       // M9 should reference parent descriptions/outcomes
       expect(messages.some((m) => m.includes("Support ticket lifecycle"))).toBe(true);
       // Handle state description

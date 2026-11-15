@@ -64,8 +64,6 @@ One package only: `pnpm --filter @statewalker/fsm test`.
   ```
 
   Use `pnpm build`.
-- **`pnpm typecheck` does nothing locally.** It runs `pnpm -r run typecheck`, and no
-  package defines a `typecheck` script.
 - **Subpath imports fail.** `fsm-charts` and `fsm-validator` export only the package
   root. See the package READMEs for the exact errors.
 
@@ -84,7 +82,7 @@ publishes them. Record a change with `pnpm changeset`, which writes a Markdown f
 | --- | --- |
 | `pnpm build` | `pnpm -r run build` |
 | `pnpm test` | `pnpm -r run test` (vitest) |
-| `pnpm typecheck` | `pnpm -r run typecheck` (no package defines it yet) |
+| `pnpm typecheck` | `pnpm -r run typecheck` (`tsc --noEmit` in each package, sources and tests; run after `pnpm build`) |
 | `pnpm lint` | `biome check --write .` |
 | `pnpm lint:check` | `biome check .` |
 | `pnpm format` | `biome format --write .` |
@@ -92,9 +90,11 @@ publishes them. Record a change with `pnpm changeset`, which writes a Markdown f
 
 ### CI
 
-`.github/workflows/ci.yml` calls a shared reusable workflow that runs: frozen install,
-dependency-reference checks, lint, format, build, typecheck, test, and export,
-dist-import and pack checks.
+`.github/workflows/ci.yml` calls a shared reusable workflow that runs: a gitleaks secret
+scan, frozen install, the release-path and dependency-reference checks, the required
+`library` baseline (every required root script exists, every test file is typechecked),
+lint, format, build, typecheck, test, export, dist-import and pack checks, publint and
+attw on the packed packages, and the API diff against npm.
 
 ### Files
 
