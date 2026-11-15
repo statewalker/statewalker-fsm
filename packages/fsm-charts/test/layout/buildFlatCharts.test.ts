@@ -71,7 +71,12 @@ describe("buildFlatCharts", () => {
       getTransitionParams,
     });
     try {
-      expect(result).toEqual(expected);
+      // The pseudo-state keys travel with the built graph (#22).
+      expect(result).toEqual({
+        ...expected,
+        initialStateKey: "<initial>",
+        finalStateKey: "<final>",
+      });
     } catch (err) {
       console.log(JSON.stringify(result, null, 2));
       throw err;

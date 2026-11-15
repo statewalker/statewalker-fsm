@@ -3,6 +3,7 @@ import type { GraphParamsProvider } from "../types/GraphParamsProvider.js";
 import type { Padding } from "../types/Padding.js";
 import type { StateChart } from "../types/StateChart.js";
 
+import { DEFAULT_FINAL_STATE_KEY, DEFAULT_INITIAL_STATE_KEY } from "../utils/pseudoStateKeys.js";
 import { buildFlatCharts } from "./buildFlatCharts.js";
 /**
  * Build graphs corresponding to the specified transitions.
@@ -10,8 +11,9 @@ import { buildFlatCharts } from "./buildFlatCharts.js";
  * @param newId - A function that generates unique ids for nodes and edges.
  * @param getStateParams - A function that returns the dimensions of a state node.
  * @param getTransitionParams - A function that returns the dimensions of a transition edge.
- * @param initialStateKey - The key for the initial state.
- * @param finalStateKey - The key for the final state.
+ * @param initialStateKey - The key for the initial state. Recorded on every
+ *   chart level, where `StateChartIndex` and the renderers read it.
+ * @param finalStateKey - The key for the final state, recorded the same way.
  * @returns {StateChart} - The graph with nodes and edges.
  */
 export function buildCharts({
@@ -23,8 +25,8 @@ export function buildCharts({
   getTransitionParams,
   padding = [5, 5],
   vertical = false,
-  initialStateKey = "<initial>",
-  finalStateKey = "<final>",
+  initialStateKey = DEFAULT_INITIAL_STATE_KEY,
+  finalStateKey = DEFAULT_FINAL_STATE_KEY,
   direction,
 }: {
   config: FsmStateConfig;

@@ -59,7 +59,8 @@ elements and need a browser or a DOM implementation such as jsdom.
 - `buildCharts({ lodash, config, newId, ...graphParams })` - lay out the whole state
   tree. Returns a `StateChart` (nested charts with nodes, edges, sizes). Options:
   `direction`, `vertical`, `padding`, `getStateLabel`, `initialStateKey`
-  (default `"<initial>"`), `finalStateKey` (default `"<final>"`).
+  (default `"<initial>"`), `finalStateKey` (default `"<final>"`); both are recorded on the
+  returned chart.
 - `buildFlatCharts(...)` - lay out one flat transition graph (a `TransitionsGraph`).
 - `getGraphParamsProvider({ fontSize, stateFontSize, stateTextPadding, transitionsFontSize, transitionsTextPadding, ... })`
   - default `getStateParams` / `getTransitionParams` functions that size nodes and
@@ -92,7 +93,7 @@ elements and need a browser or a DOM implementation such as jsdom.
 **Runtime**
 
 - `StateChartIndex({ statechart })` - lookups over a built chart: `getStatesIds(...keys)`,
-  `getStackByStateId(id)`, `getTransitions(stateId)`, `getEdgeById(id)`,
+  `getStackByStateId(id)`, `getTransitions(stateId)`, `getTransitionEdges(stack, transitions)`, `getEdgeById(id)`,
   `getStateNodes()` and more.
 - `RuntimeStatechartApi({ element, statechart })` - acts on the rendered chart:
   `selectState` / `deselectState(s)`, `selectTransition` / `deselectTransition(s)`
@@ -187,9 +188,15 @@ console.log(splitTransitionString("Idle -play-> Active -stop-> Idle"));
   separate flat graph with `buildFlatCharts`, which uses the vendored dagre and graphlib
   sources in `src/dagre` and `src/graphlib`. Pseudo-states are drawn as `"<initial>"` and
   `"<final>"` nodes (a `"*"` source becomes a node keyed `"*"`); both keys can be changed
-  with `initialStateKey` / `finalStateKey`, and the same values must then be passed to
-  `buildStatechartsPanel` / `buildStatechartSvg` and `StateChartIndex`, which default to
-  the same two keys.
+  with `initialStateKey` / `finalStateKey` when the chart is built. The keys are recorded on
+  the built chart (every level carries `initialStateKey` and `finalStateKey`), and
+  `buildStatechartsPanel` / `buildStatechartSvg` and `StateChartIndex` read them from
+  there, so they are not passed again (their own options of the same names are deprecated
+  overrides).
+- **The engine decides which transitions are enabled.** `StateChartIndex.getTransitionEdges(stack, transitions)`
+  maps the `[from, event, to]` tuples that `getStateTransitions` of `@statewalker/fsm`
+  reports for an active stack to the drawn edges (`"*"` sources and exits into the final
+  node included); it never re-derives transition rules from the graph.
 - **Rendering is string output.** `buildStatechartsPanel` and `buildStatechartSvg` write
   lines through a `println` callback instead of creating DOM nodes, so the same code
   renders in a browser, in Node.js, or into a file.

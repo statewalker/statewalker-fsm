@@ -2,6 +2,7 @@ import type { Dimensions, Padding, Position, TransitionsGraph } from "../types/i
 import { BasisCurve } from "../utils/BasisCurve.js";
 import { escapeHtml } from "../utils/escapeHtml.js";
 import { getPadding } from "../utils/getPadding.js";
+import { getPseudoStateKeys } from "../utils/pseudoStateKeys.js";
 import { serializeAttrs } from "../utils/serializeAttrs.js";
 
 function getBoxParams({
@@ -22,22 +23,26 @@ function getBoxParams({
 }
 
 export function buildStatechartSvg({
-  graph: { width, height, nodes, edges },
+  graph,
   newId,
   stateFontSize = 14,
   transitionFontSize = 12,
   println,
-  initialStateKey = "<initial>",
-  finalStateKey = "<final>",
+  ...override
 }: {
   graph: TransitionsGraph;
   newId: (prefix: string) => string;
   println: (str: string) => void;
   stateFontSize?: number;
   transitionFontSize?: number;
+  /** @deprecated The key recorded on `graph` when it was built is used. */
   initialStateKey?: string;
+  /** @deprecated The key recorded on `graph` when it was built is used. */
   finalStateKey?: string;
 }) {
+  let { width, height } = graph;
+  const { nodes, edges } = graph;
+  const { initialStateKey, finalStateKey } = getPseudoStateKeys(graph, override);
   if (!nodes.length && !edges.length) return;
   width = Math.ceil(width);
   height = Math.ceil(height);
