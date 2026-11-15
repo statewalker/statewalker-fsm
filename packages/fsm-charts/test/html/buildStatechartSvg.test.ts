@@ -6,11 +6,11 @@ import {
   getGraphParamsProvider,
 } from "../../src/layout/index.js";
 import { process } from "../data/process.checkout.js";
-import { describe, expect, it } from "../deps.js";
+import { describe, it } from "../deps.js";
+import { expectControlFile } from "./expectControlFile.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-import fs from "node:fs/promises";
 import {
   buildStatechartCss,
   buildStatechartSvg,
@@ -22,13 +22,6 @@ describe("buildStatechartSvg", () => {
       __dirname,
       "./buildStatechartSvg.control.html",
     );
-
-    let control = "";
-    try {
-      control = await fs.readFile(controlFileName, "utf-8");
-    } catch (_error) {
-      control = "";
-    }
     const transitions = process.transitions;
     let idCounter = 0;
     const newId = (prefix: string) => `${prefix}_${idCounter++}`;
@@ -89,11 +82,6 @@ ${svg}
 </div>
 </body>
 </html>`;
-    try {
-      expect(html).toEqual(control);
-    } catch (error) {
-      await fs.writeFile(controlFileName, html, "utf-8");
-      throw error;
-    }
+    await expectControlFile(controlFileName, html);
   });
 });

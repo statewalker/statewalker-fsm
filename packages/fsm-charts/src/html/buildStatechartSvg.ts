@@ -1,5 +1,6 @@
 import type { Dimensions, Padding, Position, TransitionsGraph } from "../types/index.js";
 import { BasisCurve } from "../utils/BasisCurve.js";
+import { escapeHtml } from "../utils/escapeHtml.js";
 import { getPadding } from "../utils/getPadding.js";
 import { serializeAttrs } from "../utils/serializeAttrs.js";
 
@@ -45,7 +46,7 @@ export function buildStatechartSvg({
       class: "statechart",
       width,
       height,
-      viewbox: `0 0 ${width} ${height}`,
+      viewBox: `0 0 ${width} ${height}`,
       xmlns: "http://www.w3.org/2000/svg",
     })}>`,
   );
@@ -76,11 +77,11 @@ export function buildStatechartSvg({
 
   for (const edge of edges) {
     const { id, points, text } = edge;
-    println(`  <g class="transition" data-transition-id="${id}">`);
+    println(`  <g class="transition" data-transition-id="${escapeHtml(id)}">`);
     const markerId = newId("marker");
 
     println(`    <defs>`);
-    println(`      <marker id="${markerId}" ${markerAttrs}>`);
+    println(`      <marker id="${escapeHtml(markerId)}" ${markerAttrs}>`);
     println(`        <path d="M 19,7 L9,13 L14,7 L9,1 Z"></path>`);
     println(`      </marker>`);
     println(`    </defs>`);
@@ -111,7 +112,7 @@ export function buildStatechartSvg({
       class: "transition__line",
       fill: "none",
       stroke: "currentColor",
-      strokeWidth: "1px",
+      "stroke-width": "1px",
       d: path.join(""),
       "marker-end": `url(#${markerId})`,
     });
@@ -132,7 +133,7 @@ export function buildStatechartSvg({
         ry: Math.ceil(transitionFontSize / 2),
         fill: "rgba(255,255,255,0.7)",
         stroke: "none",
-        strokeWidth: "1",
+        "stroke-width": "1",
         class: "transition__box",
       });
       println(`    <rect ${rectAttrs} />`);
@@ -144,7 +145,7 @@ export function buildStatechartSvg({
         x: Math.round(x + width / 2),
         y: Math.round(y + height / 2 - transitionFontSize / 2),
       });
-      println(`    <text ${textAttrs}>${text}</text>`);
+      println(`    <text ${textAttrs}>${escapeHtml(text)}</text>`);
     }
     println(`  </g>`);
   }
@@ -173,7 +174,7 @@ export function buildStatechartSvg({
     const { key, id, text } = node;
     const { x, y, width, height } = getBoxParams({ ...node, padding: shift });
 
-    println(`  <g class="state" data-state-id="${id}">`);
+    println(`  <g class="state" data-state-id="${escapeHtml(id)}">`);
     if (key === initialStateKey || key === finalStateKey) {
       const cx = Math.round(x + width / 2);
       const cy = Math.round(y + height / 2);
@@ -185,7 +186,7 @@ export function buildStatechartSvg({
           r: initialStateRadius,
           fill: "none",
           stroke: "currentColor",
-          strokeWidth: "2",
+          "stroke-width": "2",
         });
         println(`    <circle ${serializedAttrs} />`);
       } else {
@@ -196,7 +197,7 @@ export function buildStatechartSvg({
           r: initialStateRadius,
           fill: "none",
           stroke: "currentColor",
-          strokeWidth: 2,
+          "stroke-width": 2,
         });
         println(`    <circle ${serializedAttrs} />`);
 
@@ -207,7 +208,7 @@ export function buildStatechartSvg({
           r: finalStateRadius,
           fill: "currentColor",
           stroke: "none",
-          strokeWidth: 0,
+          "stroke-width": 0,
         });
         println(`    <circle ${serializedAttrs} />`);
       }
@@ -221,7 +222,7 @@ export function buildStatechartSvg({
         ry: Math.ceil(stateFontSize / 2),
         fill: "none",
         stroke: "currentColor",
-        strokeWidth: "2",
+        "stroke-width": "2",
         class: "state__box",
       });
       println(`    <rect ${rectAttrs} />`);
@@ -233,7 +234,7 @@ export function buildStatechartSvg({
         x: Math.round(x + width / 2),
         y: Math.round(y + height / 2 + stateFontSize / 4),
       });
-      println(`    <text ${textAttrs}>${text}</text>`);
+      println(`    <text ${textAttrs}>${escapeHtml(text)}</text>`);
     }
     println("  </g>");
   }

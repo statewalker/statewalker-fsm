@@ -153,6 +153,11 @@ export class RuntimeStatechartApi {
     ) => {
       function newEventListener(index: Record<string, RuntimeListener>, elm: Element) {
         return (ev: Event) => {
+          // Clicks inside a state description (links, checkboxes...) belong to its content.
+          const description = (ev.target as Element | null)?.closest?.(
+            ".state-details__description",
+          );
+          if (description && elm.contains(description)) return;
           ev.preventDefault();
           ev.stopPropagation();
           let id: string | null | undefined = elm.getAttribute(dataField);
