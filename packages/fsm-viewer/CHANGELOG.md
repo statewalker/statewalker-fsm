@@ -1,5 +1,16 @@
 # @statewalker/fsm-viewer
 
+## 0.6.1
+
+### Patch Changes
+
+- 6954d50: The pseudo-state keys travel with the built chart, and the engine decides which transitions are highlighted (#22). `buildFlatCharts` / `buildCharts` record `initialStateKey` and `finalStateKey` on the chart; `StateChartIndex`, `buildStatechartsPanel` and `buildStatechartSvg` read them from there, so a custom key no longer has to be passed to each of them (their options remain as deprecated overrides). The new `StateChartIndex.getTransitionEdges(stack, transitions)` maps the engine's `[from, event, to]` tuples to drawn edges, and the viewer uses it instead of its own mapping.
+- Updated dependencies [6954d50]
+- Updated dependencies [a15dd3f]
+- Updated dependencies [568b851]
+  - @statewalker/fsm-charts@0.2.9
+  - @statewalker/fsm@0.39.2
+
 ## 0.6.0
 
 ### Minor Changes
